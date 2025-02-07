@@ -51848,7 +51848,7 @@ function Conversation({
   );
   useEffect(() => {
     resizable && setSize(defaultSize.width, defaultSize.height);
-  }, [defaultSize, resizable]);
+  }, [defaultSize, resizable, setSize]);
   const initResize = (e) => {
     if (resizable) {
       const resizerType = e.currentTarget.getAttribute("data-resizer");
