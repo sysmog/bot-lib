@@ -67,4558 +67,6 @@ function requireJsxRuntime() {
   return jsxRuntime.exports;
 }
 var jsxRuntimeExports = requireJsxRuntime();
-function getWebSocketImplementation() {
-  if (typeof globalThis.WebSocket === "undefined") {
-    try {
-      return require("ws");
-    } catch (e) {
-      throw new Error('You must install the "ws" package to use Strophe in nodejs.');
-    }
-  }
-  return globalThis.WebSocket;
-}
-const WebSocket = getWebSocketImplementation();
-function getXMLSerializerImplementation() {
-  if (typeof globalThis.XMLSerializer === "undefined") {
-    let JSDOM;
-    try {
-      JSDOM = require("jsdom").JSDOM;
-    } catch (e) {
-      throw new Error('You must install the "ws" package to use Strophe in nodejs.');
-    }
-    const dom = new JSDOM("");
-    return dom.window.XMLSerializer;
-  }
-  return globalThis.XMLSerializer;
-}
-const XMLSerializer = getXMLSerializerImplementation();
-function getDOMParserImplementation() {
-  const DOMParserImplementation = globalThis.DOMParser;
-  if (typeof DOMParserImplementation === "undefined") {
-    let JSDOM;
-    try {
-      JSDOM = require("jsdom").JSDOM;
-    } catch (e) {
-      throw new Error('You must install the "jsdom" package to use Strophe in nodejs.');
-    }
-    const dom = new JSDOM("");
-    return dom.window.DOMParser;
-  }
-  return DOMParserImplementation;
-}
-const DOMParser = getDOMParserImplementation();
-function getDummyXMLDOMDocument() {
-  if (typeof document === "undefined") {
-    let JSDOM;
-    try {
-      JSDOM = require("jsdom").JSDOM;
-    } catch (e) {
-      throw new Error('You must install the "jsdom" package to use Strophe in nodejs.');
-    }
-    const dom = new JSDOM("");
-    return dom.window.document.implementation.createDocument("jabber:client", "strophe", null);
-  }
-  return document.implementation.createDocument("jabber:client", "strophe", null);
-}
-const shims = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  DOMParser,
-  WebSocket,
-  XMLSerializer,
-  getDummyXMLDOMDocument
-}, Symbol.toStringTag, { value: "Module" }));
-const NS = {
-  HTTPBIND: "http://jabber.org/protocol/httpbind",
-  BOSH: "urn:xmpp:xbosh",
-  CLIENT: "jabber:client",
-  SERVER: "jabber:server",
-  AUTH: "jabber:iq:auth",
-  ROSTER: "jabber:iq:roster",
-  PROFILE: "jabber:iq:profile",
-  DISCO_INFO: "http://jabber.org/protocol/disco#info",
-  DISCO_ITEMS: "http://jabber.org/protocol/disco#items",
-  MUC: "http://jabber.org/protocol/muc",
-  SASL: "urn:ietf:params:xml:ns:xmpp-sasl",
-  STREAM: "http://etherx.jabber.org/streams",
-  FRAMING: "urn:ietf:params:xml:ns:xmpp-framing",
-  BIND: "urn:ietf:params:xml:ns:xmpp-bind",
-  SESSION: "urn:ietf:params:xml:ns:xmpp-session",
-  VERSION: "jabber:iq:version",
-  STANZAS: "urn:ietf:params:xml:ns:xmpp-stanzas",
-  XHTML_IM: "http://jabber.org/protocol/xhtml-im",
-  XHTML: "http://www.w3.org/1999/xhtml"
-};
-const PARSE_ERROR_NS = "http://www.w3.org/1999/xhtml";
-const XHTML = {
-  tags: ["a", "blockquote", "br", "cite", "em", "img", "li", "ol", "p", "span", "strong", "ul", "body"],
-  attributes: {
-    "a": ["href"],
-    "blockquote": ["style"],
-    /** @type {never[]} */
-    "br": [],
-    "cite": ["style"],
-    /** @type {never[]} */
-    "em": [],
-    "img": ["src", "alt", "style", "height", "width"],
-    "li": ["style"],
-    "ol": ["style"],
-    "p": ["style"],
-    "span": ["style"],
-    /** @type {never[]} */
-    "strong": [],
-    "ul": ["style"],
-    /** @type {never[]} */
-    "body": []
-  },
-  css: [
-    "background-color",
-    "color",
-    "font-family",
-    "font-size",
-    "font-style",
-    "font-weight",
-    "margin-left",
-    "margin-right",
-    "text-align",
-    "text-decoration"
-  ]
-};
-const Status$1 = {
-  ERROR: 0,
-  CONNECTING: 1,
-  CONNFAIL: 2,
-  AUTHENTICATING: 3,
-  AUTHFAIL: 4,
-  CONNECTED: 5,
-  DISCONNECTED: 6,
-  DISCONNECTING: 7,
-  ATTACHED: 8,
-  REDIRECT: 9,
-  CONNTIMEOUT: 10,
-  BINDREQUIRED: 11,
-  ATTACHFAIL: 12,
-  RECONNECTING: 13
-};
-const ErrorCondition = {
-  BAD_FORMAT: "bad-format",
-  CONFLICT: "conflict",
-  MISSING_JID_NODE: "x-strophe-bad-non-anon-jid",
-  NO_AUTH_MECH: "no-auth-mech",
-  UNKNOWN_REASON: "unknown"
-};
-const LOG_LEVELS = {
-  DEBUG: 0,
-  INFO: 1,
-  WARN: 2,
-  ERROR: 3,
-  FATAL: 4
-};
-const ElementType = {
-  NORMAL: 1,
-  TEXT: 3,
-  CDATA: 4,
-  FRAGMENT: 11
-};
-let logLevel = LOG_LEVELS.DEBUG;
-const log = {
-  /**
-   * Library consumers can use this function to set the log level of Strophe.
-   * The default log level is Strophe.LogLevel.INFO.
-   * @param {LogLevel} level
-   * @example Strophe.setLogLevel(Strophe.LogLevel.DEBUG);
-   */
-  setLogLevel(level) {
-    if (level < LOG_LEVELS.DEBUG || level > LOG_LEVELS.FATAL) {
-      throw new Error("Invalid log level supplied to setLogLevel");
-    }
-    logLevel = level;
-  },
-  /**
-   *
-   * Please note that data sent and received over the wire is logged
-   * via {@link Strophe.Connection#rawInput|Strophe.Connection.rawInput()}
-   * and {@link Strophe.Connection#rawOutput|Strophe.Connection.rawOutput()}.
-   *
-   * The different levels and their meanings are
-   *
-   *   DEBUG - Messages useful for debugging purposes.
-   *   INFO - Informational messages.  This is mostly information like
-   *     'disconnect was called' or 'SASL auth succeeded'.
-   *   WARN - Warnings about potential problems.  This is mostly used
-   *     to report transient connection errors like request timeouts.
-   *   ERROR - Some error occurred.
-   *   FATAL - A non-recoverable fatal error occurred.
-   *
-   * @param {number} level - The log level of the log message.
-   *     This will be one of the values in Strophe.LOG_LEVELS.
-   * @param {string} msg - The log message.
-   */
-  log(level, msg) {
-    if (level < logLevel) {
-      return;
-    }
-    if (level >= LOG_LEVELS.ERROR) {
-      console == null ? void 0 : console.error(msg);
-    } else if (level === LOG_LEVELS.INFO) {
-      console == null ? void 0 : console.info(msg);
-    } else if (level === LOG_LEVELS.WARN) {
-      console == null ? void 0 : console.warn(msg);
-    } else if (level === LOG_LEVELS.DEBUG) {
-      console == null ? void 0 : console.debug(msg);
-    }
-  },
-  /**
-   * Log a message at the Strophe.LOG_LEVELS.DEBUG level.
-   * @param {string} msg - The log message.
-   */
-  debug(msg) {
-    this.log(LOG_LEVELS.DEBUG, msg);
-  },
-  /**
-   * Log a message at the Strophe.LOG_LEVELS.INFO level.
-   * @param {string} msg - The log message.
-   */
-  info(msg) {
-    this.log(LOG_LEVELS.INFO, msg);
-  },
-  /**
-   * Log a message at the Strophe.LOG_LEVELS.WARN level.
-   * @param {string} msg - The log message.
-   */
-  warn(msg) {
-    this.log(LOG_LEVELS.WARN, msg);
-  },
-  /**
-   * Log a message at the Strophe.LOG_LEVELS.ERROR level.
-   * @param {string} msg - The log message.
-   */
-  error(msg) {
-    this.log(LOG_LEVELS.ERROR, msg);
-  },
-  /**
-   * Log a message at the Strophe.LOG_LEVELS.FATAL level.
-   * @param {string} msg - The log message.
-   */
-  fatal(msg) {
-    this.log(LOG_LEVELS.FATAL, msg);
-  }
-};
-function toElement(string, throwErrorIfInvalidNS) {
-  const doc = xmlHtmlNode(string);
-  const parserError = getParserError(doc);
-  if (parserError) {
-    throw new Error(`Parser Error: ${parserError}`);
-  }
-  const node2 = getFirstElementChild(doc);
-  if (["message", "iq", "presence"].includes(node2.nodeName.toLowerCase()) && node2.namespaceURI !== "jabber:client" && node2.namespaceURI !== "jabber:server") {
-    const err_msg = `Invalid namespaceURI ${node2.namespaceURI}`;
-    if (throwErrorIfInvalidNS) {
-      throw new Error(err_msg);
-    } else {
-      log.error(err_msg);
-    }
-  }
-  return node2;
-}
-function handleError(e) {
-  if (typeof e.stack !== "undefined") {
-    log.fatal(e.stack);
-  }
-  log.fatal("error: " + e.message);
-}
-function utf16to8(str) {
-  let out = "";
-  const len = str.length;
-  for (let i = 0; i < len; i++) {
-    const c = str.charCodeAt(i);
-    if (c >= 0 && c <= 127) {
-      out += str.charAt(i);
-    } else if (c > 2047) {
-      out += String.fromCharCode(224 | c >> 12 & 15);
-      out += String.fromCharCode(128 | c >> 6 & 63);
-      out += String.fromCharCode(128 | c >> 0 & 63);
-    } else {
-      out += String.fromCharCode(192 | c >> 6 & 31);
-      out += String.fromCharCode(128 | c >> 0 & 63);
-    }
-  }
-  return out;
-}
-function xorArrayBuffers(x2, y) {
-  const xIntArray = new Uint8Array(x2);
-  const yIntArray = new Uint8Array(y);
-  const zIntArray = new Uint8Array(x2.byteLength);
-  for (let i = 0; i < x2.byteLength; i++) {
-    zIntArray[i] = xIntArray[i] ^ yIntArray[i];
-  }
-  return zIntArray.buffer;
-}
-function arrayBufToBase64(buffer) {
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
-  }
-  return btoa(binary);
-}
-function base64ToArrayBuf(str) {
-  var _a2;
-  return (_a2 = Uint8Array.from(atob(str), (c) => c.charCodeAt(0))) == null ? void 0 : _a2.buffer;
-}
-function stringToArrayBuf(str) {
-  const bytes = new TextEncoder().encode(str);
-  return bytes.buffer;
-}
-function addCookies(cookies) {
-  if (typeof document === "undefined") {
-    log.error(`addCookies: not adding any cookies, since there's no document object`);
-  }
-  cookies = cookies || {};
-  for (const cookieName in cookies) {
-    if (Object.prototype.hasOwnProperty.call(cookies, cookieName)) {
-      let expires = "";
-      let domain = "";
-      let path = "";
-      const cookieObj = cookies[cookieName];
-      const isObj = typeof cookieObj === "object";
-      const cookieValue = escape(unescape(isObj ? cookieObj.value : cookieObj));
-      if (isObj) {
-        expires = cookieObj.expires ? ";expires=" + cookieObj.expires : "";
-        domain = cookieObj.domain ? ";domain=" + cookieObj.domain : "";
-        path = cookieObj.path ? ";path=" + cookieObj.path : "";
-      }
-      document.cookie = cookieName + "=" + cookieValue + expires + domain + path;
-    }
-  }
-}
-let _xmlGenerator = null;
-function xmlGenerator() {
-  if (!_xmlGenerator) {
-    _xmlGenerator = getDummyXMLDOMDocument();
-  }
-  return _xmlGenerator;
-}
-function xmlTextNode(text2) {
-  return xmlGenerator().createTextNode(text2);
-}
-function xmlHtmlNode(text2) {
-  const parser = new DOMParser();
-  return parser.parseFromString(text2, "text/xml");
-}
-function getParserError(doc) {
-  var _a2;
-  const el = ((_a2 = doc.firstElementChild) == null ? void 0 : _a2.nodeName) === "parsererror" ? doc.firstElementChild : doc.getElementsByTagNameNS(PARSE_ERROR_NS, "parsererror")[0];
-  return (el == null ? void 0 : el.nodeName) === "parsererror" ? el == null ? void 0 : el.textContent : null;
-}
-function getFirstElementChild(el) {
-  if (el.firstElementChild) return el.firstElementChild;
-  let node2, i = 0;
-  const nodes = el.childNodes;
-  while (node2 = nodes[i++]) {
-    if (node2.nodeType === 1) return (
-      /** @type {Element} */
-      node2
-    );
-  }
-  return null;
-}
-function xmlElement(name, attrs, text2) {
-  if (!name) return null;
-  const node2 = xmlGenerator().createElement(name);
-  if (text2 && (typeof text2 === "string" || typeof text2 === "number")) {
-    node2.appendChild(xmlTextNode(text2.toString()));
-  } else if (typeof attrs === "string" || typeof attrs === "number") {
-    node2.appendChild(xmlTextNode(
-      /** @type {number|string} */
-      attrs.toString()
-    ));
-    return node2;
-  }
-  if (!attrs) {
-    return node2;
-  } else if (Array.isArray(attrs)) {
-    for (const attr of attrs) {
-      if (Array.isArray(attr)) {
-        if (attr[0] != null && attr[1] != null) {
-          node2.setAttribute(attr[0], attr[1]);
-        }
-      }
-    }
-  } else if (typeof attrs === "object") {
-    for (const k2 of Object.keys(attrs)) {
-      if (k2 && attrs[k2] != null) {
-        node2.setAttribute(k2, attrs[k2].toString());
-      }
-    }
-  }
-  return node2;
-}
-function validTag(tag) {
-  for (let i = 0; i < XHTML.tags.length; i++) {
-    if (tag === XHTML.tags[i]) {
-      return true;
-    }
-  }
-  return false;
-}
-function validAttribute(tag, attribute2) {
-  const attrs = XHTML.attributes[
-    /** @type {XHTMLAttrs} */
-    tag
-  ];
-  if ((attrs == null ? void 0 : attrs.length) > 0) {
-    for (let i = 0; i < attrs.length; i++) {
-      if (attribute2 === attrs[i]) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-function validCSS(style2) {
-  for (let i = 0; i < XHTML.css.length; i++) {
-    if (style2 === XHTML.css[i]) {
-      return true;
-    }
-  }
-  return false;
-}
-function createFromHtmlElement(elem) {
-  let el;
-  const tag = elem.nodeName.toLowerCase();
-  if (validTag(tag)) {
-    try {
-      el = xmlElement(tag);
-      if (tag in XHTML.attributes) {
-        const attrs = XHTML.attributes[
-          /** @type {XHTMLAttrs} */
-          tag
-        ];
-        for (let i = 0; i < attrs.length; i++) {
-          const attribute2 = attrs[i];
-          let value = elem.getAttribute(attribute2);
-          if (typeof value === "undefined" || value === null || value === "") {
-            continue;
-          }
-          if (attribute2 === "style" && typeof value === "object") {
-            value = /** @type {Object.<'csstext',string>} */
-            value.cssText ?? value;
-          }
-          if (attribute2 === "style") {
-            const css2 = [];
-            const cssAttrs = value.split(";");
-            for (let j2 = 0; j2 < cssAttrs.length; j2++) {
-              const attr = cssAttrs[j2].split(":");
-              const cssName = attr[0].replace(/^\s*/, "").replace(/\s*$/, "").toLowerCase();
-              if (validCSS(cssName)) {
-                const cssValue = attr[1].replace(/^\s*/, "").replace(/\s*$/, "");
-                css2.push(cssName + ": " + cssValue);
-              }
-            }
-            if (css2.length > 0) {
-              value = css2.join("; ");
-              el.setAttribute(attribute2, value);
-            }
-          } else {
-            el.setAttribute(attribute2, value);
-          }
-        }
-        for (let i = 0; i < elem.childNodes.length; i++) {
-          el.appendChild(createHtml(elem.childNodes[i]));
-        }
-      }
-    } catch (e) {
-      el = xmlTextNode("");
-    }
-  } else {
-    el = xmlGenerator().createDocumentFragment();
-    for (let i = 0; i < elem.childNodes.length; i++) {
-      el.appendChild(createHtml(elem.childNodes[i]));
-    }
-  }
-  return el;
-}
-function createHtml(node2) {
-  if (node2.nodeType === ElementType.NORMAL) {
-    return createFromHtmlElement(
-      /** @type {HTMLElement} */
-      node2
-    );
-  } else if (node2.nodeType === ElementType.FRAGMENT) {
-    const el = xmlGenerator().createDocumentFragment();
-    for (let i = 0; i < node2.childNodes.length; i++) {
-      el.appendChild(createHtml(node2.childNodes[i]));
-    }
-    return el;
-  } else if (node2.nodeType === ElementType.TEXT) {
-    return xmlTextNode(node2.nodeValue);
-  }
-}
-function copyElement(node2) {
-  let out;
-  if (node2.nodeType === ElementType.NORMAL) {
-    const el = (
-      /** @type {Element} */
-      node2
-    );
-    out = xmlElement(el.tagName);
-    for (let i = 0; i < el.attributes.length; i++) {
-      out.setAttribute(el.attributes[i].nodeName, el.attributes[i].value);
-    }
-    for (let i = 0; i < el.childNodes.length; i++) {
-      out.appendChild(copyElement(el.childNodes[i]));
-    }
-  } else if (node2.nodeType === ElementType.TEXT) {
-    out = xmlGenerator().createTextNode(node2.nodeValue);
-  }
-  return out;
-}
-function xmlescape(text2) {
-  text2 = text2.replace(/\&/g, "&amp;");
-  text2 = text2.replace(/</g, "&lt;");
-  text2 = text2.replace(/>/g, "&gt;");
-  text2 = text2.replace(/'/g, "&apos;");
-  text2 = text2.replace(/"/g, "&quot;");
-  return text2;
-}
-function xmlunescape(text2) {
-  text2 = text2.replace(/\&amp;/g, "&");
-  text2 = text2.replace(/&lt;/g, "<");
-  text2 = text2.replace(/&gt;/g, ">");
-  text2 = text2.replace(/&apos;/g, "'");
-  text2 = text2.replace(/&quot;/g, '"');
-  return text2;
-}
-function forEachChild(elem, elemName, func) {
-  for (let i = 0; i < elem.childNodes.length; i++) {
-    const childNode = elem.childNodes[i];
-    if (childNode.nodeType === ElementType.NORMAL && (!elemName || this.isTagEqual(childNode, elemName))) {
-      func(childNode);
-    }
-  }
-}
-function isTagEqual(el, name) {
-  return el.tagName === name;
-}
-function getText(elem) {
-  if (!elem) return null;
-  let str = "";
-  if (!elem.childNodes.length && elem.nodeType === ElementType.TEXT) {
-    str += elem.nodeValue;
-  }
-  for (const child of elem.childNodes) {
-    if (child.nodeType === ElementType.TEXT) {
-      str += child.nodeValue;
-    }
-  }
-  return xmlescape(str);
-}
-function escapeNode(node2) {
-  if (typeof node2 !== "string") {
-    return node2;
-  }
-  return node2.replace(/^\s+|\s+$/g, "").replace(/\\/g, "\\5c").replace(/ /g, "\\20").replace(/\"/g, "\\22").replace(/\&/g, "\\26").replace(/\'/g, "\\27").replace(/\//g, "\\2f").replace(/:/g, "\\3a").replace(/</g, "\\3c").replace(/>/g, "\\3e").replace(/@/g, "\\40");
-}
-function unescapeNode(node2) {
-  if (typeof node2 !== "string") {
-    return node2;
-  }
-  return node2.replace(/\\20/g, " ").replace(/\\22/g, '"').replace(/\\26/g, "&").replace(/\\27/g, "'").replace(/\\2f/g, "/").replace(/\\3a/g, ":").replace(/\\3c/g, "<").replace(/\\3e/g, ">").replace(/\\40/g, "@").replace(/\\5c/g, "\\");
-}
-function getNodeFromJid(jid) {
-  if (jid.indexOf("@") < 0) {
-    return null;
-  }
-  return jid.split("@")[0];
-}
-function getDomainFromJid(jid) {
-  const bare = getBareJidFromJid(jid);
-  if (bare.indexOf("@") < 0) {
-    return bare;
-  } else {
-    const parts = bare.split("@");
-    parts.splice(0, 1);
-    return parts.join("@");
-  }
-}
-function getResourceFromJid(jid) {
-  if (!jid) {
-    return null;
-  }
-  const s = jid.split("/");
-  if (s.length < 2) {
-    return null;
-  }
-  s.splice(0, 1);
-  return s.join("/");
-}
-function getBareJidFromJid(jid) {
-  return jid ? jid.split("/")[0] : null;
-}
-const utils$1 = {
-  utf16to8,
-  xorArrayBuffers,
-  arrayBufToBase64,
-  base64ToArrayBuf,
-  stringToArrayBuf,
-  addCookies
-};
-const utils$2 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  addCookies,
-  arrayBufToBase64,
-  base64ToArrayBuf,
-  copyElement,
-  createHtml,
-  default: utils$1,
-  escapeNode,
-  forEachChild,
-  getBareJidFromJid,
-  getDomainFromJid,
-  getFirstElementChild,
-  getNodeFromJid,
-  getParserError,
-  getResourceFromJid,
-  getText,
-  handleError,
-  isTagEqual,
-  stringToArrayBuf,
-  toElement,
-  unescapeNode,
-  utf16to8,
-  validAttribute,
-  validCSS,
-  validTag,
-  xmlElement,
-  xmlGenerator,
-  xmlHtmlNode,
-  xmlTextNode,
-  xmlescape,
-  xmlunescape,
-  xorArrayBuffers
-}, Symbol.toStringTag, { value: "Module" }));
-function $build(name, attrs) {
-  return new Builder(name, attrs);
-}
-function $msg(attrs) {
-  return new Builder("message", attrs);
-}
-function $iq(attrs) {
-  return new Builder("iq", attrs);
-}
-function $pres(attrs) {
-  return new Builder("presence", attrs);
-}
-const _Builder = class _Builder {
-  /**
-   * The attributes should be passed in object notation.
-   * @param {string} name - The name of the root element.
-   * @param {StanzaAttrs} [attrs] - The attributes for the root element in object notation.
-   * @example const b = new Builder('message', {to: 'you', from: 'me'});
-   * @example const b = new Builder('messsage', {'xml:lang': 'en'});
-   */
-  constructor(name, attrs) {
-    /**
-     * @typedef {Object.<string, string|number>} StanzaAttrs
-     * @property {string} [StanzaAttrs.xmlns]
-     */
-    /** @type {Element} */
-    __privateAdd(this, _nodeTree);
-    /** @type {Element} */
-    __privateAdd(this, _node);
-    /** @type {string} */
-    __privateAdd(this, _name);
-    /** @type {StanzaAttrs} */
-    __privateAdd(this, _attrs);
-    if (name === "presence" || name === "message" || name === "iq") {
-      if (attrs && !attrs.xmlns) {
-        attrs.xmlns = NS.CLIENT;
-      } else if (!attrs) {
-        attrs = { xmlns: NS.CLIENT };
-      }
-    }
-    __privateSet(this, _name, name);
-    __privateSet(this, _attrs, attrs);
-  }
-  /**
-   * Creates a new Builder object from an XML string.
-   * @param {string} str
-   * @returns {Builder}
-   * @example const stanza = Builder.fromString('<presence from="juliet@example.com/chamber"></presence>');
-   */
-  static fromString(str) {
-    const el = toElement(str, true);
-    const b = new _Builder("");
-    __privateSet(b, _nodeTree, el);
-    return b;
-  }
-  buildTree() {
-    return xmlElement(__privateGet(this, _name), __privateGet(this, _attrs));
-  }
-  /** @return {Element} */
-  get nodeTree() {
-    if (!__privateGet(this, _nodeTree)) {
-      __privateSet(this, _nodeTree, this.buildTree());
-    }
-    return __privateGet(this, _nodeTree);
-  }
-  /** @return {Element} */
-  get node() {
-    if (!__privateGet(this, _node)) {
-      __privateSet(this, _node, this.tree());
-    }
-    return __privateGet(this, _node);
-  }
-  /** @param {Element} el */
-  set node(el) {
-    __privateSet(this, _node, el);
-  }
-  /**
-   * Render a DOM element and all descendants to a String.
-   * @param {Element|Builder} elem - A DOM element.
-   * @return {string} - The serialized element tree as a String.
-   */
-  static serialize(elem) {
-    if (!elem) return null;
-    const el = elem instanceof _Builder ? elem.tree() : elem;
-    const names = [...Array(el.attributes.length).keys()].map((i) => el.attributes[i].nodeName);
-    names.sort();
-    let result = names.reduce(
-      (a, n) => `${a} ${n}="${xmlescape(el.attributes.getNamedItem(n).value)}"`,
-      `<${el.nodeName}`
-    );
-    if (el.childNodes.length > 0) {
-      result += ">";
-      for (let i = 0; i < el.childNodes.length; i++) {
-        const child = el.childNodes[i];
-        switch (child.nodeType) {
-          case ElementType.NORMAL:
-            result += _Builder.serialize(
-              /** @type {Element} */
-              child
-            );
-            break;
-          case ElementType.TEXT:
-            result += xmlescape(child.nodeValue);
-            break;
-          case ElementType.CDATA:
-            result += "<![CDATA[" + child.nodeValue + "]]>";
-        }
-      }
-      result += "</" + el.nodeName + ">";
-    } else {
-      result += "/>";
-    }
-    return result;
-  }
-  /**
-   * Return the DOM tree.
-   *
-   * This function returns the current DOM tree as an element object.  This
-   * is suitable for passing to functions like Strophe.Connection.send().
-   *
-   * @return {Element} The DOM tree as a element object.
-   */
-  tree() {
-    return this.nodeTree;
-  }
-  /**
-   * Serialize the DOM tree to a String.
-   *
-   * This function returns a string serialization of the current DOM
-   * tree.  It is often used internally to pass data to a
-   * Strophe.Request object.
-   *
-   * @return {string} The serialized DOM tree in a String.
-   */
-  toString() {
-    return _Builder.serialize(this.tree());
-  }
-  /**
-   * Make the current parent element the new current element.
-   * This function is often used after c() to traverse back up the tree.
-   *
-   * @example
-   *  // For example, to add two children to the same element
-   *  builder.c('child1', {}).up().c('child2', {});
-   *
-   * @return {Builder} The Strophe.Builder object.
-   */
-  up() {
-    this.node = this.node.parentElement ? this.node.parentElement : (
-      /** @type {Element} */
-      this.node.parentNode
-    );
-    return this;
-  }
-  /**
-   * Make the root element the new current element.
-   *
-   * When at a deeply nested element in the tree, this function can be used
-   * to jump back to the root of the tree, instead of having to repeatedly
-   * call up().
-   *
-   * @return {Builder} The Strophe.Builder object.
-   */
-  root() {
-    this.node = this.tree();
-    return this;
-  }
-  /**
-   * Add or modify attributes of the current element.
-   *
-   * The attributes should be passed in object notation.
-   * This function does not move the current element pointer.
-   * @param {Object.<string, string|number|null>} moreattrs - The attributes to add/modify in object notation.
-   *  If an attribute is set to `null` or `undefined`, it will be removed.
-   * @return {Builder} The Strophe.Builder object.
-   */
-  attrs(moreattrs) {
-    for (const k2 in moreattrs) {
-      if (Object.prototype.hasOwnProperty.call(moreattrs, k2)) {
-        if (moreattrs[k2] != null) {
-          this.node.setAttribute(k2, moreattrs[k2].toString());
-        } else {
-          this.node.removeAttribute(k2);
-        }
-      }
-    }
-    return this;
-  }
-  /**
-   * Add a child to the current element and make it the new current
-   * element.
-   *
-   * This function moves the current element pointer to the child,
-   * unless text is provided.  If you need to add another child, it
-   * is necessary to use up() to go back to the parent in the tree.
-   *
-   * @param {string} name - The name of the child.
-   * @param {Object.<string, string>|string} [attrs] - The attributes of the child in object notation.
-   * @param {string} [text] - The text to add to the child.
-   *
-   * @return {Builder} The Strophe.Builder object.
-   */
-  c(name, attrs, text2) {
-    const child = xmlElement(name, attrs, text2);
-    this.node.appendChild(child);
-    if (typeof text2 !== "string" && typeof text2 !== "number") {
-      this.node = child;
-    }
-    return this;
-  }
-  /**
-   * Add a child to the current element and make it the new current
-   * element.
-   *
-   * This function is the same as c() except that instead of using a
-   * name and an attributes object to create the child it uses an
-   * existing DOM element object.
-   *
-   * @param {Element} elem - A DOM element.
-   * @return {Builder} The Strophe.Builder object.
-   */
-  cnode(elem) {
-    let impNode;
-    const xmlGen = xmlGenerator();
-    try {
-      impNode = xmlGen.importNode !== void 0;
-    } catch (e) {
-      impNode = false;
-    }
-    const newElem = impNode ? xmlGen.importNode(elem, true) : copyElement(elem);
-    this.node.appendChild(newElem);
-    this.node = /** @type {Element} */
-    newElem;
-    return this;
-  }
-  /**
-   * Add a child text element.
-   *
-   * This *does not* make the child the new current element since there
-   * are no children of text elements.
-   *
-   * @param {string} text - The text data to append to the current element.
-   * @return {Builder} The Strophe.Builder object.
-   */
-  t(text2) {
-    const child = xmlTextNode(text2);
-    this.node.appendChild(child);
-    return this;
-  }
-  /**
-   * Replace current element contents with the HTML passed in.
-   *
-   * This *does not* make the child the new current element
-   *
-   * @param {string} html - The html to insert as contents of current element.
-   * @return {Builder} The Strophe.Builder object.
-   */
-  h(html) {
-    const fragment = xmlGenerator().createElement("body");
-    fragment.innerHTML = html;
-    const xhtml = createHtml(fragment);
-    while (xhtml.childNodes.length > 0) {
-      this.node.appendChild(xhtml.childNodes[0]);
-    }
-    return this;
-  }
-};
-_nodeTree = new WeakMap();
-_node = new WeakMap();
-_name = new WeakMap();
-_attrs = new WeakMap();
-let Builder = _Builder;
-let _requestId = 0;
-class Request {
-  /**
-   * Create and initialize a new Request object.
-   *
-   * @param {Element} elem - The XML data to be sent in the request.
-   * @param {Function} func - The function that will be called when the
-   *     XMLHttpRequest readyState changes.
-   * @param {number} rid - The BOSH rid attribute associated with this request.
-   * @param {number} [sends=0] - The number of times this same request has been sent.
-   */
-  constructor(elem, func, rid, sends = 0) {
-    this.id = ++_requestId;
-    this.xmlData = elem;
-    this.data = Builder.serialize(elem);
-    this.origFunc = func;
-    this.func = func;
-    this.rid = rid;
-    this.date = NaN;
-    this.sends = sends;
-    this.abort = false;
-    this.dead = null;
-    this.age = () => this.date ? ((/* @__PURE__ */ new Date()).valueOf() - this.date.valueOf()) / 1e3 : 0;
-    this.timeDead = () => this.dead ? ((/* @__PURE__ */ new Date()).valueOf() - this.dead.valueOf()) / 1e3 : 0;
-    this.xhr = this._newXHR();
-  }
-  /**
-   * Get a response from the underlying XMLHttpRequest.
-   * This function attempts to get a response from the request and checks
-   * for errors.
-   * @throws "parsererror" - A parser error occured.
-   * @throws "bad-format" - The entity has sent XML that cannot be processed.
-   * @return {Element} - The DOM element tree of the response.
-   */
-  getResponse() {
-    var _a2;
-    const node2 = (_a2 = this.xhr.responseXML) == null ? void 0 : _a2.documentElement;
-    if (node2) {
-      if (node2.tagName === "parsererror") {
-        log.error("invalid response received");
-        log.error("responseText: " + this.xhr.responseText);
-        log.error("responseXML: " + Builder.serialize(node2));
-        throw new Error("parsererror");
-      }
-    } else if (this.xhr.responseText) {
-      log.debug("Got responseText but no responseXML; attempting to parse it with DOMParser...");
-      const doc = xmlHtmlNode(this.xhr.responseText);
-      const parserError = getParserError(doc);
-      if (!doc || parserError) {
-        if (parserError) {
-          log.error("invalid response received: " + parserError);
-          log.error("responseText: " + this.xhr.responseText);
-        }
-        const error2 = new Error();
-        error2.name = ErrorCondition.BAD_FORMAT;
-        throw error2;
-      }
-    }
-    return node2;
-  }
-  /**
-   * _Private_ helper function to create XMLHttpRequests.
-   * This function creates XMLHttpRequests across all implementations.
-   * @private
-   * @return {XMLHttpRequest}
-   */
-  _newXHR() {
-    const xhr = new XMLHttpRequest();
-    if (xhr.overrideMimeType) {
-      xhr.overrideMimeType("text/xml; charset=utf-8");
-    }
-    xhr.onreadystatechange = this.func.bind(null, this);
-    return xhr;
-  }
-}
-let timeoutMultiplier = 1.1;
-let secondaryTimeoutMultiplier = 0.1;
-class Bosh {
-  /**
-   * @param {Connection} connection - The Connection that will use BOSH.
-   */
-  constructor(connection) {
-    this._conn = connection;
-    this.rid = Math.floor(Math.random() * 4294967295);
-    this.sid = null;
-    this.hold = 1;
-    this.wait = 60;
-    this.window = 5;
-    this.errors = 0;
-    this.inactivity = null;
-    this.strip = Bosh.prototype.strip ?? false;
-    this.lastResponseHeaders = null;
-    this._requests = [];
-  }
-  /**
-   * @param {number} m
-   */
-  static setTimeoutMultiplier(m2) {
-    timeoutMultiplier = m2;
-  }
-  /**
-   * @returns {number}
-   */
-  static getTimeoutMultplier() {
-    return timeoutMultiplier;
-  }
-  /**
-   * @param {number} m
-   */
-  static setSecondaryTimeoutMultiplier(m2) {
-    secondaryTimeoutMultiplier = m2;
-  }
-  /**
-   * @returns {number}
-   */
-  static getSecondaryTimeoutMultplier() {
-    return secondaryTimeoutMultiplier;
-  }
-  /**
-   * _Private_ helper function to generate the <body/> wrapper for BOSH.
-   * @private
-   * @return {Builder} - A Builder with a <body/> element.
-   */
-  _buildBody() {
-    const bodyWrap = $build("body", {
-      "rid": this.rid++,
-      "xmlns": NS.HTTPBIND
-    });
-    if (this.sid !== null) {
-      bodyWrap.attrs({ "sid": this.sid });
-    }
-    if (this._conn.options.keepalive && this._conn._sessionCachingSupported()) {
-      this._cacheSession();
-    }
-    return bodyWrap;
-  }
-  /**
-   * Reset the connection.
-   * This function is called by the reset function of the Connection
-   */
-  _reset() {
-    this.rid = Math.floor(Math.random() * 4294967295);
-    this.sid = null;
-    this.errors = 0;
-    if (this._conn._sessionCachingSupported()) {
-      sessionStorage.removeItem("strophe-bosh-session");
-    }
-    this._conn.nextValidRid(this.rid);
-  }
-  /**
-   * _Private_ function that initializes the BOSH connection.
-   * Creates and sends the Request that initializes the BOSH connection.
-   * @param {number} wait - The optional HTTPBIND wait value.  This is the
-   *     time the server will wait before returning an empty result for
-   *     a request.  The default setting of 60 seconds is recommended.
-   *     Other settings will require tweaks to the Strophe.TIMEOUT value.
-   * @param {number} hold - The optional HTTPBIND hold value.  This is the
-   *     number of connections the server will hold at one time.  This
-   *     should almost always be set to 1 (the default).
-   * @param {string} route
-   */
-  _connect(wait, hold, route) {
-    this.wait = wait || this.wait;
-    this.hold = hold || this.hold;
-    this.errors = 0;
-    const body = this._buildBody().attrs({
-      "to": this._conn.domain,
-      "xml:lang": "en",
-      "wait": this.wait,
-      "hold": this.hold,
-      "content": "text/xml; charset=utf-8",
-      "ver": "1.6",
-      "xmpp:version": "1.0",
-      "xmlns:xmpp": NS.BOSH
-    });
-    if (route) {
-      body.attrs({ route });
-    }
-    const _connect_cb = this._conn._connect_cb;
-    this._requests.push(
-      new Request(
-        body.tree(),
-        this._onRequestStateChange.bind(this, _connect_cb.bind(this._conn)),
-        Number(body.tree().getAttribute("rid"))
-      )
-    );
-    this._throttledRequestHandler();
-  }
-  /**
-   * Attach to an already created and authenticated BOSH session.
-   *
-   * This function is provided to allow Strophe to attach to BOSH
-   * sessions which have been created externally, perhaps by a Web
-   * application.  This is often used to support auto-login type features
-   * without putting user credentials into the page.
-   *
-   * @param {string} jid - The full JID that is bound by the session.
-   * @param {string} sid - The SID of the BOSH session.
-   * @param {number} rid - The current RID of the BOSH session.  This RID
-   *     will be used by the next request.
-   * @param {Function} callback The connect callback function.
-   * @param {number} wait - The optional HTTPBIND wait value.  This is the
-   *     time the server will wait before returning an empty result for
-   *     a request.  The default setting of 60 seconds is recommended.
-   *     Other settings will require tweaks to the Strophe.TIMEOUT value.
-   * @param {number} hold - The optional HTTPBIND hold value.  This is the
-   *     number of connections the server will hold at one time.  This
-   *     should almost always be set to 1 (the default).
-   * @param {number} wind - The optional HTTBIND window value.  This is the
-   *     allowed range of request ids that are valid.  The default is 5.
-   */
-  _attach(jid, sid, rid, callback, wait, hold, wind) {
-    this._conn.jid = jid;
-    this.sid = sid;
-    this.rid = rid;
-    this._conn.connect_callback = callback;
-    this._conn.domain = getDomainFromJid(this._conn.jid);
-    this._conn.authenticated = true;
-    this._conn.connected = true;
-    this.wait = wait || this.wait;
-    this.hold = hold || this.hold;
-    this.window = wind || this.window;
-    this._conn._changeConnectStatus(Status$1.ATTACHED, null);
-  }
-  /**
-   * Attempt to restore a cached BOSH session
-   *
-   * @param {string} jid - The full JID that is bound by the session.
-   *     This parameter is optional but recommended, specifically in cases
-   *     where prebinded BOSH sessions are used where it's important to know
-   *     that the right session is being restored.
-   * @param {Function} callback The connect callback function.
-   * @param {number} wait - The optional HTTPBIND wait value.  This is the
-   *     time the server will wait before returning an empty result for
-   *     a request.  The default setting of 60 seconds is recommended.
-   *     Other settings will require tweaks to the Strophe.TIMEOUT value.
-   * @param {number} hold - The optional HTTPBIND hold value.  This is the
-   *     number of connections the server will hold at one time.  This
-   *     should almost always be set to 1 (the default).
-   * @param {number} wind - The optional HTTBIND window value.  This is the
-   *     allowed range of request ids that are valid.  The default is 5.
-   */
-  _restore(jid, callback, wait, hold, wind) {
-    const session = JSON.parse(sessionStorage.getItem("strophe-bosh-session"));
-    if (typeof session !== "undefined" && session !== null && session.rid && session.sid && session.jid && (typeof jid === "undefined" || jid === null || getBareJidFromJid(session.jid) === getBareJidFromJid(jid) || // If authcid is null, then it's an anonymous login, so
-    // we compare only the domains:
-    getNodeFromJid(jid) === null && getDomainFromJid(session.jid) === jid)) {
-      this._conn.restored = true;
-      this._attach(session.jid, session.sid, session.rid, callback, wait, hold, wind);
-    } else {
-      const error2 = new Error("_restore: no restoreable session.");
-      error2.name = "StropheSessionError";
-      throw error2;
-    }
-  }
-  /**
-   * _Private_ handler for the beforeunload event.
-   * This handler is used to process the Bosh-part of the initial request.
-   * @private
-   */
-  _cacheSession() {
-    if (this._conn.authenticated) {
-      if (this._conn.jid && this.rid && this.sid) {
-        sessionStorage.setItem(
-          "strophe-bosh-session",
-          JSON.stringify({
-            "jid": this._conn.jid,
-            "rid": this.rid,
-            "sid": this.sid
-          })
-        );
-      }
-    } else {
-      sessionStorage.removeItem("strophe-bosh-session");
-    }
-  }
-  /**
-   * _Private_ handler for initial connection request.
-   * This handler is used to process the Bosh-part of the initial request.
-   * @param {Element} bodyWrap - The received stanza.
-   */
-  _connect_cb(bodyWrap) {
-    const typ = bodyWrap.getAttribute("type");
-    if (typ !== null && typ === "terminate") {
-      let cond = bodyWrap.getAttribute("condition");
-      log.error("BOSH-Connection failed: " + cond);
-      const conflict = bodyWrap.getElementsByTagName("conflict");
-      if (cond !== null) {
-        if (cond === "remote-stream-error" && conflict.length > 0) {
-          cond = "conflict";
-        }
-        this._conn._changeConnectStatus(Status$1.CONNFAIL, cond);
-      } else {
-        this._conn._changeConnectStatus(Status$1.CONNFAIL, "unknown");
-      }
-      this._conn._doDisconnect(cond);
-      return Status$1.CONNFAIL;
-    }
-    if (!this.sid) {
-      this.sid = bodyWrap.getAttribute("sid");
-    }
-    const wind = bodyWrap.getAttribute("requests");
-    if (wind) {
-      this.window = parseInt(wind, 10);
-    }
-    const hold = bodyWrap.getAttribute("hold");
-    if (hold) {
-      this.hold = parseInt(hold, 10);
-    }
-    const wait = bodyWrap.getAttribute("wait");
-    if (wait) {
-      this.wait = parseInt(wait, 10);
-    }
-    const inactivity = bodyWrap.getAttribute("inactivity");
-    if (inactivity) {
-      this.inactivity = parseInt(inactivity, 10);
-    }
-  }
-  /**
-   * _Private_ part of Connection.disconnect for Bosh
-   * @param {Element|Builder} pres - This stanza will be sent before disconnecting.
-   */
-  _disconnect(pres) {
-    this._sendTerminate(pres);
-  }
-  /**
-   * _Private_ function to disconnect.
-   * Resets the SID and RID.
-   */
-  _doDisconnect() {
-    this.sid = null;
-    this.rid = Math.floor(Math.random() * 4294967295);
-    if (this._conn._sessionCachingSupported()) {
-      sessionStorage.removeItem("strophe-bosh-session");
-    }
-    this._conn.nextValidRid(this.rid);
-  }
-  /**
-   * _Private_ function to check if the Request queue is empty.
-   * @return {boolean} - True, if there are no Requests queued, False otherwise.
-   */
-  _emptyQueue() {
-    return this._requests.length === 0;
-  }
-  /**
-   * _Private_ function to call error handlers registered for HTTP errors.
-   * @private
-   * @param {Request} req - The request that is changing readyState.
-   */
-  _callProtocolErrorHandlers(req) {
-    const reqStatus = Bosh._getRequestStatus(req);
-    const err_callback = this._conn.protocolErrorHandlers.HTTP[reqStatus];
-    if (err_callback) {
-      err_callback.call(this, reqStatus);
-    }
-  }
-  /**
-   * _Private_ function to handle the error count.
-   *
-   * Requests are resent automatically until their error count reaches
-   * 5.  Each time an error is encountered, this function is called to
-   * increment the count and disconnect if the count is too high.
-   * @private
-   * @param {number} reqStatus - The request status.
-   */
-  _hitError(reqStatus) {
-    this.errors++;
-    log.warn("request errored, status: " + reqStatus + ", number of errors: " + this.errors);
-    if (this.errors > 4) {
-      this._conn._onDisconnectTimeout();
-    }
-  }
-  /**
-   * @callback connectionCallback
-   * @param {Connection} connection
-   */
-  /**
-   * Called on stream start/restart when no stream:features
-   * has been received and sends a blank poll request.
-   * @param {connectionCallback} callback
-   */
-  _no_auth_received(callback) {
-    log.warn("Server did not yet offer a supported authentication mechanism. Sending a blank poll request.");
-    if (callback) {
-      callback = callback.bind(this._conn);
-    } else {
-      callback = this._conn._connect_cb.bind(this._conn);
-    }
-    const body = this._buildBody();
-    this._requests.push(
-      new Request(
-        body.tree(),
-        this._onRequestStateChange.bind(this, callback),
-        Number(body.tree().getAttribute("rid"))
-      )
-    );
-    this._throttledRequestHandler();
-  }
-  /**
-   * _Private_ timeout handler for handling non-graceful disconnection.
-   * Cancels all remaining Requests and clears the queue.
-   */
-  _onDisconnectTimeout() {
-    this._abortAllRequests();
-  }
-  /**
-   * _Private_ helper function that makes sure all pending requests are aborted.
-   */
-  _abortAllRequests() {
-    while (this._requests.length > 0) {
-      const req = this._requests.pop();
-      req.abort = true;
-      req.xhr.abort();
-      req.xhr.onreadystatechange = function() {
-      };
-    }
-  }
-  /**
-   * _Private_ handler called by {@link Connection#_onIdle|Connection._onIdle()}.
-   * Sends all queued Requests or polls with empty Request if there are none.
-   */
-  _onIdle() {
-    const data = this._conn._data;
-    if (this._conn.authenticated && this._requests.length === 0 && data.length === 0 && !this._conn.disconnecting) {
-      log.debug("no requests during idle cycle, sending blank request");
-      data.push(null);
-    }
-    if (this._conn.paused) {
-      return;
-    }
-    if (this._requests.length < 2 && data.length > 0) {
-      const body = this._buildBody();
-      for (let i = 0; i < data.length; i++) {
-        if (data[i] !== null) {
-          if (data[i] === "restart") {
-            body.attrs({
-              "to": this._conn.domain,
-              "xml:lang": "en",
-              "xmpp:restart": "true",
-              "xmlns:xmpp": NS.BOSH
-            });
-          } else {
-            body.cnode(
-              /** @type {Element} */
-              data[i]
-            ).up();
-          }
-        }
-      }
-      delete this._conn._data;
-      this._conn._data = [];
-      this._requests.push(
-        new Request(
-          body.tree(),
-          this._onRequestStateChange.bind(this, this._conn._dataRecv.bind(this._conn)),
-          Number(body.tree().getAttribute("rid"))
-        )
-      );
-      this._throttledRequestHandler();
-    }
-    if (this._requests.length > 0) {
-      const time_elapsed = this._requests[0].age();
-      if (this._requests[0].dead !== null) {
-        if (this._requests[0].timeDead() > Math.floor(timeoutMultiplier * this.wait)) {
-          this._throttledRequestHandler();
-        }
-      }
-      if (time_elapsed > Math.floor(timeoutMultiplier * this.wait)) {
-        log.warn(
-          "Request " + this._requests[0].id + " timed out, over " + Math.floor(timeoutMultiplier * this.wait) + " seconds since last activity"
-        );
-        this._throttledRequestHandler();
-      }
-    }
-  }
-  /**
-   * Returns the HTTP status code from a {@link Request}
-   * @private
-   * @param {Request} req - The {@link Request} instance.
-   * @param {number} [def] - The default value that should be returned if no status value was found.
-   */
-  static _getRequestStatus(req, def) {
-    let reqStatus;
-    if (req.xhr.readyState === 4) {
-      try {
-        reqStatus = req.xhr.status;
-      } catch (e) {
-        log.error(
-          `Caught an error while retrieving a request's status, reqStatus: ${reqStatus}, message: ${e.message}`
-        );
-      }
-    }
-    if (typeof reqStatus === "undefined") {
-      reqStatus = typeof def === "number" ? def : 0;
-    }
-    return reqStatus;
-  }
-  /**
-   * _Private_ handler for {@link Request} state changes.
-   *
-   * This function is called when the XMLHttpRequest readyState changes.
-   * It contains a lot of error handling logic for the many ways that
-   * requests can fail, and calls the request callback when requests
-   * succeed.
-   * @private
-   *
-   * @param {Function} func - The handler for the request.
-   * @param {Request} req - The request that is changing readyState.
-   */
-  _onRequestStateChange(func, req) {
-    log.debug("request id " + req.id + "." + req.sends + " state changed to " + req.xhr.readyState);
-    if (req.abort) {
-      req.abort = false;
-      return;
-    }
-    if (req.xhr.readyState !== 4) {
-      return;
-    }
-    const reqStatus = Bosh._getRequestStatus(req);
-    this.lastResponseHeaders = req.xhr.getAllResponseHeaders();
-    if (this._conn.disconnecting && reqStatus >= 400) {
-      this._hitError(reqStatus);
-      this._callProtocolErrorHandlers(req);
-      return;
-    }
-    const reqIs0 = this._requests[0] === req;
-    const reqIs1 = this._requests[1] === req;
-    const valid_request = reqStatus > 0 && reqStatus < 500;
-    const too_many_retries = req.sends > this._conn.maxRetries;
-    if (valid_request || too_many_retries) {
-      this._removeRequest(req);
-      log.debug("request id " + req.id + " should now be removed");
-    }
-    if (reqStatus === 200) {
-      if (reqIs1 || reqIs0 && this._requests.length > 0 && this._requests[0].age() > Math.floor(timeoutMultiplier * this.wait)) {
-        this._restartRequest(0);
-      }
-      this._conn.nextValidRid(req.rid + 1);
-      log.debug("request id " + req.id + "." + req.sends + " got 200");
-      func(req);
-      this.errors = 0;
-    } else if (reqStatus === 0 || reqStatus >= 400 && reqStatus < 600 || reqStatus >= 12e3) {
-      log.error("request id " + req.id + "." + req.sends + " error " + reqStatus + " happened");
-      this._hitError(reqStatus);
-      this._callProtocolErrorHandlers(req);
-      if (reqStatus >= 400 && reqStatus < 500) {
-        this._conn._changeConnectStatus(Status$1.DISCONNECTING, null);
-        this._conn._doDisconnect();
-      }
-    } else {
-      log.error("request id " + req.id + "." + req.sends + " error " + reqStatus + " happened");
-    }
-    if (!valid_request && !too_many_retries) {
-      this._throttledRequestHandler();
-    } else if (too_many_retries && !this._conn.connected) {
-      this._conn._changeConnectStatus(Status$1.CONNFAIL, "giving-up");
-    }
-  }
-  /**
-   * _Private_ function to process a request in the queue.
-   *
-   * This function takes requests off the queue and sends them and
-   * restarts dead requests.
-   * @private
-   *
-   * @param {number} i - The index of the request in the queue.
-   */
-  _processRequest(i) {
-    var _a2, _b, _c, _d, _e, _f;
-    let req = this._requests[i];
-    const reqStatus = Bosh._getRequestStatus(req, -1);
-    if (req.sends > this._conn.maxRetries) {
-      this._conn._onDisconnectTimeout();
-      return;
-    }
-    const time_elapsed = req.age();
-    const primary_timeout = !isNaN(time_elapsed) && time_elapsed > Math.floor(timeoutMultiplier * this.wait);
-    const secondary_timeout = req.dead !== null && req.timeDead() > Math.floor(secondaryTimeoutMultiplier * this.wait);
-    const server_error = req.xhr.readyState === 4 && (reqStatus < 1 || reqStatus >= 500);
-    if (primary_timeout || secondary_timeout || server_error) {
-      if (secondary_timeout) {
-        log.error(`Request ${this._requests[i].id} timed out (secondary), restarting`);
-      }
-      req.abort = true;
-      req.xhr.abort();
-      req.xhr.onreadystatechange = function() {
-      };
-      this._requests[i] = new Request(req.xmlData, req.origFunc, req.rid, req.sends);
-      req = this._requests[i];
-    }
-    if (req.xhr.readyState === 0) {
-      log.debug("request id " + req.id + "." + req.sends + " posting");
-      try {
-        const content_type = this._conn.options.contentType || "text/xml; charset=utf-8";
-        req.xhr.open("POST", this._conn.service, this._conn.options.sync ? false : true);
-        if (typeof req.xhr.setRequestHeader !== "undefined") {
-          req.xhr.setRequestHeader("Content-Type", content_type);
-        }
-        if (this._conn.options.withCredentials) {
-          req.xhr.withCredentials = true;
-        }
-      } catch (e2) {
-        log.error("XHR open failed: " + e2.toString());
-        if (!this._conn.connected) {
-          this._conn._changeConnectStatus(Status$1.CONNFAIL, "bad-service");
-        }
-        this._conn.disconnect();
-        return;
-      }
-      const sendFunc = () => {
-        req.date = (/* @__PURE__ */ new Date()).valueOf();
-        if (this._conn.options.customHeaders) {
-          const headers = this._conn.options.customHeaders;
-          for (const header in headers) {
-            if (Object.prototype.hasOwnProperty.call(headers, header)) {
-              req.xhr.setRequestHeader(header, headers[header]);
-            }
-          }
-        }
-        req.xhr.send(req.data);
-      };
-      if (req.sends > 1) {
-        const backoff = Math.min(Math.floor(timeoutMultiplier * this.wait), Math.pow(req.sends, 3)) * 1e3;
-        setTimeout(function() {
-          sendFunc();
-        }, backoff);
-      } else {
-        sendFunc();
-      }
-      req.sends++;
-      if (this.strip && req.xmlData.nodeName === "body" && req.xmlData.childNodes.length) {
-        (_b = (_a2 = this._conn).xmlOutput) == null ? void 0 : _b.call(_a2, req.xmlData.children[0]);
-      } else {
-        (_d = (_c = this._conn).xmlOutput) == null ? void 0 : _d.call(_c, req.xmlData);
-      }
-      (_f = (_e = this._conn).rawOutput) == null ? void 0 : _f.call(_e, req.data);
-    } else {
-      log.debug(
-        "_processRequest: " + (i === 0 ? "first" : "second") + " request has readyState of " + req.xhr.readyState
-      );
-    }
-  }
-  /**
-   * _Private_ function to remove a request from the queue.
-   * @private
-   * @param {Request} req - The request to remove.
-   */
-  _removeRequest(req) {
-    log.debug("removing request");
-    for (let i = this._requests.length - 1; i >= 0; i--) {
-      if (req === this._requests[i]) {
-        this._requests.splice(i, 1);
-      }
-    }
-    req.xhr.onreadystatechange = function() {
-    };
-    this._throttledRequestHandler();
-  }
-  /**
-   * _Private_ function to restart a request that is presumed dead.
-   * @private
-   *
-   * @param {number} i - The index of the request in the queue.
-   */
-  _restartRequest(i) {
-    const req = this._requests[i];
-    if (req.dead === null) {
-      req.dead = /* @__PURE__ */ new Date();
-    }
-    this._processRequest(i);
-  }
-  /**
-   * _Private_ function to get a stanza out of a request.
-   * Tries to extract a stanza out of a Request Object.
-   * When this fails the current connection will be disconnected.
-   *
-   * @param {Request} req - The Request.
-   * @return {Element} - The stanza that was passed.
-   */
-  _reqToData(req) {
-    try {
-      return req.getResponse();
-    } catch (e) {
-      if (e.message !== "parsererror") {
-        throw e;
-      }
-      this._conn.disconnect("strophe-parsererror");
-    }
-  }
-  /**
-   * _Private_ function to send initial disconnect sequence.
-   *
-   * This is the first step in a graceful disconnect.  It sends
-   * the BOSH server a terminate body and includes an unavailable
-   * presence if authentication has completed.
-   * @private
-   * @param {Element|Builder} [pres]
-   */
-  _sendTerminate(pres) {
-    log.debug("_sendTerminate was called");
-    const body = this._buildBody().attrs({ type: "terminate" });
-    const el = pres instanceof Builder ? pres.tree() : pres;
-    if (pres) {
-      body.cnode(el);
-    }
-    const req = new Request(
-      body.tree(),
-      this._onRequestStateChange.bind(this, this._conn._dataRecv.bind(this._conn)),
-      Number(body.tree().getAttribute("rid"))
-    );
-    this._requests.push(req);
-    this._throttledRequestHandler();
-  }
-  /**
-   * _Private_ part of the Connection.send function for BOSH
-   * Just triggers the RequestHandler to send the messages that are in the queue
-   */
-  _send() {
-    clearTimeout(this._conn._idleTimeout);
-    this._throttledRequestHandler();
-    this._conn._idleTimeout = setTimeout(() => this._conn._onIdle(), 100);
-  }
-  /**
-   * Send an xmpp:restart stanza.
-   */
-  _sendRestart() {
-    this._throttledRequestHandler();
-    clearTimeout(this._conn._idleTimeout);
-  }
-  /**
-   * _Private_ function to throttle requests to the connection window.
-   *
-   * This function makes sure we don't send requests so fast that the
-   * request ids overflow the connection window in the case that one
-   * request died.
-   * @private
-   */
-  _throttledRequestHandler() {
-    if (!this._requests) {
-      log.debug("_throttledRequestHandler called with undefined requests");
-    } else {
-      log.debug("_throttledRequestHandler called with " + this._requests.length + " requests");
-    }
-    if (!this._requests || this._requests.length === 0) {
-      return;
-    }
-    if (this._requests.length > 0) {
-      this._processRequest(0);
-    }
-    if (this._requests.length > 1 && Math.abs(this._requests[0].rid - this._requests[1].rid) < this.window) {
-      this._processRequest(1);
-    }
-  }
-}
-class Handler {
-  /**
-   * @typedef {Object} HandlerOptions
-   * @property {boolean} [HandlerOptions.matchBareFromJid]
-   * @property {boolean} [HandlerOptions.ignoreNamespaceFragment]
-   */
-  /**
-   * Create and initialize a new Handler.
-   *
-   * @param {Function} handler - A function to be executed when the handler is run.
-   * @param {string} ns - The namespace to match.
-   * @param {string} name - The element name to match.
-   * @param {string|string[]} type - The stanza type (or types if an array) to match.
-   * @param {string} [id] - The element id attribute to match.
-   * @param {string} [from] - The element from attribute to match.
-   * @param {HandlerOptions} [options] - Handler options
-   */
-  constructor(handler, ns, name, type, id, from2, options) {
-    this.handler = handler;
-    this.ns = ns;
-    this.name = name;
-    this.type = type;
-    this.id = id;
-    this.options = options || { "matchBareFromJid": false, "ignoreNamespaceFragment": false };
-    if (this.options.matchBareFromJid) {
-      this.from = from2 ? getBareJidFromJid(from2) : null;
-    } else {
-      this.from = from2;
-    }
-    this.user = true;
-  }
-  /**
-   * Returns the XML namespace attribute on an element.
-   * If `ignoreNamespaceFragment` was passed in for this handler, then the
-   * URL fragment will be stripped.
-   * @param {Element} elem - The XML element with the namespace.
-   * @return {string} - The namespace, with optionally the fragment stripped.
-   */
-  getNamespace(elem) {
-    let elNamespace = elem.getAttribute("xmlns");
-    if (elNamespace && this.options.ignoreNamespaceFragment) {
-      elNamespace = elNamespace.split("#")[0];
-    }
-    return elNamespace;
-  }
-  /**
-   * Tests if a stanza element (or any of its children) matches the
-   * namespace set for this Handler.
-   * @param {Element} elem - The XML element to test.
-   * @return {boolean} - true if the stanza matches and false otherwise.
-   */
-  namespaceMatch(elem) {
-    if (!this.ns || this.getNamespace(elem) === this.ns) {
-      return true;
-    }
-    for (const child of elem.children ?? []) {
-      if (this.getNamespace(child) === this.ns) {
-        return true;
-      } else if (this.namespaceMatch(child)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  /**
-   * Tests if a stanza matches the Handler.
-   * @param {Element} elem - The XML element to test.
-   * @return {boolean} - true if the stanza matches and false otherwise.
-   */
-  isMatch(elem) {
-    let from2 = elem.getAttribute("from");
-    if (this.options.matchBareFromJid) {
-      from2 = getBareJidFromJid(from2);
-    }
-    const elem_type = elem.getAttribute("type");
-    if (this.namespaceMatch(elem) && (!this.name || isTagEqual(elem, this.name)) && (!this.type || (Array.isArray(this.type) ? this.type.indexOf(elem_type) !== -1 : elem_type === this.type)) && (!this.id || elem.getAttribute("id") === this.id) && (!this.from || from2 === this.from)) {
-      return true;
-    }
-    return false;
-  }
-  /**
-   * Run the callback on a matching stanza.
-   * @param {Element} elem - The DOM element that triggered the Handler.
-   * @return {boolean} - A boolean indicating if the handler should remain active.
-   */
-  run(elem) {
-    let result = null;
-    try {
-      result = this.handler(elem);
-    } catch (e) {
-      handleError(e);
-      throw e;
-    }
-    return result;
-  }
-  /**
-   * Get a String representation of the Handler object.
-   * @return {string}
-   */
-  toString() {
-    return "{Handler: " + this.handler + "(" + this.name + "," + this.id + "," + this.ns + ")}";
-  }
-}
-class TimedHandler {
-  /**
-   * Create and initialize a new Strophe.TimedHandler object.
-   * @param {number} period - The number of milliseconds to wait before the
-   *     handler is called.
-   * @param {Function} handler - The callback to run when the handler fires.  This
-   *     function should take no arguments.
-   */
-  constructor(period, handler) {
-    this.period = period;
-    this.handler = handler;
-    this.lastCalled = (/* @__PURE__ */ new Date()).getTime();
-    this.user = true;
-  }
-  /**
-   * Run the callback for the Strophe.TimedHandler.
-   *
-   * @return {boolean} Returns the result of running the handler,
-   *  which is `true` if the Strophe.TimedHandler should be called again,
-   *  and `false` otherwise.
-   */
-  run() {
-    this.lastCalled = (/* @__PURE__ */ new Date()).getTime();
-    return this.handler();
-  }
-  /**
-   * Reset the last called time for the Strophe.TimedHandler.
-   */
-  reset() {
-    this.lastCalled = (/* @__PURE__ */ new Date()).getTime();
-  }
-  /**
-   * Get a string representation of the Strophe.TimedHandler object.
-   * @return {string}
-   */
-  toString() {
-    return "{TimedHandler: " + this.handler + "(" + this.period + ")}";
-  }
-}
-class SASLMechanism {
-  /**
-   * PrivateConstructor: Strophe.SASLMechanism
-   * SASL auth mechanism abstraction.
-   * @param {String} [name] - SASL Mechanism name.
-   * @param {Boolean} [isClientFirst] - If client should send response first without challenge.
-   * @param {Number} [priority] - Priority.
-   */
-  constructor(name, isClientFirst, priority) {
-    this.mechname = name;
-    this.isClientFirst = isClientFirst;
-    this.priority = priority;
-  }
-  /**
-   * Checks if mechanism able to run.
-   * To disable a mechanism, make this return false;
-   *
-   * To disable plain authentication run
-   * > Strophe.SASLPlain.test = function() {
-   * >   return false;
-   * > }
-   *
-   * See <SASL mechanisms> for a list of available mechanisms.
-   * @param {Connection} connection - Target Connection.
-   * @return {boolean} If mechanism was able to run.
-   */
-  // eslint-disable-next-line class-methods-use-this, no-unused-vars
-  test(connection) {
-    return true;
-  }
-  /**
-   * Called before starting mechanism on some connection.
-   * @param {Connection} connection - Target Connection.
-   */
-  onStart(connection) {
-    this._connection = connection;
-  }
-  /**
-   * Called by protocol implementation on incoming challenge.
-   *
-   * By deafult, if the client is expected to send data first (isClientFirst === true),
-   * this method is called with `challenge` as null on the first call,
-   * unless `clientChallenge` is overridden in the relevant subclass.
-   * @param {Connection} connection - Target Connection.
-   * @param {string} [challenge] - current challenge to handle.
-   * @return {string|Promise<string|false>} Mechanism response.
-   */
-  // eslint-disable-next-line no-unused-vars, class-methods-use-this
-  onChallenge(connection, challenge) {
-    throw new Error("You should implement challenge handling!");
-  }
-  /**
-   * Called by the protocol implementation if the client is expected to send
-   * data first in the authentication exchange (i.e. isClientFirst === true).
-   * @param {Connection} connection - Target Connection.
-   * @return {string|Promise<string|false>} Mechanism response.
-   */
-  clientChallenge(connection) {
-    if (!this.isClientFirst) {
-      throw new Error("clientChallenge should not be called if isClientFirst is false!");
-    }
-    return this.onChallenge(connection);
-  }
-  /**
-   * Protocol informs mechanism implementation about SASL failure.
-   */
-  onFailure() {
-    this._connection = null;
-  }
-  /**
-   * Protocol informs mechanism implementation about SASL success.
-   */
-  onSuccess() {
-    this._connection = null;
-  }
-}
-class SASLAnonymous extends SASLMechanism {
-  /**
-   * SASL ANONYMOUS authentication.
-   */
-  constructor(mechname = "ANONYMOUS", isClientFirst = false, priority = 20) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  test(connection) {
-    return connection.authcid === null;
-  }
-}
-class SASLExternal extends SASLMechanism {
-  /**
-   * SASL EXTERNAL authentication.
-   *
-   * The EXTERNAL mechanism allows a client to request the server to use
-   * credentials established by means external to the mechanism to
-   * authenticate the client. The external means may be, for instance,
-   * TLS services.
-   */
-  constructor(mechname = "EXTERNAL", isClientFirst = true, priority = 10) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  onChallenge(connection) {
-    return connection.authcid === connection.authzid ? "" : connection.authzid;
-  }
-}
-class SASLOAuthBearer extends SASLMechanism {
-  /**
-   * SASL OAuth Bearer authentication.
-   */
-  constructor(mechname = "OAUTHBEARER", isClientFirst = true, priority = 40) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  test(connection) {
-    return connection.pass !== null;
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  onChallenge(connection) {
-    let auth_str = "n,";
-    if (connection.authcid !== null) {
-      auth_str = auth_str + "a=" + connection.authzid;
-    }
-    auth_str = auth_str + ",";
-    auth_str = auth_str + "";
-    auth_str = auth_str + "auth=Bearer ";
-    auth_str = auth_str + connection.pass;
-    auth_str = auth_str + "";
-    auth_str = auth_str + "";
-    return utils$1.utf16to8(auth_str);
-  }
-}
-class SASLPlain extends SASLMechanism {
-  /**
-   * SASL PLAIN authentication.
-   */
-  constructor(mechname = "PLAIN", isClientFirst = true, priority = 50) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  test(connection) {
-    return connection.authcid !== null;
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  onChallenge(connection) {
-    const { authcid, authzid, domain, pass } = connection;
-    if (!domain) {
-      throw new Error("SASLPlain onChallenge: domain is not defined!");
-    }
-    let auth_str = authzid !== `${authcid}@${domain}` ? authzid : "";
-    auth_str = auth_str + "\0";
-    auth_str = auth_str + authcid;
-    auth_str = auth_str + "\0";
-    auth_str = auth_str + pass;
-    return utils$1.utf16to8(auth_str);
-  }
-}
-async function scramClientProof(authMessage, clientKey, hashName) {
-  const storedKey = await crypto.subtle.importKey(
-    "raw",
-    await crypto.subtle.digest(hashName, clientKey),
-    { "name": "HMAC", "hash": hashName },
-    false,
-    ["sign"]
-  );
-  const clientSignature = await crypto.subtle.sign("HMAC", storedKey, utils$1.stringToArrayBuf(authMessage));
-  return utils$1.xorArrayBuffers(clientKey, clientSignature);
-}
-function scramParseChallenge(challenge) {
-  let nonce, salt, iter;
-  const attribMatch = /([a-z]+)=([^,]+)(,|$)/;
-  while (challenge.match(attribMatch)) {
-    const matches = challenge.match(attribMatch);
-    challenge = challenge.replace(matches[0], "");
-    switch (matches[1]) {
-      case "r":
-        nonce = matches[2];
-        break;
-      case "s":
-        salt = utils$1.base64ToArrayBuf(matches[2]);
-        break;
-      case "i":
-        iter = parseInt(matches[2], 10);
-        break;
-      case "m":
-        return void 0;
-    }
-  }
-  if (isNaN(iter) || iter < 4096) {
-    log.warn("Failing SCRAM authentication because server supplied iteration count < 4096.");
-    return void 0;
-  }
-  if (!salt) {
-    log.warn("Failing SCRAM authentication because server supplied incorrect salt.");
-    return void 0;
-  }
-  return { "nonce": nonce, "salt": salt, "iter": iter };
-}
-async function scramDeriveKeys(password, salt, iter, hashName, hashBits) {
-  const saltedPasswordBits = await crypto.subtle.deriveBits(
-    { "name": "PBKDF2", "salt": salt, "iterations": iter, "hash": { "name": hashName } },
-    await crypto.subtle.importKey("raw", utils$1.stringToArrayBuf(password), "PBKDF2", false, ["deriveBits"]),
-    hashBits
-  );
-  const saltedPassword = await crypto.subtle.importKey(
-    "raw",
-    saltedPasswordBits,
-    { "name": "HMAC", "hash": hashName },
-    false,
-    ["sign"]
-  );
-  return {
-    "ck": await crypto.subtle.sign("HMAC", saltedPassword, utils$1.stringToArrayBuf("Client Key")),
-    "sk": await crypto.subtle.sign("HMAC", saltedPassword, utils$1.stringToArrayBuf("Server Key"))
-  };
-}
-async function scramServerSign(authMessage, sk, hashName) {
-  const serverKey = await crypto.subtle.importKey("raw", sk, { "name": "HMAC", "hash": hashName }, false, ["sign"]);
-  return crypto.subtle.sign("HMAC", serverKey, utils$1.stringToArrayBuf(authMessage));
-}
-function generate_cnonce() {
-  const bytes = new Uint8Array(16);
-  return utils$1.arrayBufToBase64(crypto.getRandomValues(bytes).buffer);
-}
-const scram = {
-  /**
-   * On success, sets
-   * connection_sasl_data["server-signature"]
-   * and
-   * connection._sasl_data.keys
-   *
-   * The server signature should be verified after this function completes..
-   *
-   * On failure, returns connection._sasl_failure_cb();
-   * @param {Connection} connection
-   * @param {string} challenge
-   * @param {string} hashName
-   * @param {number} hashBits
-   */
-  async scramResponse(connection, challenge, hashName, hashBits) {
-    const cnonce = connection._sasl_data.cnonce;
-    const challengeData = scramParseChallenge(challenge);
-    if (!challengeData && (challengeData == null ? void 0 : challengeData.nonce.slice(0, cnonce.length)) !== cnonce) {
-      log.warn("Failing SCRAM authentication because server supplied incorrect nonce.");
-      connection._sasl_data = {};
-      return connection._sasl_failure_cb();
-    }
-    let clientKey, serverKey;
-    const { pass } = connection;
-    if (typeof connection.pass === "string" || connection.pass instanceof String) {
-      const keys = await scramDeriveKeys(
-        /** @type {string} */
-        pass,
-        challengeData.salt,
-        challengeData.iter,
-        hashName,
-        hashBits
-      );
-      clientKey = keys.ck;
-      serverKey = keys.sk;
-    } else if (
-      // Either restore the client key and server key passed in, or derive new ones
-      /** @type {Password} */
-      (pass == null ? void 0 : pass.name) === hashName && /** @type {Password} */
-      (pass == null ? void 0 : pass.salt) === utils$1.arrayBufToBase64(challengeData.salt) && /** @type {Password} */
-      (pass == null ? void 0 : pass.iter) === challengeData.iter
-    ) {
-      const { ck, sk } = (
-        /** @type {Password} */
-        pass
-      );
-      clientKey = utils$1.base64ToArrayBuf(ck);
-      serverKey = utils$1.base64ToArrayBuf(sk);
-    } else {
-      return connection._sasl_failure_cb();
-    }
-    const clientFirstMessageBare = connection._sasl_data["client-first-message-bare"];
-    const serverFirstMessage = challenge;
-    const clientFinalMessageBare = `c=biws,r=${challengeData.nonce}`;
-    const authMessage = `${clientFirstMessageBare},${serverFirstMessage},${clientFinalMessageBare}`;
-    const clientProof = await scramClientProof(authMessage, clientKey, hashName);
-    const serverSignature = await scramServerSign(authMessage, serverKey, hashName);
-    connection._sasl_data["server-signature"] = utils$1.arrayBufToBase64(serverSignature);
-    connection._sasl_data.keys = {
-      "name": hashName,
-      "iter": challengeData.iter,
-      "salt": utils$1.arrayBufToBase64(challengeData.salt),
-      "ck": utils$1.arrayBufToBase64(clientKey),
-      "sk": utils$1.arrayBufToBase64(serverKey)
-    };
-    return `${clientFinalMessageBare},p=${utils$1.arrayBufToBase64(clientProof)}`;
-  },
-  /**
-   * Returns a string containing the client first message
-   * @param {Connection} connection
-   * @param {string} test_cnonce
-   */
-  clientChallenge(connection, test_cnonce) {
-    const cnonce = test_cnonce || generate_cnonce();
-    const client_first_message_bare = `n=${connection.authcid},r=${cnonce}`;
-    connection._sasl_data.cnonce = cnonce;
-    connection._sasl_data["client-first-message-bare"] = client_first_message_bare;
-    return `n,,${client_first_message_bare}`;
-  }
-};
-class SASLSHA1 extends SASLMechanism {
-  /**
-   * SASL SCRAM SHA 1 authentication.
-   */
-  constructor(mechname = "SCRAM-SHA-1", isClientFirst = true, priority = 60) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  test(connection) {
-    return connection.authcid !== null;
-  }
-  /**
-   * @param {Connection} connection
-   * @param {string} [challenge]
-   * @return {Promise<string|false>} Mechanism response.
-   */
-  // eslint-disable-next-line class-methods-use-this
-  async onChallenge(connection, challenge) {
-    return await scram.scramResponse(connection, challenge, "SHA-1", 160);
-  }
-  /**
-   * @param {Connection} connection
-   * @param {string} [test_cnonce]
-   */
-  // eslint-disable-next-line class-methods-use-this
-  clientChallenge(connection, test_cnonce) {
-    return scram.clientChallenge(connection, test_cnonce);
-  }
-}
-class SASLSHA256 extends SASLMechanism {
-  /**
-   * SASL SCRAM SHA 256 authentication.
-   */
-  constructor(mechname = "SCRAM-SHA-256", isClientFirst = true, priority = 70) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  test(connection) {
-    return connection.authcid !== null;
-  }
-  /**
-   * @param {Connection} connection
-   * @param {string} [challenge]
-   */
-  // eslint-disable-next-line class-methods-use-this
-  async onChallenge(connection, challenge) {
-    return await scram.scramResponse(connection, challenge, "SHA-256", 256);
-  }
-  /**
-   * @param {Connection} connection
-   * @param {string} [test_cnonce]
-   */
-  // eslint-disable-next-line class-methods-use-this
-  clientChallenge(connection, test_cnonce) {
-    return scram.clientChallenge(connection, test_cnonce);
-  }
-}
-class SASLSHA384 extends SASLMechanism {
-  /**
-   * SASL SCRAM SHA 384 authentication.
-   */
-  constructor(mechname = "SCRAM-SHA-384", isClientFirst = true, priority = 71) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  test(connection) {
-    return connection.authcid !== null;
-  }
-  /**
-   * @param {Connection} connection
-   * @param {string} [challenge]
-   */
-  // eslint-disable-next-line class-methods-use-this
-  async onChallenge(connection, challenge) {
-    return await scram.scramResponse(connection, challenge, "SHA-384", 384);
-  }
-  /**
-   * @param {Connection} connection
-   * @param {string} [test_cnonce]
-   */
-  // eslint-disable-next-line class-methods-use-this
-  clientChallenge(connection, test_cnonce) {
-    return scram.clientChallenge(connection, test_cnonce);
-  }
-}
-class SASLSHA512 extends SASLMechanism {
-  /**
-   * SASL SCRAM SHA 512 authentication.
-   */
-  constructor(mechname = "SCRAM-SHA-512", isClientFirst = true, priority = 72) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  test(connection) {
-    return connection.authcid !== null;
-  }
-  /**
-   * @param {Connection} connection
-   * @param {string} [challenge]
-   */
-  // eslint-disable-next-line class-methods-use-this
-  async onChallenge(connection, challenge) {
-    return await scram.scramResponse(connection, challenge, "SHA-512", 512);
-  }
-  /**
-   * @param {Connection} connection
-   * @param {string} [test_cnonce]
-   */
-  // eslint-disable-next-line class-methods-use-this
-  clientChallenge(connection, test_cnonce) {
-    return scram.clientChallenge(connection, test_cnonce);
-  }
-}
-class SASLXOAuth2 extends SASLMechanism {
-  /**
-   * SASL X-OAuth2 authentication.
-   */
-  constructor(mechname = "X-OAUTH2", isClientFirst = true, priority = 30) {
-    super(mechname, isClientFirst, priority);
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  test(connection) {
-    return connection.pass !== null;
-  }
-  /**
-   * @param {Connection} connection
-   */
-  // eslint-disable-next-line class-methods-use-this
-  onChallenge(connection) {
-    let auth_str = "\0";
-    if (connection.authcid !== null) {
-      auth_str = auth_str + connection.authzid;
-    }
-    auth_str = auth_str + "\0";
-    auth_str = auth_str + connection.pass;
-    return utils$1.utf16to8(auth_str);
-  }
-}
-class SessionError extends Error {
-  /**
-   * @param {string} message
-   */
-  constructor(message2) {
-    super(message2);
-    this.name = "StropheSessionError";
-  }
-}
-class Websocket {
-  /**
-   * Create and initialize a WebSocket object.
-   * Currently only sets the connection Object.
-   * @param {Connection} connection - The Connection that will use WebSockets.
-   */
-  constructor(connection) {
-    this._conn = connection;
-    this.strip = "wrapper";
-    const service = connection.service;
-    if (service.indexOf("ws:") !== 0 && service.indexOf("wss:") !== 0) {
-      let new_service = "";
-      if (connection.options.protocol === "ws" && location.protocol !== "https:") {
-        new_service += "ws";
-      } else {
-        new_service += "wss";
-      }
-      new_service += "://" + location.host;
-      if (service.indexOf("/") !== 0) {
-        new_service += location.pathname + service;
-      } else {
-        new_service += service;
-      }
-      connection.service = new_service;
-    }
-  }
-  /**
-   * _Private_ helper function to generate the <stream> start tag for WebSockets
-   * @private
-   * @return {Builder} - A Builder with a <stream> element.
-   */
-  _buildStream() {
-    return $build("open", {
-      "xmlns": NS.FRAMING,
-      "to": this._conn.domain,
-      "version": "1.0"
-    });
-  }
-  /**
-   * _Private_ checks a message for stream:error
-   * @private
-   * @param {Element} bodyWrap - The received stanza.
-   * @param {number} connectstatus - The ConnectStatus that will be set on error.
-   * @return {boolean} - true if there was a streamerror, false otherwise.
-   */
-  _checkStreamError(bodyWrap, connectstatus) {
-    let errors2;
-    if (bodyWrap.getElementsByTagNameNS) {
-      errors2 = bodyWrap.getElementsByTagNameNS(NS.STREAM, "error");
-    } else {
-      errors2 = bodyWrap.getElementsByTagName("stream:error");
-    }
-    if (errors2.length === 0) {
-      return false;
-    }
-    const error2 = errors2[0];
-    let condition = "";
-    let text2 = "";
-    const ns = "urn:ietf:params:xml:ns:xmpp-streams";
-    for (let i = 0; i < error2.childNodes.length; i++) {
-      const e = error2.childNodes[i];
-      if (e.nodeType === e.ELEMENT_NODE) {
-        const el = (
-          /** @type {any} */
-          e
-        );
-        if (el.getAttribute("xmlns") !== ns) {
-          break;
-        }
-      }
-      if (e.nodeName === "text") {
-        text2 = e.textContent;
-      } else {
-        condition = e.nodeName;
-      }
-    }
-    let errorString = "WebSocket stream error: ";
-    if (condition) {
-      errorString += condition;
-    } else {
-      errorString += "unknown";
-    }
-    if (text2) {
-      errorString += " - " + text2;
-    }
-    log.error(errorString);
-    this._conn._changeConnectStatus(connectstatus, condition);
-    this._conn._doDisconnect();
-    return true;
-  }
-  /**
-   * Reset the connection.
-   *
-   * This function is called by the reset function of the Strophe Connection.
-   * Is not needed by WebSockets.
-   */
-  // eslint-disable-next-line class-methods-use-this
-  _reset() {
-    return;
-  }
-  /**
-   * _Private_ function called by Connection.connect
-   *
-   * Creates a WebSocket for a connection and assigns Callbacks to it.
-   * Does nothing if there already is a WebSocket.
-   */
-  _connect() {
-    this._closeSocket();
-    this.socket = new WebSocket(this._conn.service, "xmpp");
-    this.socket.onopen = () => this._onOpen();
-    this.socket.onerror = (e) => this._onError(e);
-    this.socket.onclose = (e) => this._onClose(e);
-    this.socket.onmessage = (message2) => this._onInitialMessage(message2);
-  }
-  /**
-   * _Private_ function called by Connection._connect_cb
-   * checks for stream:error
-   * @param {Element} bodyWrap - The received stanza.
-   */
-  _connect_cb(bodyWrap) {
-    const error2 = this._checkStreamError(bodyWrap, Status$1.CONNFAIL);
-    if (error2) {
-      return Status$1.CONNFAIL;
-    }
-  }
-  /**
-   * _Private_ function that checks the opening <open /> tag for errors.
-   *
-   * Disconnects if there is an error and returns false, true otherwise.
-   * @private
-   * @param {Element} message - Stanza containing the <open /> tag.
-   */
-  _handleStreamStart(message2) {
-    let error2 = null;
-    const ns = message2.getAttribute("xmlns");
-    if (typeof ns !== "string") {
-      error2 = "Missing xmlns in <open />";
-    } else if (ns !== NS.FRAMING) {
-      error2 = "Wrong xmlns in <open />: " + ns;
-    }
-    const ver = message2.getAttribute("version");
-    if (typeof ver !== "string") {
-      error2 = "Missing version in <open />";
-    } else if (ver !== "1.0") {
-      error2 = "Wrong version in <open />: " + ver;
-    }
-    if (error2) {
-      this._conn._changeConnectStatus(Status$1.CONNFAIL, error2);
-      this._conn._doDisconnect();
-      return false;
-    }
-    return true;
-  }
-  /**
-   * _Private_ function that handles the first connection messages.
-   *
-   * On receiving an opening stream tag this callback replaces itself with the real
-   * message handler. On receiving a stream error the connection is terminated.
-   * @param {MessageEvent} message
-   */
-  _onInitialMessage(message2) {
-    if (message2.data.indexOf("<open ") === 0 || message2.data.indexOf("<?xml") === 0) {
-      const data = message2.data.replace(/^(<\?.*?\?>\s*)*/, "");
-      if (data === "") return;
-      const streamStart = new DOMParser().parseFromString(data, "text/xml").documentElement;
-      this._conn.xmlInput(streamStart);
-      this._conn.rawInput(message2.data);
-      if (this._handleStreamStart(streamStart)) {
-        this._connect_cb(streamStart);
-      }
-    } else if (message2.data.indexOf("<close ") === 0) {
-      const parsedMessage = new DOMParser().parseFromString(message2.data, "text/xml").documentElement;
-      this._conn.xmlInput(parsedMessage);
-      this._conn.rawInput(message2.data);
-      const see_uri = parsedMessage.getAttribute("see-other-uri");
-      if (see_uri) {
-        const service = this._conn.service;
-        const isSecureRedirect = service.indexOf("wss:") >= 0 && see_uri.indexOf("wss:") >= 0 || service.indexOf("ws:") >= 0;
-        if (isSecureRedirect) {
-          this._conn._changeConnectStatus(
-            Status$1.REDIRECT,
-            "Received see-other-uri, resetting connection"
-          );
-          this._conn.reset();
-          this._conn.service = see_uri;
-          this._connect();
-        }
-      } else {
-        this._conn._changeConnectStatus(Status$1.CONNFAIL, "Received closing stream");
-        this._conn._doDisconnect();
-      }
-    } else {
-      this._replaceMessageHandler();
-      const string = this._streamWrap(message2.data);
-      const elem = new DOMParser().parseFromString(string, "text/xml").documentElement;
-      this._conn._connect_cb(elem, null, message2.data);
-    }
-  }
-  /**
-   * Called by _onInitialMessage in order to replace itself with the general message handler.
-   * This method is overridden by WorkerWebsocket, which manages a
-   * websocket connection via a service worker and doesn't have direct access
-   * to the socket.
-   */
-  _replaceMessageHandler() {
-    this.socket.onmessage = (m2) => this._onMessage(m2);
-  }
-  /**
-   * _Private_ function called by Connection.disconnect
-   * Disconnects and sends a last stanza if one is given
-   * @param {Element|Builder} [pres] - This stanza will be sent before disconnecting.
-   */
-  _disconnect(pres) {
-    if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
-      if (pres) {
-        this._conn.send(pres);
-      }
-      const close2 = $build("close", { "xmlns": NS.FRAMING });
-      this._conn.xmlOutput(close2.tree());
-      const closeString = Builder.serialize(close2);
-      this._conn.rawOutput(closeString);
-      try {
-        this.socket.send(closeString);
-      } catch (e) {
-        log.warn(`Couldn't send <close /> tag. "${e.message}"`);
-      }
-    }
-    setTimeout(() => this._conn._doDisconnect(), 0);
-  }
-  /**
-   * _Private_ function to disconnect.
-   * Just closes the Socket for WebSockets
-   */
-  _doDisconnect() {
-    log.debug("WebSockets _doDisconnect was called");
-    this._closeSocket();
-  }
-  /**
-   * PrivateFunction _streamWrap
-   * _Private_ helper function to wrap a stanza in a <stream> tag.
-   * This is used so Strophe can process stanzas from WebSockets like BOSH
-   * @param {string} stanza
-   */
-  // eslint-disable-next-line class-methods-use-this
-  _streamWrap(stanza) {
-    return "<wrapper>" + stanza + "</wrapper>";
-  }
-  /**
-   * _Private_ function to close the WebSocket.
-   *
-   * Closes the socket if it is still open and deletes it
-   */
-  _closeSocket() {
-    if (this.socket) {
-      try {
-        this.socket.onclose = null;
-        this.socket.onerror = null;
-        this.socket.onmessage = null;
-        this.socket.close();
-      } catch (e) {
-        log.debug(e.message);
-      }
-    }
-    this.socket = null;
-  }
-  /**
-   * _Private_ function to check if the message queue is empty.
-   * @return {true} - True, because WebSocket messages are send immediately after queueing.
-   */
-  // eslint-disable-next-line class-methods-use-this
-  _emptyQueue() {
-    return true;
-  }
-  /**
-   * _Private_ function to handle websockets closing.
-   * @param {CloseEvent} [e]
-   */
-  _onClose(e) {
-    if (this._conn.connected && !this._conn.disconnecting) {
-      log.error("Websocket closed unexpectedly");
-      this._conn._doDisconnect();
-    } else if (e && e.code === 1006 && !this._conn.connected && this.socket) {
-      log.error("Websocket closed unexcectedly");
-      this._conn._changeConnectStatus(
-        Status$1.CONNFAIL,
-        "The WebSocket connection could not be established or was disconnected."
-      );
-      this._conn._doDisconnect();
-    } else {
-      log.debug("Websocket closed");
-    }
-  }
-  /**
-   * @callback connectionCallback
-   * @param {Connection} connection
-   */
-  /**
-   * Called on stream start/restart when no stream:features
-   * has been received.
-   * @param {connectionCallback} callback
-   */
-  _no_auth_received(callback) {
-    log.error("Server did not offer a supported authentication mechanism");
-    this._conn._changeConnectStatus(Status$1.CONNFAIL, ErrorCondition.NO_AUTH_MECH);
-    callback == null ? void 0 : callback.call(this._conn);
-    this._conn._doDisconnect();
-  }
-  /**
-   * _Private_ timeout handler for handling non-graceful disconnection.
-   *
-   * This does nothing for WebSockets
-   */
-  _onDisconnectTimeout() {
-  }
-  // eslint-disable-line class-methods-use-this
-  /**
-   * _Private_ helper function that makes sure all pending requests are aborted.
-   */
-  _abortAllRequests() {
-  }
-  // eslint-disable-line class-methods-use-this
-  /**
-   * _Private_ function to handle websockets errors.
-   * @param {Object} error - The websocket error.
-   */
-  _onError(error2) {
-    log.error("Websocket error " + JSON.stringify(error2));
-    this._conn._changeConnectStatus(
-      Status$1.CONNFAIL,
-      "The WebSocket connection could not be established or was disconnected."
-    );
-    this._disconnect();
-  }
-  /**
-   * _Private_ function called by Connection._onIdle
-   * sends all queued stanzas
-   */
-  _onIdle() {
-    const data = this._conn._data;
-    if (data.length > 0 && !this._conn.paused) {
-      for (let i = 0; i < data.length; i++) {
-        if (data[i] !== null) {
-          const stanza = data[i] === "restart" ? this._buildStream().tree() : data[i];
-          if (stanza === "restart") throw new Error("Wrong type for stanza");
-          const rawStanza = Builder.serialize(stanza);
-          this._conn.xmlOutput(stanza);
-          this._conn.rawOutput(rawStanza);
-          this.socket.send(rawStanza);
-        }
-      }
-      this._conn._data = [];
-    }
-  }
-  /**
-   * _Private_ function to handle websockets messages.
-   *
-   * This function parses each of the messages as if they are full documents.
-   * [TODO : We may actually want to use a SAX Push parser].
-   *
-   * Since all XMPP traffic starts with
-   * <stream:stream version='1.0'
-   *                xml:lang='en'
-   *                xmlns='jabber:client'
-   *                xmlns:stream='http://etherx.jabber.org/streams'
-   *                id='3697395463'
-   *                from='SERVER'>
-   *
-   * The first stanza will always fail to be parsed.
-   *
-   * Additionally, the seconds stanza will always be <stream:features> with
-   * the stream NS defined in the previous stanza, so we need to 'force'
-   * the inclusion of the NS in this stanza.
-   *
-   * @param {MessageEvent} message - The websocket message event
-   */
-  _onMessage(message2) {
-    let elem;
-    const close2 = '<close xmlns="urn:ietf:params:xml:ns:xmpp-framing" />';
-    if (message2.data === close2) {
-      this._conn.rawInput(close2);
-      this._conn.xmlInput(message2);
-      if (!this._conn.disconnecting) {
-        this._conn._doDisconnect();
-      }
-      return;
-    } else if (message2.data.search("<open ") === 0) {
-      elem = new DOMParser().parseFromString(message2.data, "text/xml").documentElement;
-      if (!this._handleStreamStart(elem)) {
-        return;
-      }
-    } else {
-      const data = this._streamWrap(message2.data);
-      elem = new DOMParser().parseFromString(data, "text/xml").documentElement;
-    }
-    if (this._checkStreamError(elem, Status$1.ERROR)) {
-      return;
-    }
-    if (this._conn.disconnecting && elem.firstElementChild.nodeName === "presence" && elem.firstElementChild.getAttribute("type") === "unavailable") {
-      this._conn.xmlInput(elem);
-      this._conn.rawInput(Builder.serialize(elem));
-      return;
-    }
-    this._conn._dataRecv(elem, message2.data);
-  }
-  /**
-   * _Private_ function to handle websockets connection setup.
-   * The opening stream tag is sent here.
-   * @private
-   */
-  _onOpen() {
-    log.debug("Websocket open");
-    const start = this._buildStream();
-    this._conn.xmlOutput(start.tree());
-    const startString = Builder.serialize(start);
-    this._conn.rawOutput(startString);
-    this.socket.send(startString);
-  }
-  /**
-   * _Private_ part of the Connection.send function for WebSocket
-   * Just flushes the messages that are in the queue
-   */
-  _send() {
-    this._conn.flush();
-  }
-  /**
-   * Send an xmpp:restart stanza.
-   */
-  _sendRestart() {
-    clearTimeout(this._conn._idleTimeout);
-    this._conn._onIdle.bind(this._conn)();
-  }
-}
-/**
- * @license MIT
- * @copyright JC Brand
- */
-class WorkerWebsocket extends Websocket {
-  /**
-   * @typedef {import("./connection.js").default} Connection
-   */
-  /**
-   * Create and initialize a WorkerWebsocket object.
-   * @param {Connection} connection - The Connection
-   */
-  constructor(connection) {
-    super(connection);
-    this._conn = connection;
-    this.worker = new SharedWorker(this._conn.options.worker, "Strophe XMPP Connection");
-    this.worker.onerror = (e) => {
-      console == null ? void 0 : console.error(e);
-      log.error(`Shared Worker Error: ${e}`);
-    };
-  }
-  /**
-   * @private
-   */
-  _setSocket() {
-    this.socket = {
-      /** @param {string} str */
-      send: (str) => this.worker.port.postMessage(["send", str]),
-      close: () => this.worker.port.postMessage(["_closeSocket"]),
-      onopen: () => {
-      },
-      /** @param {ErrorEvent} e */
-      onerror: (e) => this._onError(e),
-      /** @param {CloseEvent} e */
-      onclose: (e) => this._onClose(e),
-      onmessage: () => {
-      },
-      readyState: null
-    };
-  }
-  _connect() {
-    this._setSocket();
-    this._messageHandler = (m2) => this._onInitialMessage(m2);
-    this.worker.port.start();
-    this.worker.port.onmessage = (ev) => this._onWorkerMessage(ev);
-    this.worker.port.postMessage(["_connect", this._conn.service, this._conn.jid]);
-  }
-  /**
-   * @param {Function} callback
-   */
-  _attach(callback) {
-    this._setSocket();
-    this._messageHandler = (m2) => this._onMessage(m2);
-    this._conn.connect_callback = callback;
-    this.worker.port.start();
-    this.worker.port.onmessage = (ev) => this._onWorkerMessage(ev);
-    this.worker.port.postMessage(["_attach", this._conn.service]);
-  }
-  /**
-   * @param {number} status
-   * @param {string} jid
-   */
-  _attachCallback(status, jid) {
-    if (status === Status$1.ATTACHED) {
-      this._conn.jid = jid;
-      this._conn.authenticated = true;
-      this._conn.connected = true;
-      this._conn.restored = true;
-      this._conn._changeConnectStatus(Status$1.ATTACHED);
-    } else if (status === Status$1.ATTACHFAIL) {
-      this._conn.authenticated = false;
-      this._conn.connected = false;
-      this._conn.restored = false;
-      this._conn._changeConnectStatus(Status$1.ATTACHFAIL);
-    }
-  }
-  /**
-   * @param {Element|Builder} pres - This stanza will be sent before disconnecting.
-   */
-  _disconnect(pres) {
-    pres && this._conn.send(pres);
-    const close2 = $build("close", { "xmlns": NS.FRAMING });
-    this._conn.xmlOutput(close2.tree());
-    const closeString = Builder.serialize(close2);
-    this._conn.rawOutput(closeString);
-    this.worker.port.postMessage(["send", closeString]);
-    this._conn._doDisconnect();
-  }
-  _closeSocket() {
-    this.socket.close();
-  }
-  /**
-   * Called by _onInitialMessage in order to replace itself with the general message handler.
-   * This method is overridden by WorkerWebsocket, which manages a
-   * websocket connection via a service worker and doesn't have direct access
-   * to the socket.
-   */
-  _replaceMessageHandler() {
-    this._messageHandler = (m2) => this._onMessage(m2);
-  }
-  /**
-   * function that handles messages received from the service worker
-   * @private
-   * @param {MessageEvent} ev
-   */
-  _onWorkerMessage(ev) {
-    const { data } = ev;
-    const method_name = data[0];
-    if (method_name === "_onMessage") {
-      this._messageHandler(data[1]);
-    } else if (method_name in this) {
-      try {
-        this[
-          /** @type {'_attachCallback'|'_onOpen'|'_onClose'|'_onError'} */
-          method_name
-        ].apply(this, ev.data.slice(1));
-      } catch (e) {
-        log.error(e);
-      }
-    } else if (method_name === "log") {
-      const lmap = {
-        debug: LOG_LEVELS.DEBUG,
-        info: LOG_LEVELS.INFO,
-        warn: LOG_LEVELS.WARN,
-        error: LOG_LEVELS.ERROR,
-        fatal: LOG_LEVELS.FATAL
-      };
-      const level = data[1];
-      const msg = data[2];
-      log.log(lmap[level], msg);
-    } else {
-      log.error(`Found unhandled service worker message: ${data}`);
-    }
-  }
-}
-const connectionPlugins = {};
-class Connection {
-  /**
-   * @typedef {Object.<string, string>} Cookie
-   * @typedef {Cookie|Object.<string, Cookie>} Cookies
-   */
-  /**
-   * Create and initialize a {@link Connection} object.
-   *
-   * The transport-protocol for this connection will be chosen automatically
-   * based on the given service parameter. URLs starting with "ws://" or
-   * "wss://" will use WebSockets, URLs starting with "http://", "https://"
-   * or without a protocol will use [BOSH](https://xmpp.org/extensions/xep-0124.html).
-   *
-   * To make Strophe connect to the current host you can leave out the protocol
-   * and host part and just pass the path:
-   *
-   *  const conn = new Strophe.Connection("/http-bind/");
-   *
-   * @param {string} service - The BOSH or WebSocket service URL.
-   * @param {ConnectionOptions} options - A object containing configuration options
-   */
-  constructor(service, options = {}) {
-    this.service = service;
-    this.options = options;
-    this.setProtocol();
-    this.jid = "";
-    this.domain = null;
-    this.features = null;
-    this._sasl_data = {};
-    this.do_bind = false;
-    this.do_session = false;
-    this.mechanisms = {};
-    this.timedHandlers = [];
-    this.handlers = [];
-    this.removeTimeds = [];
-    this.removeHandlers = [];
-    this.addTimeds = [];
-    this.addHandlers = [];
-    this.protocolErrorHandlers = {
-      /** @type {Object.<number, Function>} */
-      "HTTP": {},
-      /** @type {Object.<number, Function>} */
-      "websocket": {}
-    };
-    this._idleTimeout = null;
-    this._disconnectTimeout = null;
-    this.authenticated = false;
-    this.connected = false;
-    this.disconnecting = false;
-    this.do_authentication = true;
-    this.paused = false;
-    this.restored = false;
-    this._data = [];
-    this._uniqueId = 0;
-    this._sasl_success_handler = null;
-    this._sasl_failure_handler = null;
-    this._sasl_challenge_handler = null;
-    this.maxRetries = 5;
-    this._idleTimeout = setTimeout(() => this._onIdle(), 100);
-    addCookies(this.options.cookies);
-    this.registerSASLMechanisms(this.options.mechanisms);
-    this.iqFallbackHandler = new Handler(
-      /**
-       * @param {Element} iq
-       */
-      (iq) => this.send(
-        $iq({ type: "error", id: iq.getAttribute("id") }).c("error", { "type": "cancel" }).c("service-unavailable", { "xmlns": NS.STANZAS })
-      ),
-      null,
-      "iq",
-      ["get", "set"]
-    );
-    for (const k2 in connectionPlugins) {
-      if (Object.prototype.hasOwnProperty.call(connectionPlugins, k2)) {
-        const F = function() {
-        };
-        F.prototype = connectionPlugins[k2];
-        this[k2] = new F();
-        this[k2].init(this);
-      }
-    }
-  }
-  /**
-   * Extends the Connection object with the given plugin.
-   * @param {string} name - The name of the extension.
-   * @param {Object} ptype - The plugin's prototype.
-   */
-  static addConnectionPlugin(name, ptype) {
-    connectionPlugins[name] = ptype;
-  }
-  /**
-   * Select protocal based on this.options or this.service
-   */
-  setProtocol() {
-    const proto = this.options.protocol || "";
-    if (this.options.worker) {
-      this._proto = new WorkerWebsocket(this);
-    } else if (this.service.indexOf("ws:") === 0 || this.service.indexOf("wss:") === 0 || proto.indexOf("ws") === 0) {
-      this._proto = new Websocket(this);
-    } else {
-      this._proto = new Bosh(this);
-    }
-  }
-  /**
-   * Reset the connection.
-   *
-   * This function should be called after a connection is disconnected
-   * before that connection is reused.
-   */
-  reset() {
-    this._proto._reset();
-    this.do_session = false;
-    this.do_bind = false;
-    this.timedHandlers = [];
-    this.handlers = [];
-    this.removeTimeds = [];
-    this.removeHandlers = [];
-    this.addTimeds = [];
-    this.addHandlers = [];
-    this.authenticated = false;
-    this.connected = false;
-    this.disconnecting = false;
-    this.restored = false;
-    this._data = [];
-    this._requests = [];
-    this._uniqueId = 0;
-  }
-  /**
-   * Pause the request manager.
-   *
-   * This will prevent Strophe from sending any more requests to the
-   * server.  This is very useful for temporarily pausing
-   * BOSH-Connections while a lot of send() calls are happening quickly.
-   * This causes Strophe to send the data in a single request, saving
-   * many request trips.
-   */
-  pause() {
-    this.paused = true;
-  }
-  /**
-   * Resume the request manager.
-   *
-   * This resumes after pause() has been called.
-   */
-  resume() {
-    this.paused = false;
-  }
-  /**
-   * Generate a unique ID for use in <iq/> elements.
-   *
-   * All <iq/> stanzas are required to have unique id attributes.  This
-   * function makes creating these easy.  Each connection instance has
-   * a counter which starts from zero, and the value of this counter
-   * plus a colon followed by the suffix becomes the unique id. If no
-   * suffix is supplied, the counter is used as the unique id.
-   *
-   * Suffixes are used to make debugging easier when reading the stream
-   * data, and their use is recommended.  The counter resets to 0 for
-   * every new connection for the same reason.  For connections to the
-   * same server that authenticate the same way, all the ids should be
-   * the same, which makes it easy to see changes.  This is useful for
-   * automated testing as well.
-   *
-   * @param {string} suffix - A optional suffix to append to the id.
-   * @returns {string} A unique string to be used for the id attribute.
-   */
-  // eslint-disable-next-line class-methods-use-this
-  getUniqueId(suffix) {
-    const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
-      const r2 = Math.random() * 16 | 0, v2 = c === "x" ? r2 : r2 & 3 | 8;
-      return v2.toString(16);
-    });
-    if (typeof suffix === "string" || typeof suffix === "number") {
-      return uuid + ":" + suffix;
-    } else {
-      return uuid + "";
-    }
-  }
-  /**
-   * Register a handler function for when a protocol (websocker or HTTP)
-   * error occurs.
-   *
-   * NOTE: Currently only HTTP errors for BOSH requests are handled.
-   * Patches that handle websocket errors would be very welcome.
-   *
-   * @example
-   *  function onError(err_code){
-   *    //do stuff
-   *  }
-   *
-   *  const conn = Strophe.connect('http://example.com/http-bind');
-   *  conn.addProtocolErrorHandler('HTTP', 500, onError);
-   *  // Triggers HTTP 500 error and onError handler will be called
-   *  conn.connect('user_jid@incorrect_jabber_host', 'secret', onConnect);
-   *
-   * @param {'HTTP'|'websocket'} protocol - 'HTTP' or 'websocket'
-   * @param {number} status_code - Error status code (e.g 500, 400 or 404)
-   * @param {Function} callback - Function that will fire on Http error
-   */
-  addProtocolErrorHandler(protocol, status_code, callback) {
-    this.protocolErrorHandlers[protocol][status_code] = callback;
-  }
-  /**
-   * @typedef {Object} Password
-   * @property {string} Password.name
-   * @property {string} Password.ck
-   * @property {string} Password.sk
-   * @property {number} Password.iter
-   * @property {string} Password.salt
-   */
-  /**
-   * Starts the connection process.
-   *
-   * As the connection process proceeds, the user supplied callback will
-   * be triggered multiple times with status updates.  The callback
-   * should take two arguments - the status code and the error condition.
-   *
-   * The status code will be one of the values in the Strophe.Status
-   * constants.  The error condition will be one of the conditions
-   * defined in RFC 3920 or the condition 'strophe-parsererror'.
-   *
-   * The Parameters _wait_, _hold_ and _route_ are optional and only relevant
-   * for BOSH connections. Please see XEP 124 for a more detailed explanation
-   * of the optional parameters.
-   *
-   * @param {string} jid - The user's JID.  This may be a bare JID,
-   *     or a full JID.  If a node is not supplied, SASL OAUTHBEARER or
-   *     SASL ANONYMOUS authentication will be attempted (OAUTHBEARER will
-   *     process the provided password value as an access token).
-   *   (String or Object) pass - The user's password, or an object containing
-   *     the users SCRAM client and server keys, in a fashion described as follows:
-   *
-   *     { name: String, representing the hash used (eg. SHA-1),
-   *       salt: String, base64 encoded salt used to derive the client key,
-   *       iter: Int,    the iteration count used to derive the client key,
-   *       ck:   String, the base64 encoding of the SCRAM client key
-   *       sk:   String, the base64 encoding of the SCRAM server key
-   *     }
-   * @param {string|Password} pass - The user password
-   * @param {Function} callback - The connect callback function.
-   * @param {number} [wait] - The optional HTTPBIND wait value.  This is the
-   *     time the server will wait before returning an empty result for
-   *     a request.  The default setting of 60 seconds is recommended.
-   * @param {number} [hold] - The optional HTTPBIND hold value.  This is the
-   *     number of connections the server will hold at one time.  This
-   *     should almost always be set to 1 (the default).
-   * @param {string} [route] - The optional route value.
-   * @param {string} [authcid] - The optional alternative authentication identity
-   *     (username) if intending to impersonate another user.
-   *     When using the SASL-EXTERNAL authentication mechanism, for example
-   *     with client certificates, then the authcid value is used to
-   *     determine whether an authorization JID (authzid) should be sent to
-   *     the server. The authzid should NOT be sent to the server if the
-   *     authzid and authcid are the same. So to prevent it from being sent
-   *     (for example when the JID is already contained in the client
-   *     certificate), set authcid to that same JID. See XEP-178 for more
-   *     details.
-   *  @param {number} [disconnection_timeout=3000] - The optional disconnection timeout
-   *     in milliseconds before _doDisconnect will be called.
-   */
-  connect(jid, pass, callback, wait, hold, route, authcid, disconnection_timeout = 3e3) {
-    this.jid = jid;
-    this.authzid = getBareJidFromJid(this.jid);
-    this.authcid = authcid || getNodeFromJid(this.jid);
-    this.pass = pass;
-    this.scram_keys = null;
-    this.connect_callback = callback;
-    this.disconnecting = false;
-    this.connected = false;
-    this.authenticated = false;
-    this.restored = false;
-    this.disconnection_timeout = disconnection_timeout;
-    this.domain = getDomainFromJid(this.jid);
-    this._changeConnectStatus(Status$1.CONNECTING, null);
-    this._proto._connect(wait, hold, route);
-  }
-  /**
-   * Attach to an already created and authenticated BOSH session.
-   *
-   * This function is provided to allow Strophe to attach to BOSH
-   * sessions which have been created externally, perhaps by a Web
-   * application.  This is often used to support auto-login type features
-   * without putting user credentials into the page.
-   *
-   * @param {string|Function} jid - The full JID that is bound by the session.
-   * @param {string} [sid] - The SID of the BOSH session.
-   * @param {number} [rid] - The current RID of the BOSH session.  This RID
-   *     will be used by the next request.
-   * @param {Function} [callback] - The connect callback function.
-   * @param {number} [wait] - The optional HTTPBIND wait value.  This is the
-   *     time the server will wait before returning an empty result for
-   *     a request.  The default setting of 60 seconds is recommended.
-   *     Other settings will require tweaks to the Strophe.TIMEOUT value.
-   * @param {number} [hold] - The optional HTTPBIND hold value.  This is the
-   *     number of connections the server will hold at one time.  This
-   *     should almost always be set to 1 (the default).
-   * @param {number} [wind] - The optional HTTBIND window value.  This is the
-   *     allowed range of request ids that are valid.  The default is 5.
-   */
-  attach(jid, sid, rid, callback, wait, hold, wind) {
-    if (this._proto instanceof Bosh && typeof jid === "string") {
-      return this._proto._attach(jid, sid, rid, callback, wait, hold, wind);
-    } else if (this._proto instanceof WorkerWebsocket && typeof jid === "function") {
-      const callback2 = jid;
-      return this._proto._attach(callback2);
-    } else {
-      throw new SessionError('The "attach" method is not available for your connection protocol');
-    }
-  }
-  /**
-   * Attempt to restore a cached BOSH session.
-   *
-   * This function is only useful in conjunction with providing the
-   * "keepalive":true option when instantiating a new {@link Connection}.
-   *
-   * When "keepalive" is set to true, Strophe will cache the BOSH tokens
-   * RID (Request ID) and SID (Session ID) and then when this function is
-   * called, it will attempt to restore the session from those cached
-   * tokens.
-   *
-   * This function must therefore be called instead of connect or attach.
-   *
-   * For an example on how to use it, please see examples/restore.js
-   *
-   * @param {string} jid - The user's JID.  This may be a bare JID or a full JID.
-   * @param {Function} callback - The connect callback function.
-   * @param {number} [wait] - The optional HTTPBIND wait value.  This is the
-   *     time the server will wait before returning an empty result for
-   *     a request.  The default setting of 60 seconds is recommended.
-   * @param {number} [hold] - The optional HTTPBIND hold value.  This is the
-   *     number of connections the server will hold at one time.  This
-   *     should almost always be set to 1 (the default).
-   * @param {number} [wind] - The optional HTTBIND window value.  This is the
-   *     allowed range of request ids that are valid.  The default is 5.
-   */
-  restore(jid, callback, wait, hold, wind) {
-    if (!(this._proto instanceof Bosh) || !this._sessionCachingSupported()) {
-      throw new SessionError('The "restore" method can only be used with a BOSH connection.');
-    }
-    if (this._sessionCachingSupported()) {
-      this._proto._restore(jid, callback, wait, hold, wind);
-    }
-  }
-  /**
-   * Checks whether sessionStorage and JSON are supported and whether we're
-   * using BOSH.
-   */
-  _sessionCachingSupported() {
-    if (this._proto instanceof Bosh) {
-      if (!JSON) {
-        return false;
-      }
-      try {
-        sessionStorage.setItem("_strophe_", "_strophe_");
-        sessionStorage.removeItem("_strophe_");
-      } catch (e) {
-        return false;
-      }
-      return true;
-    }
-    return false;
-  }
-  /**
-   * User overrideable function that receives XML data coming into the
-   * connection.
-   *
-   * The default function does nothing.  User code can override this with
-   * > Connection.xmlInput = function (elem) {
-   * >   (user code)
-   * > };
-   *
-   * Due to limitations of current Browsers' XML-Parsers the opening and closing
-   * <stream> tag for WebSocket-Connoctions will be passed as selfclosing here.
-   *
-   * BOSH-Connections will have all stanzas wrapped in a <body> tag. See
-   * <Bosh.strip> if you want to strip this tag.
-   *
-   * @param {Node|MessageEvent} elem - The XML data received by the connection.
-   */
-  // eslint-disable-next-line no-unused-vars, class-methods-use-this
-  xmlInput(elem) {
-    return;
-  }
-  /**
-   * User overrideable function that receives XML data sent to the
-   * connection.
-   *
-   * The default function does nothing.  User code can override this with
-   * > Connection.xmlOutput = function (elem) {
-   * >   (user code)
-   * > };
-   *
-   * Due to limitations of current Browsers' XML-Parsers the opening and closing
-   * <stream> tag for WebSocket-Connoctions will be passed as selfclosing here.
-   *
-   * BOSH-Connections will have all stanzas wrapped in a <body> tag. See
-   * <Bosh.strip> if you want to strip this tag.
-   *
-   * @param {Element} elem - The XMLdata sent by the connection.
-   */
-  // eslint-disable-next-line no-unused-vars, class-methods-use-this
-  xmlOutput(elem) {
-    return;
-  }
-  /**
-   * User overrideable function that receives raw data coming into the
-   * connection.
-   *
-   * The default function does nothing.  User code can override this with
-   * > Connection.rawInput = function (data) {
-   * >   (user code)
-   * > };
-   *
-   * @param {string} data - The data received by the connection.
-   */
-  // eslint-disable-next-line no-unused-vars, class-methods-use-this
-  rawInput(data) {
-    return;
-  }
-  /**
-   * User overrideable function that receives raw data sent to the
-   * connection.
-   *
-   * The default function does nothing.  User code can override this with
-   * > Connection.rawOutput = function (data) {
-   * >   (user code)
-   * > };
-   *
-   * @param {string} data - The data sent by the connection.
-   */
-  // eslint-disable-next-line no-unused-vars, class-methods-use-this
-  rawOutput(data) {
-    return;
-  }
-  /**
-   * User overrideable function that receives the new valid rid.
-   *
-   * The default function does nothing. User code can override this with
-   * > Connection.nextValidRid = function (rid) {
-   * >    (user code)
-   * > };
-   *
-   * @param {number} rid - The next valid rid
-   */
-  // eslint-disable-next-line no-unused-vars, class-methods-use-this
-  nextValidRid(rid) {
-    return;
-  }
-  /**
-   * Send a stanza.
-   *
-   * This function is called to push data onto the send queue to
-   * go out over the wire.  Whenever a request is sent to the BOSH
-   * server, all pending data is sent and the queue is flushed.
-   *
-   * @param {Element|Builder|Element[]|Builder[]} stanza - The stanza to send
-   */
-  send(stanza) {
-    if (stanza === null) return;
-    if (Array.isArray(stanza)) {
-      stanza.forEach((s) => this._queueData(s instanceof Builder ? s.tree() : s));
-    } else {
-      const el = stanza instanceof Builder ? stanza.tree() : stanza;
-      this._queueData(el);
-    }
-    this._proto._send();
-  }
-  /**
-   * Immediately send any pending outgoing data.
-   *
-   * Normally send() queues outgoing data until the next idle period
-   * (100ms), which optimizes network use in the common cases when
-   * several send()s are called in succession. flush() can be used to
-   * immediately send all pending data.
-   */
-  flush() {
-    clearTimeout(this._idleTimeout);
-    this._onIdle();
-  }
-  /**
-   * Helper function to send presence stanzas. The main benefit is for
-   * sending presence stanzas for which you expect a responding presence
-   * stanza with the same id (for example when leaving a chat room).
-   *
-   * @param {Element} stanza - The stanza to send.
-   * @param {Function} [callback] - The callback function for a successful request.
-   * @param {Function} [errback] - The callback function for a failed or timed
-   *    out request.  On timeout, the stanza will be null.
-   * @param {number} [timeout] - The time specified in milliseconds for a
-   *    timeout to occur.
-   * @return {string} The id used to send the presence.
-   */
-  sendPresence(stanza, callback, errback, timeout) {
-    let timeoutHandler = null;
-    const el = stanza instanceof Builder ? stanza.tree() : stanza;
-    let id = el.getAttribute("id");
-    if (!id) {
-      id = this.getUniqueId("sendPresence");
-      el.setAttribute("id", id);
-    }
-    if (typeof callback === "function" || typeof errback === "function") {
-      const handler = this.addHandler(
-        /** @param {Element} stanza */
-        (stanza2) => {
-          if (timeoutHandler) this.deleteTimedHandler(timeoutHandler);
-          if (stanza2.getAttribute("type") === "error") {
-            errback == null ? void 0 : errback(stanza2);
-          } else if (callback) {
-            callback(stanza2);
-          }
-        },
-        null,
-        "presence",
-        null,
-        id
-      );
-      if (timeout) {
-        timeoutHandler = this.addTimedHandler(timeout, () => {
-          this.deleteHandler(handler);
-          errback == null ? void 0 : errback(null);
-          return false;
-        });
-      }
-    }
-    this.send(el);
-    return id;
-  }
-  /**
-   * Helper function to send IQ stanzas.
-   *
-   * @param {Element|Builder} stanza - The stanza to send.
-   * @param {Function} [callback] - The callback function for a successful request.
-   * @param {Function} [errback] - The callback function for a failed or timed
-   *     out request.  On timeout, the stanza will be null.
-   * @param {number} [timeout] - The time specified in milliseconds for a
-   *     timeout to occur.
-   * @return {string} The id used to send the IQ.
-   */
-  sendIQ(stanza, callback, errback, timeout) {
-    let timeoutHandler = null;
-    const el = stanza instanceof Builder ? stanza.tree() : stanza;
-    let id = el.getAttribute("id");
-    if (!id) {
-      id = this.getUniqueId("sendIQ");
-      el.setAttribute("id", id);
-    }
-    if (typeof callback === "function" || typeof errback === "function") {
-      const handler = this.addHandler(
-        /** @param {Element} stanza */
-        (stanza2) => {
-          if (timeoutHandler) this.deleteTimedHandler(timeoutHandler);
-          const iqtype = stanza2.getAttribute("type");
-          if (iqtype === "result") {
-            callback == null ? void 0 : callback(stanza2);
-          } else if (iqtype === "error") {
-            errback == null ? void 0 : errback(stanza2);
-          } else {
-            const error2 = new Error(`Got bad IQ type of ${iqtype}`);
-            error2.name = "StropheError";
-            throw error2;
-          }
-        },
-        null,
-        "iq",
-        ["error", "result"],
-        id
-      );
-      if (timeout) {
-        timeoutHandler = this.addTimedHandler(timeout, () => {
-          this.deleteHandler(handler);
-          errback == null ? void 0 : errback(null);
-          return false;
-        });
-      }
-    }
-    this.send(el);
-    return id;
-  }
-  /**
-   * Queue outgoing data for later sending.  Also ensures that the data
-   * is a DOMElement.
-   * @private
-   * @param {Element} element
-   */
-  _queueData(element) {
-    if (element === null || !element.tagName || !element.childNodes) {
-      const error2 = new Error("Cannot queue non-DOMElement.");
-      error2.name = "StropheError";
-      throw error2;
-    }
-    this._data.push(element);
-  }
-  /**
-   * Send an xmpp:restart stanza.
-   * @private
-   */
-  _sendRestart() {
-    this._data.push("restart");
-    this._proto._sendRestart();
-    this._idleTimeout = setTimeout(() => this._onIdle(), 100);
-  }
-  /**
-   * Add a timed handler to the connection.
-   *
-   * This function adds a timed handler.  The provided handler will
-   * be called every period milliseconds until it returns false,
-   * the connection is terminated, or the handler is removed.  Handlers
-   * that wish to continue being invoked should return true.
-   *
-   * Because of method binding it is necessary to save the result of
-   * this function if you wish to remove a handler with
-   * deleteTimedHandler().
-   *
-   * Note that user handlers are not active until authentication is
-   * successful.
-   *
-   * @param {number} period - The period of the handler.
-   * @param {Function} handler - The callback function.
-   * @return {TimedHandler} A reference to the handler that can be used to remove it.
-   */
-  addTimedHandler(period, handler) {
-    const thand = new TimedHandler(period, handler);
-    this.addTimeds.push(thand);
-    return thand;
-  }
-  /**
-   * Delete a timed handler for a connection.
-   *
-   * This function removes a timed handler from the connection.  The
-   * handRef parameter is *not* the function passed to addTimedHandler(),
-   * but is the reference returned from addTimedHandler().
-   * @param {TimedHandler} handRef - The handler reference.
-   */
-  deleteTimedHandler(handRef) {
-    this.removeTimeds.push(handRef);
-  }
-  /**
-   * @typedef {Object} HandlerOptions
-   * @property {boolean} [HandlerOptions.matchBareFromJid]
-   * @property {boolean} [HandlerOptions.ignoreNamespaceFragment]
-   */
-  /**
-   * Add a stanza handler for the connection.
-   *
-   * This function adds a stanza handler to the connection.  The
-   * handler callback will be called for any stanza that matches
-   * the parameters.  Note that if multiple parameters are supplied,
-   * they must all match for the handler to be invoked.
-   *
-   * The handler will receive the stanza that triggered it as its argument.
-   * *The handler should return true if it is to be invoked again;
-   * returning false will remove the handler after it returns.*
-   *
-   * As a convenience, the ns parameters applies to the top level element
-   * and also any of its immediate children.  This is primarily to make
-   * matching /iq/query elements easy.
-   *
-   * ### Options
-   *
-   * With the options argument, you can specify boolean flags that affect how
-   * matches are being done.
-   *
-   * Currently two flags exist:
-   *
-   * * *matchBareFromJid*:
-   *     When set to true, the from parameter and the
-   *     from attribute on the stanza will be matched as bare JIDs instead
-   *     of full JIDs. To use this, pass {matchBareFromJid: true} as the
-   *     value of options. The default value for matchBareFromJid is false.
-   *
-   * * *ignoreNamespaceFragment*:
-   *     When set to true, a fragment specified on the stanza's namespace
-   *     URL will be ignored when it's matched with the one configured for
-   *     the handler.
-   *
-   *     This means that if you register like this:
-   *
-   *     >   connection.addHandler(
-   *     >       handler,
-   *     >       'http://jabber.org/protocol/muc',
-   *     >       null, null, null, null,
-   *     >       {'ignoreNamespaceFragment': true}
-   *     >   );
-   *
-   *     Then a stanza with XML namespace of
-   *     'http://jabber.org/protocol/muc#user' will also be matched. If
-   *     'ignoreNamespaceFragment' is false, then only stanzas with
-   *     'http://jabber.org/protocol/muc' will be matched.
-   *
-   * ### Deleting the handler
-   *
-   * The return value should be saved if you wish to remove the handler
-   * with `deleteHandler()`.
-   *
-   * @param {Function} handler - The user callback.
-   * @param {string} ns - The namespace to match.
-   * @param {string} name - The stanza name to match.
-   * @param {string|string[]} type - The stanza type (or types if an array) to match.
-   * @param {string} [id] - The stanza id attribute to match.
-   * @param {string} [from] - The stanza from attribute to match.
-   * @param {HandlerOptions} [options] - The handler options
-   * @return {Handler} A reference to the handler that can be used to remove it.
-   */
-  addHandler(handler, ns, name, type, id, from2, options) {
-    const hand = new Handler(handler, ns, name, type, id, from2, options);
-    this.addHandlers.push(hand);
-    return hand;
-  }
-  /**
-   * Delete a stanza handler for a connection.
-   *
-   * This function removes a stanza handler from the connection.  The
-   * handRef parameter is *not* the function passed to addHandler(),
-   * but is the reference returned from addHandler().
-   *
-   * @param {Handler} handRef - The handler reference.
-   */
-  deleteHandler(handRef) {
-    this.removeHandlers.push(handRef);
-    const i = this.addHandlers.indexOf(handRef);
-    if (i >= 0) {
-      this.addHandlers.splice(i, 1);
-    }
-  }
-  /**
-   * Register the SASL mechanisms which will be supported by this instance of
-   * Connection (i.e. which this XMPP client will support).
-   * @param {SASLMechanism[]} mechanisms - Array of objects with SASLMechanism prototypes
-   */
-  registerSASLMechanisms(mechanisms) {
-    this.mechanisms = {};
-    (mechanisms || [
-      SASLAnonymous,
-      SASLExternal,
-      SASLOAuthBearer,
-      SASLXOAuth2,
-      SASLPlain,
-      SASLSHA1,
-      SASLSHA256,
-      SASLSHA384,
-      SASLSHA512
-    ]).forEach((m2) => this.registerSASLMechanism(m2));
-  }
-  /**
-   * Register a single SASL mechanism, to be supported by this client.
-   * @param {any} Mechanism - Object with a Strophe.SASLMechanism prototype
-   */
-  registerSASLMechanism(Mechanism) {
-    const mechanism = new Mechanism();
-    this.mechanisms[mechanism.mechname] = mechanism;
-  }
-  /**
-   * Start the graceful disconnection process.
-   *
-   * This function starts the disconnection process.  This process starts
-   * by sending unavailable presence and sending BOSH body of type
-   * terminate.  A timeout handler makes sure that disconnection happens
-   * even if the BOSH server does not respond.
-   * If the Connection object isn't connected, at least tries to abort all pending requests
-   * so the connection object won't generate successful requests (which were already opened).
-   *
-   * The user supplied connection callback will be notified of the
-   * progress as this process happens.
-   *
-   * @param {string} [reason] - The reason the disconnect is occuring.
-   */
-  disconnect(reason) {
-    this._changeConnectStatus(Status$1.DISCONNECTING, reason);
-    if (reason) {
-      log.info("Disconnect was called because: " + reason);
-    } else {
-      log.debug("Disconnect was called");
-    }
-    if (this.connected) {
-      let pres = null;
-      this.disconnecting = true;
-      if (this.authenticated) {
-        pres = $pres({
-          "xmlns": NS.CLIENT,
-          "type": "unavailable"
-        });
-      }
-      this._disconnectTimeout = this._addSysTimedHandler(
-        this.disconnection_timeout,
-        this._onDisconnectTimeout.bind(this)
-      );
-      this._proto._disconnect(pres);
-    } else {
-      log.debug("Disconnect was called before Strophe connected to the server");
-      this._proto._abortAllRequests();
-      this._doDisconnect();
-    }
-  }
-  /**
-   * _Private_ helper function that makes sure plugins and the user's
-   * callback are notified of connection status changes.
-   * @param {number} status - the new connection status, one of the values
-   *     in Strophe.Status
-   * @param {string|null} [condition] - the error condition
-   * @param {Element} [elem] - The triggering stanza.
-   */
-  _changeConnectStatus(status, condition, elem) {
-    for (const k2 in connectionPlugins) {
-      if (Object.prototype.hasOwnProperty.call(connectionPlugins, k2)) {
-        const plugin = this[k2];
-        if (plugin.statusChanged) {
-          try {
-            plugin.statusChanged(status, condition);
-          } catch (err) {
-            log.error(`${k2} plugin caused an exception changing status: ${err}`);
-          }
-        }
-      }
-    }
-    if (this.connect_callback) {
-      try {
-        this.connect_callback(status, condition, elem);
-      } catch (e) {
-        handleError(e);
-        log.error(`User connection callback caused an exception: ${e}`);
-      }
-    }
-  }
-  /**
-   * _Private_ function to disconnect.
-   *
-   * This is the last piece of the disconnection logic.  This resets the
-   * connection and alerts the user's connection callback.
-   * @param {string|null} [condition] - the error condition
-   */
-  _doDisconnect(condition) {
-    if (typeof this._idleTimeout === "number") {
-      clearTimeout(this._idleTimeout);
-    }
-    if (this._disconnectTimeout !== null) {
-      this.deleteTimedHandler(this._disconnectTimeout);
-      this._disconnectTimeout = null;
-    }
-    log.debug("_doDisconnect was called");
-    this._proto._doDisconnect();
-    this.authenticated = false;
-    this.disconnecting = false;
-    this.restored = false;
-    this.handlers = [];
-    this.timedHandlers = [];
-    this.removeTimeds = [];
-    this.removeHandlers = [];
-    this.addTimeds = [];
-    this.addHandlers = [];
-    this._changeConnectStatus(Status$1.DISCONNECTED, condition);
-    this.connected = false;
-  }
-  /**
-   * _Private_ handler to processes incoming data from the the connection.
-   *
-   * Except for _connect_cb handling the initial connection request,
-   * this function handles the incoming data for all requests.  This
-   * function also fires stanza handlers that match each incoming
-   * stanza.
-   * @param {Element | Request} req - The request that has data ready.
-   * @param {string} [raw] - The stanza as raw string.
-   */
-  _dataRecv(req, raw) {
-    const elem = (
-      /** @type {Element} */
-      "_reqToData" in this._proto ? this._proto._reqToData(
-        /** @type {Request} */
-        req
-      ) : req
-    );
-    if (elem === null) {
-      return;
-    }
-    if (this.xmlInput !== Connection.prototype.xmlInput) {
-      if (elem.nodeName === this._proto.strip && elem.childNodes.length) {
-        this.xmlInput(elem.childNodes[0]);
-      } else {
-        this.xmlInput(elem);
-      }
-    }
-    if (this.rawInput !== Connection.prototype.rawInput) {
-      if (raw) {
-        this.rawInput(raw);
-      } else {
-        this.rawInput(Builder.serialize(elem));
-      }
-    }
-    while (this.removeHandlers.length > 0) {
-      const hand = this.removeHandlers.pop();
-      const i = this.handlers.indexOf(hand);
-      if (i >= 0) {
-        this.handlers.splice(i, 1);
-      }
-    }
-    while (this.addHandlers.length > 0) {
-      this.handlers.push(this.addHandlers.pop());
-    }
-    if (this.disconnecting && this._proto._emptyQueue()) {
-      this._doDisconnect();
-      return;
-    }
-    const type = elem.getAttribute("type");
-    if (type !== null && type === "terminate") {
-      if (this.disconnecting) {
-        return;
-      }
-      let cond = elem.getAttribute("condition");
-      const conflict = elem.getElementsByTagName("conflict");
-      if (cond !== null) {
-        if (cond === "remote-stream-error" && conflict.length > 0) {
-          cond = "conflict";
-        }
-        this._changeConnectStatus(Status$1.CONNFAIL, cond);
-      } else {
-        this._changeConnectStatus(Status$1.CONNFAIL, ErrorCondition.UNKNOWN_REASON);
-      }
-      this._doDisconnect(cond);
-      return;
-    }
-    forEachChild(
-      elem,
-      null,
-      /** @param {Element} child */
-      (child) => {
-        const matches = [];
-        this.handlers = this.handlers.reduce((handlers, handler) => {
-          try {
-            if (handler.isMatch(child) && (this.authenticated || !handler.user)) {
-              if (handler.run(child)) {
-                handlers.push(handler);
-              }
-              matches.push(handler);
-            } else {
-              handlers.push(handler);
-            }
-          } catch (e) {
-            log.warn("Removing Strophe handlers due to uncaught exception: " + e.message);
-          }
-          return handlers;
-        }, []);
-        if (!matches.length && this.iqFallbackHandler.isMatch(child)) {
-          this.iqFallbackHandler.run(child);
-        }
-      }
-    );
-  }
-  /**
-   * @callback connectionCallback
-   * @param {Connection} connection
-   */
-  /**
-   * _Private_ handler for initial connection request.
-   *
-   * This handler is used to process the initial connection request
-   * response from the BOSH server. It is used to set up authentication
-   * handlers and start the authentication process.
-   *
-   * SASL authentication will be attempted if available, otherwise
-   * the code will fall back to legacy authentication.
-   *
-   * @param {Element | Request} req - The current request.
-   * @param {connectionCallback} _callback - low level (xmpp) connect callback function.
-   *     Useful for plugins with their own xmpp connect callback (when they
-   *     want to do something special).
-   * @param {string} [raw] - The stanza as raw string.
-   */
-  _connect_cb(req, _callback, raw) {
-    log.debug("_connect_cb was called");
-    this.connected = true;
-    let bodyWrap;
-    try {
-      bodyWrap = /** @type {Element} */
-      "_reqToData" in this._proto ? this._proto._reqToData(
-        /** @type {Request} */
-        req
-      ) : req;
-    } catch (e) {
-      if (e.name !== ErrorCondition.BAD_FORMAT) {
-        throw e;
-      }
-      this._changeConnectStatus(Status$1.CONNFAIL, ErrorCondition.BAD_FORMAT);
-      this._doDisconnect(ErrorCondition.BAD_FORMAT);
-    }
-    if (!bodyWrap) {
-      return;
-    }
-    if (this.xmlInput !== Connection.prototype.xmlInput) {
-      if (bodyWrap.nodeName === this._proto.strip && bodyWrap.childNodes.length) {
-        this.xmlInput(bodyWrap.childNodes[0]);
-      } else {
-        this.xmlInput(bodyWrap);
-      }
-    }
-    if (this.rawInput !== Connection.prototype.rawInput) {
-      if (raw) {
-        this.rawInput(raw);
-      } else {
-        this.rawInput(Builder.serialize(bodyWrap));
-      }
-    }
-    const conncheck = this._proto._connect_cb(bodyWrap);
-    if (conncheck === Status$1.CONNFAIL) {
-      return;
-    }
-    let hasFeatures;
-    if (bodyWrap.getElementsByTagNameNS) {
-      hasFeatures = bodyWrap.getElementsByTagNameNS(NS.STREAM, "features").length > 0;
-    } else {
-      hasFeatures = bodyWrap.getElementsByTagName("stream:features").length > 0 || bodyWrap.getElementsByTagName("features").length > 0;
-    }
-    if (!hasFeatures) {
-      this._proto._no_auth_received(_callback);
-      return;
-    }
-    const matched = Array.from(bodyWrap.getElementsByTagName("mechanism")).map((m2) => this.mechanisms[m2.textContent]).filter((m2) => m2);
-    if (matched.length === 0) {
-      if (bodyWrap.getElementsByTagName("auth").length === 0) {
-        this._proto._no_auth_received(_callback);
-        return;
-      }
-    }
-    if (this.do_authentication !== false) {
-      this.authenticate(matched);
-    }
-  }
-  /**
-   * Sorts an array of objects with prototype SASLMechanism according to
-   * their priorities.
-   * @param {SASLMechanism[]} mechanisms - Array of SASL mechanisms.
-   */
-  // eslint-disable-next-line  class-methods-use-this
-  sortMechanismsByPriority(mechanisms) {
-    for (let i = 0; i < mechanisms.length - 1; ++i) {
-      let higher = i;
-      for (let j2 = i + 1; j2 < mechanisms.length; ++j2) {
-        if (mechanisms[j2].priority > mechanisms[higher].priority) {
-          higher = j2;
-        }
-      }
-      if (higher !== i) {
-        const swap = mechanisms[i];
-        mechanisms[i] = mechanisms[higher];
-        mechanisms[higher] = swap;
-      }
-    }
-    return mechanisms;
-  }
-  /**
-   * Set up authentication
-   *
-   * Continues the initial connection request by setting up authentication
-   * handlers and starting the authentication process.
-   *
-   * SASL authentication will be attempted if available, otherwise
-   * the code will fall back to legacy authentication.
-   *
-   * @param {SASLMechanism[]} matched - Array of SASL mechanisms supported.
-   */
-  authenticate(matched) {
-    if (!this._attemptSASLAuth(matched)) {
-      this._attemptLegacyAuth();
-    }
-  }
-  /**
-   * Iterate through an array of SASL mechanisms and attempt authentication
-   * with the highest priority (enabled) mechanism.
-   *
-   * @private
-   * @param {SASLMechanism[]} mechanisms - Array of SASL mechanisms.
-   * @return {Boolean} mechanism_found - true or false, depending on whether a
-   *  valid SASL mechanism was found with which authentication could be started.
-   */
-  _attemptSASLAuth(mechanisms) {
-    mechanisms = this.sortMechanismsByPriority(mechanisms || []);
-    let mechanism_found = false;
-    for (let i = 0; i < mechanisms.length; ++i) {
-      if (!mechanisms[i].test(this)) {
-        continue;
-      }
-      this._sasl_success_handler = this._addSysHandler(
-        this._sasl_success_cb.bind(this),
-        null,
-        "success",
-        null,
-        null
-      );
-      this._sasl_failure_handler = this._addSysHandler(
-        this._sasl_failure_cb.bind(this),
-        null,
-        "failure",
-        null,
-        null
-      );
-      this._sasl_challenge_handler = this._addSysHandler(
-        this._sasl_challenge_cb.bind(this),
-        null,
-        "challenge",
-        null,
-        null
-      );
-      this._sasl_mechanism = mechanisms[i];
-      this._sasl_mechanism.onStart(this);
-      const request_auth_exchange = $build("auth", {
-        "xmlns": NS.SASL,
-        "mechanism": this._sasl_mechanism.mechname
-      });
-      if (this._sasl_mechanism.isClientFirst) {
-        const response = this._sasl_mechanism.clientChallenge(this);
-        request_auth_exchange.t(btoa(
-          /** @type {string} */
-          response
-        ));
-      }
-      this.send(request_auth_exchange.tree());
-      mechanism_found = true;
-      break;
-    }
-    return mechanism_found;
-  }
-  /**
-   * _Private_ handler for the SASL challenge
-   * @private
-   * @param {Element} elem
-   */
-  async _sasl_challenge_cb(elem) {
-    const challenge = atob(getText(elem));
-    const response = await this._sasl_mechanism.onChallenge(this, challenge);
-    const stanza = $build("response", { "xmlns": NS.SASL });
-    if (response) stanza.t(btoa(response));
-    this.send(stanza.tree());
-    return true;
-  }
-  /**
-   * Attempt legacy (i.e. non-SASL) authentication.
-   * @private
-   */
-  _attemptLegacyAuth() {
-    if (getNodeFromJid(this.jid) === null) {
-      this._changeConnectStatus(Status$1.CONNFAIL, ErrorCondition.MISSING_JID_NODE);
-      this.disconnect(ErrorCondition.MISSING_JID_NODE);
-    } else {
-      this._changeConnectStatus(Status$1.AUTHENTICATING, null);
-      this._addSysHandler(this._onLegacyAuthIQResult.bind(this), null, null, null, "_auth_1");
-      this.send(
-        $iq({
-          "type": "get",
-          "to": this.domain,
-          "id": "_auth_1"
-        }).c("query", { xmlns: NS.AUTH }).c("username", {}).t(getNodeFromJid(this.jid)).tree()
-      );
-    }
-  }
-  /**
-   * _Private_ handler for legacy authentication.
-   *
-   * This handler is called in response to the initial <iq type='get'/>
-   * for legacy authentication.  It builds an authentication <iq/> and
-   * sends it, creating a handler (calling back to _auth2_cb()) to
-   * handle the result
-   * @private
-   * @return {false} `false` to remove the handler.
-   */
-  _onLegacyAuthIQResult() {
-    const pass = typeof this.pass === "string" ? this.pass : "";
-    const iq = $iq({ type: "set", id: "_auth_2" }).c("query", { xmlns: NS.AUTH }).c("username", {}).t(getNodeFromJid(this.jid)).up().c("password").t(pass);
-    if (!getResourceFromJid(this.jid)) {
-      this.jid = getBareJidFromJid(this.jid) + "/strophe";
-    }
-    iq.up().c("resource", {}).t(getResourceFromJid(this.jid));
-    this._addSysHandler(this._auth2_cb.bind(this), null, null, null, "_auth_2");
-    this.send(iq.tree());
-    return false;
-  }
-  /**
-   * _Private_ handler for succesful SASL authentication.
-   * @private
-   * @param {Element} elem - The matching stanza.
-   * @return {false} `false` to remove the handler.
-   */
-  _sasl_success_cb(elem) {
-    if (this._sasl_data["server-signature"]) {
-      let serverSignature;
-      const success = atob(getText(elem));
-      const attribMatch = /([a-z]+)=([^,]+)(,|$)/;
-      const matches = success.match(attribMatch);
-      if (matches[1] === "v") {
-        serverSignature = matches[2];
-      }
-      if (serverSignature !== this._sasl_data["server-signature"]) {
-        this.deleteHandler(this._sasl_failure_handler);
-        this._sasl_failure_handler = null;
-        if (this._sasl_challenge_handler) {
-          this.deleteHandler(this._sasl_challenge_handler);
-          this._sasl_challenge_handler = null;
-        }
-        this._sasl_data = {};
-        return this._sasl_failure_cb(null);
-      }
-    }
-    log.info("SASL authentication succeeded.");
-    if (this._sasl_data.keys) {
-      this.scram_keys = this._sasl_data.keys;
-    }
-    if (this._sasl_mechanism) {
-      this._sasl_mechanism.onSuccess();
-    }
-    this.deleteHandler(this._sasl_failure_handler);
-    this._sasl_failure_handler = null;
-    if (this._sasl_challenge_handler) {
-      this.deleteHandler(this._sasl_challenge_handler);
-      this._sasl_challenge_handler = null;
-    }
-    const streamfeature_handlers = [];
-    const wrapper2 = (handlers, elem2) => {
-      while (handlers.length) {
-        this.deleteHandler(handlers.pop());
-      }
-      this._onStreamFeaturesAfterSASL(elem2);
-      return false;
-    };
-    streamfeature_handlers.push(
-      this._addSysHandler(
-        /** @param {Element} elem */
-        (elem2) => wrapper2(streamfeature_handlers, elem2),
-        null,
-        "stream:features",
-        null,
-        null
-      )
-    );
-    streamfeature_handlers.push(
-      this._addSysHandler(
-        /** @param {Element} elem */
-        (elem2) => wrapper2(streamfeature_handlers, elem2),
-        NS.STREAM,
-        "features",
-        null,
-        null
-      )
-    );
-    this._sendRestart();
-    return false;
-  }
-  /**
-   * @private
-   * @param {Element} elem - The matching stanza.
-   * @return {false} `false` to remove the handler.
-   */
-  _onStreamFeaturesAfterSASL(elem) {
-    this.features = elem;
-    for (let i = 0; i < elem.childNodes.length; i++) {
-      const child = elem.childNodes[i];
-      if (child.nodeName === "bind") {
-        this.do_bind = true;
-      }
-      if (child.nodeName === "session") {
-        this.do_session = true;
-      }
-    }
-    if (!this.do_bind) {
-      this._changeConnectStatus(Status$1.AUTHFAIL, null);
-      return false;
-    } else if (!this.options.explicitResourceBinding) {
-      this.bind();
-    } else {
-      this._changeConnectStatus(Status$1.BINDREQUIRED, null);
-    }
-    return false;
-  }
-  /**
-   * Sends an IQ to the XMPP server to bind a JID resource for this session.
-   *
-   * https://tools.ietf.org/html/rfc6120#section-7.5
-   *
-   * If `explicitResourceBinding` was set to a truthy value in the options
-   * passed to the Connection constructor, then this function needs
-   * to be called explicitly by the client author.
-   *
-   * Otherwise it'll be called automatically as soon as the XMPP server
-   * advertises the "urn:ietf:params:xml:ns:xmpp-bind" stream feature.
-   */
-  bind() {
-    if (!this.do_bind) {
-      log.info(`Connection.prototype.bind called but "do_bind" is false`);
-      return;
-    }
-    this._addSysHandler(this._onResourceBindResultIQ.bind(this), null, null, null, "_bind_auth_2");
-    const resource = getResourceFromJid(this.jid);
-    if (resource) {
-      this.send(
-        $iq({ type: "set", id: "_bind_auth_2" }).c("bind", { xmlns: NS.BIND }).c("resource", {}).t(resource).tree()
-      );
-    } else {
-      this.send($iq({ type: "set", id: "_bind_auth_2" }).c("bind", { xmlns: NS.BIND }).tree());
-    }
-  }
-  /**
-   * _Private_ handler for binding result and session start.
-   * @private
-   * @param {Element} elem - The matching stanza.
-   * @return {false} `false` to remove the handler.
-   */
-  _onResourceBindResultIQ(elem) {
-    if (elem.getAttribute("type") === "error") {
-      log.warn("Resource binding failed.");
-      const conflict = elem.getElementsByTagName("conflict");
-      let condition;
-      if (conflict.length > 0) {
-        condition = ErrorCondition.CONFLICT;
-      }
-      this._changeConnectStatus(Status$1.AUTHFAIL, condition, elem);
-      return false;
-    }
-    const bind = elem.getElementsByTagName("bind");
-    if (bind.length > 0) {
-      const jidNode = bind[0].getElementsByTagName("jid");
-      if (jidNode.length > 0) {
-        this.authenticated = true;
-        this.jid = getText(jidNode[0]);
-        if (this.do_session) {
-          this._establishSession();
-        } else {
-          this._changeConnectStatus(Status$1.CONNECTED, null);
-        }
-      }
-    } else {
-      log.warn("Resource binding failed.");
-      this._changeConnectStatus(Status$1.AUTHFAIL, null, elem);
-      return false;
-    }
-  }
-  /**
-   * Send IQ request to establish a session with the XMPP server.
-   *
-   * See https://xmpp.org/rfcs/rfc3921.html#session
-   *
-   * Note: The protocol for session establishment has been determined as
-   * unnecessary and removed in RFC-6121.
-   * @private
-   */
-  _establishSession() {
-    if (!this.do_session) {
-      throw new Error(
-        `Connection.prototype._establishSession called but apparently ${NS.SESSION} wasn't advertised by the server`
-      );
-    }
-    this._addSysHandler(this._onSessionResultIQ.bind(this), null, null, null, "_session_auth_2");
-    this.send($iq({ type: "set", id: "_session_auth_2" }).c("session", { xmlns: NS.SESSION }).tree());
-  }
-  /**
-   * _Private_ handler for the server's IQ response to a client's session
-   * request.
-   *
-   * This sets Connection.authenticated to true on success, which
-   * starts the processing of user handlers.
-   *
-   * See https://xmpp.org/rfcs/rfc3921.html#session
-   *
-   * Note: The protocol for session establishment has been determined as
-   * unnecessary and removed in RFC-6121.
-   * @private
-   * @param {Element} elem - The matching stanza.
-   * @return {false} `false` to remove the handler.
-   */
-  _onSessionResultIQ(elem) {
-    if (elem.getAttribute("type") === "result") {
-      this.authenticated = true;
-      this._changeConnectStatus(Status$1.CONNECTED, null);
-    } else if (elem.getAttribute("type") === "error") {
-      this.authenticated = false;
-      log.warn("Session creation failed.");
-      this._changeConnectStatus(Status$1.AUTHFAIL, null, elem);
-      return false;
-    }
-    return false;
-  }
-  /**
-   * _Private_ handler for SASL authentication failure.
-   * @param {Element} [elem] - The matching stanza.
-   * @return {false} `false` to remove the handler.
-   */
-  _sasl_failure_cb(elem) {
-    if (this._sasl_success_handler) {
-      this.deleteHandler(this._sasl_success_handler);
-      this._sasl_success_handler = null;
-    }
-    if (this._sasl_challenge_handler) {
-      this.deleteHandler(this._sasl_challenge_handler);
-      this._sasl_challenge_handler = null;
-    }
-    if (this._sasl_mechanism) this._sasl_mechanism.onFailure();
-    this._changeConnectStatus(Status$1.AUTHFAIL, null, elem);
-    return false;
-  }
-  /**
-   * _Private_ handler to finish legacy authentication.
-   *
-   * This handler is called when the result from the jabber:iq:auth
-   * <iq/> stanza is returned.
-   * @private
-   * @param {Element} elem - The stanza that triggered the callback.
-   * @return {false} `false` to remove the handler.
-   */
-  _auth2_cb(elem) {
-    if (elem.getAttribute("type") === "result") {
-      this.authenticated = true;
-      this._changeConnectStatus(Status$1.CONNECTED, null);
-    } else if (elem.getAttribute("type") === "error") {
-      this._changeConnectStatus(Status$1.AUTHFAIL, null, elem);
-      this.disconnect("authentication failed");
-    }
-    return false;
-  }
-  /**
-   * _Private_ function to add a system level timed handler.
-   *
-   * This function is used to add a TimedHandler for the
-   * library code.  System timed handlers are allowed to run before
-   * authentication is complete.
-   * @param {number} period - The period of the handler.
-   * @param {Function} handler - The callback function.
-   */
-  _addSysTimedHandler(period, handler) {
-    const thand = new TimedHandler(period, handler);
-    thand.user = false;
-    this.addTimeds.push(thand);
-    return thand;
-  }
-  /**
-   * _Private_ function to add a system level stanza handler.
-   *
-   * This function is used to add a Handler for the
-   * library code.  System stanza handlers are allowed to run before
-   * authentication is complete.
-   * @param {Function} handler - The callback function.
-   * @param {string} ns - The namespace to match.
-   * @param {string} name - The stanza name to match.
-   * @param {string} type - The stanza type attribute to match.
-   * @param {string} id - The stanza id attribute to match.
-   */
-  _addSysHandler(handler, ns, name, type, id) {
-    const hand = new Handler(handler, ns, name, type, id);
-    hand.user = false;
-    this.addHandlers.push(hand);
-    return hand;
-  }
-  /**
-   * _Private_ timeout handler for handling non-graceful disconnection.
-   *
-   * If the graceful disconnect process does not complete within the
-   * time allotted, this handler finishes the disconnect anyway.
-   * @return {false} `false` to remove the handler.
-   */
-  _onDisconnectTimeout() {
-    log.debug("_onDisconnectTimeout was called");
-    this._changeConnectStatus(Status$1.CONNTIMEOUT, null);
-    this._proto._onDisconnectTimeout();
-    this._doDisconnect();
-    return false;
-  }
-  /**
-   * _Private_ handler to process events during idle cycle.
-   *
-   * This handler is called every 100ms to fire timed handlers that
-   * are ready and keep poll requests going.
-   */
-  _onIdle() {
-    while (this.addTimeds.length > 0) {
-      this.timedHandlers.push(this.addTimeds.pop());
-    }
-    while (this.removeTimeds.length > 0) {
-      const thand = this.removeTimeds.pop();
-      const i = this.timedHandlers.indexOf(thand);
-      if (i >= 0) {
-        this.timedHandlers.splice(i, 1);
-      }
-    }
-    const now = (/* @__PURE__ */ new Date()).getTime();
-    const newList = [];
-    for (let i = 0; i < this.timedHandlers.length; i++) {
-      const thand = this.timedHandlers[i];
-      if (this.authenticated || !thand.user) {
-        const since = thand.lastCalled + thand.period;
-        if (since - now <= 0) {
-          if (thand.run()) {
-            newList.push(thand);
-          }
-        } else {
-          newList.push(thand);
-        }
-      }
-    }
-    this.timedHandlers = newList;
-    clearTimeout(this._idleTimeout);
-    this._proto._onIdle();
-    if (this.connected) {
-      this._idleTimeout = setTimeout(() => this._onIdle(), 100);
-    }
-  }
-}
-const _Stanza = class _Stanza extends Builder {
-  /**
-   * @param {string[]} strings
-   * @param {any[]} values
-   */
-  constructor(strings, values2) {
-    super("stanza");
-    /** @type {string} */
-    __privateAdd(this, _string);
-    /** @type {Array<string>} */
-    __privateAdd(this, _strings);
-    /**
-     * @typedef {Array<string|Stanza|Builder>} StanzaValue
-     * @type {StanzaValue|Array<StanzaValue>}
-     */
-    __privateAdd(this, _values);
-    __privateSet(this, _strings, strings);
-    __privateSet(this, _values, values2);
-  }
-  /**
-   * A directive which can be used to pass a string of XML as a value to the
-   * stx tagged template literal.
-   *
-   * It's considered "unsafe" because it can pose a security risk if used with
-   * untrusted input.
-   *
-   * @param {string} string
-   * @returns {Builder}
-   * @example
-   *    const status = '<status>I am busy!</status>';
-   *    const pres = stx`
-   *       <presence from='juliet@example.com/chamber' id='pres1'>
-   *           <show>dnd</show>
-   *           ${unsafeXML(status)}
-   *       </presence>`;
-   *    connection.send(pres);
-   */
-  static unsafeXML(string) {
-    return Builder.fromString(string);
-  }
-  /**
-   * Turns the passed-in string into an XML Element.
-   * @param {string} string
-   * @param {boolean} [throwErrorIfInvalidNS]
-   * @returns {Element}
-   */
-  static toElement(string, throwErrorIfInvalidNS) {
-    const doc = xmlHtmlNode(string);
-    const parserError = getParserError(doc);
-    if (parserError) {
-      throw new Error(`Parser Error: ${parserError}`);
-    }
-    const node2 = getFirstElementChild(doc);
-    if (["message", "iq", "presence"].includes(node2.nodeName.toLowerCase()) && node2.namespaceURI !== "jabber:client" && node2.namespaceURI !== "jabber:server") {
-      const err_msg = `Invalid namespaceURI ${node2.namespaceURI}`;
-      if (throwErrorIfInvalidNS) {
-        throw new Error(err_msg);
-      } else {
-        log.error(err_msg);
-      }
-    }
-    return node2;
-  }
-  buildTree() {
-    return _Stanza.toElement(this.toString(), true);
-  }
-  /**
-   * @return {string}
-   */
-  toString() {
-    __privateSet(this, _string, __privateGet(this, _string) || __privateGet(this, _strings).reduce((acc, str) => {
-      const idx = __privateGet(this, _strings).indexOf(str);
-      const value = __privateGet(this, _values).length > idx ? __privateGet(this, _values)[idx] : "";
-      return acc + str + (Array.isArray(value) ? value.map(
-        (v2) => v2 instanceof _Stanza || v2 instanceof Builder ? v2 : xmlescape(v2.toString())
-      ).join("") : value instanceof _Stanza || value instanceof Builder ? value : xmlescape(value.toString()));
-    }, "").trim());
-    return __privateGet(this, _string);
-  }
-};
-_string = new WeakMap();
-_strings = new WeakMap();
-_values = new WeakMap();
-let Stanza = _Stanza;
-function stx(strings, ...values2) {
-  return new Stanza(strings, values2);
-}
-const Strophe = {
-  /** @constant: VERSION */
-  VERSION: "3.0.0",
-  /**
-   * @returns {number}
-   */
-  get TIMEOUT() {
-    return Bosh.getTimeoutMultplier();
-  },
-  /**
-   * @param {number} n
-   */
-  set TIMEOUT(n) {
-    Bosh.setTimeoutMultiplier(n);
-  },
-  /**
-   * @returns {number}
-   */
-  get SECONDARY_TIMEOUT() {
-    return Bosh.getSecondaryTimeoutMultplier();
-  },
-  /**
-   * @param {number} n
-   */
-  set SECONDARY_TIMEOUT(n) {
-    Bosh.setSecondaryTimeoutMultiplier(n);
-  },
-  ...utils$2,
-  ...log,
-  shims,
-  Request,
-  // Transports
-  Bosh,
-  Websocket,
-  WorkerWebsocket,
-  Connection,
-  Handler,
-  // Available authentication mechanisms
-  SASLAnonymous,
-  SASLPlain,
-  SASLSHA1,
-  SASLSHA256,
-  SASLSHA384,
-  SASLSHA512,
-  SASLOAuthBearer,
-  SASLExternal,
-  SASLXOAuth2,
-  Stanza,
-  Builder,
-  ElementType,
-  ErrorCondition,
-  LogLevel: LOG_LEVELS,
-  /** @type {Object.<string, string>} */
-  NS,
-  SASLMechanism,
-  /** @type {Status} */
-  Status: Status$1,
-  TimedHandler,
-  XHTML: {
-    ...XHTML,
-    validTag,
-    validCSS,
-    validAttribute
-  },
-  /**
-   * Render a DOM element and all descendants to a String.
-   * @method Strophe.serialize
-   * @param {Element|Builder} elem - A DOM element.
-   * @return {string} - The serialized element tree as a String.
-   */
-  serialize(elem) {
-    return Builder.serialize(elem);
-  },
-  /**
-   * @typedef {import('./constants').LogLevel} LogLevel
-   *
-   * Library consumers can use this function to set the log level of Strophe.
-   * The default log level is Strophe.LogLevel.INFO.
-   * @param {LogLevel} level
-   * @example Strophe.setLogLevel(Strophe.LogLevel.DEBUG);
-   */
-  setLogLevel(level) {
-    log.setLogLevel(level);
-  },
-  /**
-   * This function is used to extend the current namespaces in
-   * Strophe.NS. It takes a key and a value with the key being the
-   * name of the new namespace, with its actual value.
-   * @example: Strophe.addNamespace('PUBSUB', "http://jabber.org/protocol/pubsub");
-   *
-   * @param {string} name - The name under which the namespace will be
-   *     referenced under Strophe.NS
-   * @param {string} value - The actual namespace.
-   */
-  addNamespace(name, value) {
-    Strophe.NS[name] = value;
-  },
-  /**
-   * Extends the Strophe.Connection object with the given plugin.
-   * @param {string} name - The name of the extension.
-   * @param {Object} ptype - The plugin's prototype.
-   */
-  addConnectionPlugin(name, ptype) {
-    Connection.addConnectionPlugin(name, ptype);
-  }
-};
-globalThis.$build = $build;
-globalThis.$iq = $iq;
-globalThis.$msg = $msg;
-globalThis.$pres = $pres;
-globalThis.Strophe = Strophe;
-globalThis.stx = stx;
-Stanza.toElement;
-globalThis.toStanza = Stanza.toElement;
 const TRACK_MEMO_SYMBOL = Symbol();
 const GET_ORIGINAL_SYMBOL = Symbol();
 const AFFECTED_PROPERTY = "a";
@@ -5645,7 +1093,7 @@ function CarouselMessage(props) {
   const items = message2 && message2.items ? message2.items : [];
   const summary = message2.summary;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-    summary.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "rcw-message-text", children: summary }) }),
+    summary.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rcw-response rcw-system", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "rcw-message-text", children: summary }) }),
     (items == null ? void 0 : items.length) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "carousel-container", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Carousel, { autoplay: true, autoplayInterval: 3e3, showArrows: true, children: items.map((item, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "carousel-slide", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "carousel-price", children: [
@@ -6648,7 +2096,7 @@ function normalizeReference(str) {
   return str.toLowerCase().toUpperCase();
 }
 const lib = { mdurl, ucmicro };
-const utils = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const utils$2 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   arrayReplaceAt,
   assign: assign$2,
@@ -10712,7 +6160,7 @@ function MarkdownIt(presetName, options) {
   this.validateLink = validateLink;
   this.normalizeLink = normalizeLink;
   this.normalizeLinkText = normalizeLinkText;
-  this.utils = utils;
+  this.utils = utils$2;
   this.helpers = assign$2({}, helpers);
   this.options = {};
   this.configure(presetName);
@@ -13130,7 +8578,7 @@ const statuses = {
   read: readIcon,
   error: errorIcon
 };
-function Status({ message: message2, showTimeStamp, showStatus, locale, children }) {
+function Status$1({ message: message2, showTimeStamp, showStatus, locale, children }) {
   var _a2;
   const hasStatus = showStatus && message2.sender == "client" && message2.status && statuses[message2.status];
   const isStatusError = hasStatus && message2.status === "error";
@@ -48598,7 +44046,7 @@ function Message$1({ message: message2, reply, reaction, showTimeStamp, isReplyC
   if (sanitizedHTML && ((_c = message2.props) == null ? void 0 : _c.replyMessage)) {
     replySection = /* @__PURE__ */ jsxRuntimeExports.jsx(Message$1, { message: message2.props.replyMessage, isReplyMessage: true });
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(Status, { message: message2, showTimeStamp: !!showTimeStamp, locale, showStatus: true, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Toolbar, { message: message2, reply, reaction, children: [
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(Status$1, { message: message2, showTimeStamp: !!showTimeStamp, locale, showStatus: true, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(Toolbar, { message: message2, reply, reaction, children: [
     sanitizedHTML && (replySection ? /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "rcw-message-text", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `reply-section rcw-${message2.sender}`, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "rcw-message-reply-bar" }),
@@ -48620,7 +44068,7 @@ function Snippet({ message: message2, showTimeStamp }) {
 }
 function Message({ message: message2, showTimeStamp, reply, reaction, className, children }) {
   const locale = useSelector(({ messages }) => messages == null ? void 0 : messages.statusLocale);
-  return /* @__PURE__ */ jsxRuntimeExports.jsx(Status, { message: message2, showTimeStamp: !!showTimeStamp, locale, showStatus: true, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toolbar, { message: message2, reply, reaction, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `rcw-message-custom ${className}`, children }) }) });
+  return /* @__PURE__ */ jsxRuntimeExports.jsx(Status$1, { message: message2, showTimeStamp: !!showTimeStamp, locale, showStatus: true, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toolbar, { message: message2, reply, reaction, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `rcw-message-custom ${className}`, children }) }) });
 }
 function QuickButton({ button, onQuickButtonClicked }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "quick-button", onClick: (event) => onQuickButtonClicked(event, button.value), children: button.label });
@@ -48753,6 +44201,4788 @@ function addCarouselMessage(items, summary, id, props) {
     createCarouselMessage(items, summary, id, props)
     // Ensure correct parameter order
   ];
+}
+function getWebSocketImplementation() {
+  if (typeof globalThis.WebSocket === "undefined") {
+    try {
+      return require("ws");
+    } catch (e) {
+      throw new Error('You must install the "ws" package to use Strophe in nodejs.');
+    }
+  }
+  return globalThis.WebSocket;
+}
+const WebSocket = getWebSocketImplementation();
+function getXMLSerializerImplementation() {
+  if (typeof globalThis.XMLSerializer === "undefined") {
+    let JSDOM;
+    try {
+      JSDOM = require("jsdom").JSDOM;
+    } catch (e) {
+      throw new Error('You must install the "ws" package to use Strophe in nodejs.');
+    }
+    const dom = new JSDOM("");
+    return dom.window.XMLSerializer;
+  }
+  return globalThis.XMLSerializer;
+}
+const XMLSerializer = getXMLSerializerImplementation();
+function getDOMParserImplementation() {
+  const DOMParserImplementation = globalThis.DOMParser;
+  if (typeof DOMParserImplementation === "undefined") {
+    let JSDOM;
+    try {
+      JSDOM = require("jsdom").JSDOM;
+    } catch (e) {
+      throw new Error('You must install the "jsdom" package to use Strophe in nodejs.');
+    }
+    const dom = new JSDOM("");
+    return dom.window.DOMParser;
+  }
+  return DOMParserImplementation;
+}
+const DOMParser = getDOMParserImplementation();
+function getDummyXMLDOMDocument() {
+  if (typeof document === "undefined") {
+    let JSDOM;
+    try {
+      JSDOM = require("jsdom").JSDOM;
+    } catch (e) {
+      throw new Error('You must install the "jsdom" package to use Strophe in nodejs.');
+    }
+    const dom = new JSDOM("");
+    return dom.window.document.implementation.createDocument("jabber:client", "strophe", null);
+  }
+  return document.implementation.createDocument("jabber:client", "strophe", null);
+}
+const shims = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DOMParser,
+  WebSocket,
+  XMLSerializer,
+  getDummyXMLDOMDocument
+}, Symbol.toStringTag, { value: "Module" }));
+const NS = {
+  HTTPBIND: "http://jabber.org/protocol/httpbind",
+  BOSH: "urn:xmpp:xbosh",
+  CLIENT: "jabber:client",
+  SERVER: "jabber:server",
+  AUTH: "jabber:iq:auth",
+  ROSTER: "jabber:iq:roster",
+  PROFILE: "jabber:iq:profile",
+  DISCO_INFO: "http://jabber.org/protocol/disco#info",
+  DISCO_ITEMS: "http://jabber.org/protocol/disco#items",
+  MUC: "http://jabber.org/protocol/muc",
+  SASL: "urn:ietf:params:xml:ns:xmpp-sasl",
+  STREAM: "http://etherx.jabber.org/streams",
+  FRAMING: "urn:ietf:params:xml:ns:xmpp-framing",
+  BIND: "urn:ietf:params:xml:ns:xmpp-bind",
+  SESSION: "urn:ietf:params:xml:ns:xmpp-session",
+  VERSION: "jabber:iq:version",
+  STANZAS: "urn:ietf:params:xml:ns:xmpp-stanzas",
+  XHTML_IM: "http://jabber.org/protocol/xhtml-im",
+  XHTML: "http://www.w3.org/1999/xhtml"
+};
+const PARSE_ERROR_NS = "http://www.w3.org/1999/xhtml";
+const XHTML = {
+  tags: ["a", "blockquote", "br", "cite", "em", "img", "li", "ol", "p", "span", "strong", "ul", "body"],
+  attributes: {
+    "a": ["href"],
+    "blockquote": ["style"],
+    /** @type {never[]} */
+    "br": [],
+    "cite": ["style"],
+    /** @type {never[]} */
+    "em": [],
+    "img": ["src", "alt", "style", "height", "width"],
+    "li": ["style"],
+    "ol": ["style"],
+    "p": ["style"],
+    "span": ["style"],
+    /** @type {never[]} */
+    "strong": [],
+    "ul": ["style"],
+    /** @type {never[]} */
+    "body": []
+  },
+  css: [
+    "background-color",
+    "color",
+    "font-family",
+    "font-size",
+    "font-style",
+    "font-weight",
+    "margin-left",
+    "margin-right",
+    "text-align",
+    "text-decoration"
+  ]
+};
+const Status = {
+  ERROR: 0,
+  CONNECTING: 1,
+  CONNFAIL: 2,
+  AUTHENTICATING: 3,
+  AUTHFAIL: 4,
+  CONNECTED: 5,
+  DISCONNECTED: 6,
+  DISCONNECTING: 7,
+  ATTACHED: 8,
+  REDIRECT: 9,
+  CONNTIMEOUT: 10,
+  BINDREQUIRED: 11,
+  ATTACHFAIL: 12,
+  RECONNECTING: 13
+};
+const ErrorCondition = {
+  BAD_FORMAT: "bad-format",
+  CONFLICT: "conflict",
+  MISSING_JID_NODE: "x-strophe-bad-non-anon-jid",
+  NO_AUTH_MECH: "no-auth-mech",
+  UNKNOWN_REASON: "unknown"
+};
+const LOG_LEVELS = {
+  DEBUG: 0,
+  INFO: 1,
+  WARN: 2,
+  ERROR: 3,
+  FATAL: 4
+};
+const ElementType = {
+  NORMAL: 1,
+  TEXT: 3,
+  CDATA: 4,
+  FRAGMENT: 11
+};
+let logLevel = LOG_LEVELS.DEBUG;
+const log = {
+  /**
+   * Library consumers can use this function to set the log level of Strophe.
+   * The default log level is Strophe.LogLevel.INFO.
+   * @param {LogLevel} level
+   * @example Strophe.setLogLevel(Strophe.LogLevel.DEBUG);
+   */
+  setLogLevel(level) {
+    if (level < LOG_LEVELS.DEBUG || level > LOG_LEVELS.FATAL) {
+      throw new Error("Invalid log level supplied to setLogLevel");
+    }
+    logLevel = level;
+  },
+  /**
+   *
+   * Please note that data sent and received over the wire is logged
+   * via {@link Strophe.Connection#rawInput|Strophe.Connection.rawInput()}
+   * and {@link Strophe.Connection#rawOutput|Strophe.Connection.rawOutput()}.
+   *
+   * The different levels and their meanings are
+   *
+   *   DEBUG - Messages useful for debugging purposes.
+   *   INFO - Informational messages.  This is mostly information like
+   *     'disconnect was called' or 'SASL auth succeeded'.
+   *   WARN - Warnings about potential problems.  This is mostly used
+   *     to report transient connection errors like request timeouts.
+   *   ERROR - Some error occurred.
+   *   FATAL - A non-recoverable fatal error occurred.
+   *
+   * @param {number} level - The log level of the log message.
+   *     This will be one of the values in Strophe.LOG_LEVELS.
+   * @param {string} msg - The log message.
+   */
+  log(level, msg) {
+    if (level < logLevel) {
+      return;
+    }
+    if (level >= LOG_LEVELS.ERROR) {
+      console == null ? void 0 : console.error(msg);
+    } else if (level === LOG_LEVELS.INFO) {
+      console == null ? void 0 : console.info(msg);
+    } else if (level === LOG_LEVELS.WARN) {
+      console == null ? void 0 : console.warn(msg);
+    } else if (level === LOG_LEVELS.DEBUG) {
+      console == null ? void 0 : console.debug(msg);
+    }
+  },
+  /**
+   * Log a message at the Strophe.LOG_LEVELS.DEBUG level.
+   * @param {string} msg - The log message.
+   */
+  debug(msg) {
+    this.log(LOG_LEVELS.DEBUG, msg);
+  },
+  /**
+   * Log a message at the Strophe.LOG_LEVELS.INFO level.
+   * @param {string} msg - The log message.
+   */
+  info(msg) {
+    this.log(LOG_LEVELS.INFO, msg);
+  },
+  /**
+   * Log a message at the Strophe.LOG_LEVELS.WARN level.
+   * @param {string} msg - The log message.
+   */
+  warn(msg) {
+    this.log(LOG_LEVELS.WARN, msg);
+  },
+  /**
+   * Log a message at the Strophe.LOG_LEVELS.ERROR level.
+   * @param {string} msg - The log message.
+   */
+  error(msg) {
+    this.log(LOG_LEVELS.ERROR, msg);
+  },
+  /**
+   * Log a message at the Strophe.LOG_LEVELS.FATAL level.
+   * @param {string} msg - The log message.
+   */
+  fatal(msg) {
+    this.log(LOG_LEVELS.FATAL, msg);
+  }
+};
+function toElement(string, throwErrorIfInvalidNS) {
+  const doc = xmlHtmlNode(string);
+  const parserError = getParserError(doc);
+  if (parserError) {
+    throw new Error(`Parser Error: ${parserError}`);
+  }
+  const node2 = getFirstElementChild(doc);
+  if (["message", "iq", "presence"].includes(node2.nodeName.toLowerCase()) && node2.namespaceURI !== "jabber:client" && node2.namespaceURI !== "jabber:server") {
+    const err_msg = `Invalid namespaceURI ${node2.namespaceURI}`;
+    if (throwErrorIfInvalidNS) {
+      throw new Error(err_msg);
+    } else {
+      log.error(err_msg);
+    }
+  }
+  return node2;
+}
+function handleError(e) {
+  if (typeof e.stack !== "undefined") {
+    log.fatal(e.stack);
+  }
+  log.fatal("error: " + e.message);
+}
+function utf16to8(str) {
+  let out = "";
+  const len = str.length;
+  for (let i = 0; i < len; i++) {
+    const c = str.charCodeAt(i);
+    if (c >= 0 && c <= 127) {
+      out += str.charAt(i);
+    } else if (c > 2047) {
+      out += String.fromCharCode(224 | c >> 12 & 15);
+      out += String.fromCharCode(128 | c >> 6 & 63);
+      out += String.fromCharCode(128 | c >> 0 & 63);
+    } else {
+      out += String.fromCharCode(192 | c >> 6 & 31);
+      out += String.fromCharCode(128 | c >> 0 & 63);
+    }
+  }
+  return out;
+}
+function xorArrayBuffers(x2, y) {
+  const xIntArray = new Uint8Array(x2);
+  const yIntArray = new Uint8Array(y);
+  const zIntArray = new Uint8Array(x2.byteLength);
+  for (let i = 0; i < x2.byteLength; i++) {
+    zIntArray[i] = xIntArray[i] ^ yIntArray[i];
+  }
+  return zIntArray.buffer;
+}
+function arrayBufToBase64(buffer) {
+  let binary = "";
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+function base64ToArrayBuf(str) {
+  var _a2;
+  return (_a2 = Uint8Array.from(atob(str), (c) => c.charCodeAt(0))) == null ? void 0 : _a2.buffer;
+}
+function stringToArrayBuf(str) {
+  const bytes = new TextEncoder().encode(str);
+  return bytes.buffer;
+}
+function addCookies(cookies) {
+  if (typeof document === "undefined") {
+    log.error(`addCookies: not adding any cookies, since there's no document object`);
+  }
+  cookies = cookies || {};
+  for (const cookieName in cookies) {
+    if (Object.prototype.hasOwnProperty.call(cookies, cookieName)) {
+      let expires = "";
+      let domain = "";
+      let path = "";
+      const cookieObj = cookies[cookieName];
+      const isObj = typeof cookieObj === "object";
+      const cookieValue = escape(unescape(isObj ? cookieObj.value : cookieObj));
+      if (isObj) {
+        expires = cookieObj.expires ? ";expires=" + cookieObj.expires : "";
+        domain = cookieObj.domain ? ";domain=" + cookieObj.domain : "";
+        path = cookieObj.path ? ";path=" + cookieObj.path : "";
+      }
+      document.cookie = cookieName + "=" + cookieValue + expires + domain + path;
+    }
+  }
+}
+let _xmlGenerator = null;
+function xmlGenerator() {
+  if (!_xmlGenerator) {
+    _xmlGenerator = getDummyXMLDOMDocument();
+  }
+  return _xmlGenerator;
+}
+function xmlTextNode(text2) {
+  return xmlGenerator().createTextNode(text2);
+}
+function xmlHtmlNode(text2) {
+  const parser = new DOMParser();
+  return parser.parseFromString(text2, "text/xml");
+}
+function getParserError(doc) {
+  var _a2;
+  const el = ((_a2 = doc.firstElementChild) == null ? void 0 : _a2.nodeName) === "parsererror" ? doc.firstElementChild : doc.getElementsByTagNameNS(PARSE_ERROR_NS, "parsererror")[0];
+  return (el == null ? void 0 : el.nodeName) === "parsererror" ? el == null ? void 0 : el.textContent : null;
+}
+function getFirstElementChild(el) {
+  if (el.firstElementChild) return el.firstElementChild;
+  let node2, i = 0;
+  const nodes = el.childNodes;
+  while (node2 = nodes[i++]) {
+    if (node2.nodeType === 1) return (
+      /** @type {Element} */
+      node2
+    );
+  }
+  return null;
+}
+function xmlElement(name, attrs, text2) {
+  if (!name) return null;
+  const node2 = xmlGenerator().createElement(name);
+  if (text2 && (typeof text2 === "string" || typeof text2 === "number")) {
+    node2.appendChild(xmlTextNode(text2.toString()));
+  } else if (typeof attrs === "string" || typeof attrs === "number") {
+    node2.appendChild(xmlTextNode(
+      /** @type {number|string} */
+      attrs.toString()
+    ));
+    return node2;
+  }
+  if (!attrs) {
+    return node2;
+  } else if (Array.isArray(attrs)) {
+    for (const attr of attrs) {
+      if (Array.isArray(attr)) {
+        if (attr[0] != null && attr[1] != null) {
+          node2.setAttribute(attr[0], attr[1]);
+        }
+      }
+    }
+  } else if (typeof attrs === "object") {
+    for (const k2 of Object.keys(attrs)) {
+      if (k2 && attrs[k2] != null) {
+        node2.setAttribute(k2, attrs[k2].toString());
+      }
+    }
+  }
+  return node2;
+}
+function validTag(tag) {
+  for (let i = 0; i < XHTML.tags.length; i++) {
+    if (tag === XHTML.tags[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+function validAttribute(tag, attribute2) {
+  const attrs = XHTML.attributes[
+    /** @type {XHTMLAttrs} */
+    tag
+  ];
+  if ((attrs == null ? void 0 : attrs.length) > 0) {
+    for (let i = 0; i < attrs.length; i++) {
+      if (attribute2 === attrs[i]) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+function validCSS(style2) {
+  for (let i = 0; i < XHTML.css.length; i++) {
+    if (style2 === XHTML.css[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+function createFromHtmlElement(elem) {
+  let el;
+  const tag = elem.nodeName.toLowerCase();
+  if (validTag(tag)) {
+    try {
+      el = xmlElement(tag);
+      if (tag in XHTML.attributes) {
+        const attrs = XHTML.attributes[
+          /** @type {XHTMLAttrs} */
+          tag
+        ];
+        for (let i = 0; i < attrs.length; i++) {
+          const attribute2 = attrs[i];
+          let value = elem.getAttribute(attribute2);
+          if (typeof value === "undefined" || value === null || value === "") {
+            continue;
+          }
+          if (attribute2 === "style" && typeof value === "object") {
+            value = /** @type {Object.<'csstext',string>} */
+            value.cssText ?? value;
+          }
+          if (attribute2 === "style") {
+            const css2 = [];
+            const cssAttrs = value.split(";");
+            for (let j2 = 0; j2 < cssAttrs.length; j2++) {
+              const attr = cssAttrs[j2].split(":");
+              const cssName = attr[0].replace(/^\s*/, "").replace(/\s*$/, "").toLowerCase();
+              if (validCSS(cssName)) {
+                const cssValue = attr[1].replace(/^\s*/, "").replace(/\s*$/, "");
+                css2.push(cssName + ": " + cssValue);
+              }
+            }
+            if (css2.length > 0) {
+              value = css2.join("; ");
+              el.setAttribute(attribute2, value);
+            }
+          } else {
+            el.setAttribute(attribute2, value);
+          }
+        }
+        for (let i = 0; i < elem.childNodes.length; i++) {
+          el.appendChild(createHtml(elem.childNodes[i]));
+        }
+      }
+    } catch (e) {
+      el = xmlTextNode("");
+    }
+  } else {
+    el = xmlGenerator().createDocumentFragment();
+    for (let i = 0; i < elem.childNodes.length; i++) {
+      el.appendChild(createHtml(elem.childNodes[i]));
+    }
+  }
+  return el;
+}
+function createHtml(node2) {
+  if (node2.nodeType === ElementType.NORMAL) {
+    return createFromHtmlElement(
+      /** @type {HTMLElement} */
+      node2
+    );
+  } else if (node2.nodeType === ElementType.FRAGMENT) {
+    const el = xmlGenerator().createDocumentFragment();
+    for (let i = 0; i < node2.childNodes.length; i++) {
+      el.appendChild(createHtml(node2.childNodes[i]));
+    }
+    return el;
+  } else if (node2.nodeType === ElementType.TEXT) {
+    return xmlTextNode(node2.nodeValue);
+  }
+}
+function copyElement(node2) {
+  let out;
+  if (node2.nodeType === ElementType.NORMAL) {
+    const el = (
+      /** @type {Element} */
+      node2
+    );
+    out = xmlElement(el.tagName);
+    for (let i = 0; i < el.attributes.length; i++) {
+      out.setAttribute(el.attributes[i].nodeName, el.attributes[i].value);
+    }
+    for (let i = 0; i < el.childNodes.length; i++) {
+      out.appendChild(copyElement(el.childNodes[i]));
+    }
+  } else if (node2.nodeType === ElementType.TEXT) {
+    out = xmlGenerator().createTextNode(node2.nodeValue);
+  }
+  return out;
+}
+function xmlescape(text2) {
+  text2 = text2.replace(/\&/g, "&amp;");
+  text2 = text2.replace(/</g, "&lt;");
+  text2 = text2.replace(/>/g, "&gt;");
+  text2 = text2.replace(/'/g, "&apos;");
+  text2 = text2.replace(/"/g, "&quot;");
+  return text2;
+}
+function xmlunescape(text2) {
+  text2 = text2.replace(/\&amp;/g, "&");
+  text2 = text2.replace(/&lt;/g, "<");
+  text2 = text2.replace(/&gt;/g, ">");
+  text2 = text2.replace(/&apos;/g, "'");
+  text2 = text2.replace(/&quot;/g, '"');
+  return text2;
+}
+function forEachChild(elem, elemName, func) {
+  for (let i = 0; i < elem.childNodes.length; i++) {
+    const childNode = elem.childNodes[i];
+    if (childNode.nodeType === ElementType.NORMAL && (!elemName || this.isTagEqual(childNode, elemName))) {
+      func(childNode);
+    }
+  }
+}
+function isTagEqual(el, name) {
+  return el.tagName === name;
+}
+function getText(elem) {
+  if (!elem) return null;
+  let str = "";
+  if (!elem.childNodes.length && elem.nodeType === ElementType.TEXT) {
+    str += elem.nodeValue;
+  }
+  for (const child of elem.childNodes) {
+    if (child.nodeType === ElementType.TEXT) {
+      str += child.nodeValue;
+    }
+  }
+  return xmlescape(str);
+}
+function escapeNode(node2) {
+  if (typeof node2 !== "string") {
+    return node2;
+  }
+  return node2.replace(/^\s+|\s+$/g, "").replace(/\\/g, "\\5c").replace(/ /g, "\\20").replace(/\"/g, "\\22").replace(/\&/g, "\\26").replace(/\'/g, "\\27").replace(/\//g, "\\2f").replace(/:/g, "\\3a").replace(/</g, "\\3c").replace(/>/g, "\\3e").replace(/@/g, "\\40");
+}
+function unescapeNode(node2) {
+  if (typeof node2 !== "string") {
+    return node2;
+  }
+  return node2.replace(/\\20/g, " ").replace(/\\22/g, '"').replace(/\\26/g, "&").replace(/\\27/g, "'").replace(/\\2f/g, "/").replace(/\\3a/g, ":").replace(/\\3c/g, "<").replace(/\\3e/g, ">").replace(/\\40/g, "@").replace(/\\5c/g, "\\");
+}
+function getNodeFromJid(jid) {
+  if (jid.indexOf("@") < 0) {
+    return null;
+  }
+  return jid.split("@")[0];
+}
+function getDomainFromJid(jid) {
+  const bare = getBareJidFromJid(jid);
+  if (bare.indexOf("@") < 0) {
+    return bare;
+  } else {
+    const parts = bare.split("@");
+    parts.splice(0, 1);
+    return parts.join("@");
+  }
+}
+function getResourceFromJid(jid) {
+  if (!jid) {
+    return null;
+  }
+  const s = jid.split("/");
+  if (s.length < 2) {
+    return null;
+  }
+  s.splice(0, 1);
+  return s.join("/");
+}
+function getBareJidFromJid(jid) {
+  return jid ? jid.split("/")[0] : null;
+}
+const utils = {
+  utf16to8,
+  xorArrayBuffers,
+  arrayBufToBase64,
+  base64ToArrayBuf,
+  stringToArrayBuf,
+  addCookies
+};
+const utils$1 = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  addCookies,
+  arrayBufToBase64,
+  base64ToArrayBuf,
+  copyElement,
+  createHtml,
+  default: utils,
+  escapeNode,
+  forEachChild,
+  getBareJidFromJid,
+  getDomainFromJid,
+  getFirstElementChild,
+  getNodeFromJid,
+  getParserError,
+  getResourceFromJid,
+  getText,
+  handleError,
+  isTagEqual,
+  stringToArrayBuf,
+  toElement,
+  unescapeNode,
+  utf16to8,
+  validAttribute,
+  validCSS,
+  validTag,
+  xmlElement,
+  xmlGenerator,
+  xmlHtmlNode,
+  xmlTextNode,
+  xmlescape,
+  xmlunescape,
+  xorArrayBuffers
+}, Symbol.toStringTag, { value: "Module" }));
+function $build(name, attrs) {
+  return new Builder(name, attrs);
+}
+function $msg(attrs) {
+  return new Builder("message", attrs);
+}
+function $iq(attrs) {
+  return new Builder("iq", attrs);
+}
+function $pres(attrs) {
+  return new Builder("presence", attrs);
+}
+const _Builder = class _Builder {
+  /**
+   * The attributes should be passed in object notation.
+   * @param {string} name - The name of the root element.
+   * @param {StanzaAttrs} [attrs] - The attributes for the root element in object notation.
+   * @example const b = new Builder('message', {to: 'you', from: 'me'});
+   * @example const b = new Builder('messsage', {'xml:lang': 'en'});
+   */
+  constructor(name, attrs) {
+    /**
+     * @typedef {Object.<string, string|number>} StanzaAttrs
+     * @property {string} [StanzaAttrs.xmlns]
+     */
+    /** @type {Element} */
+    __privateAdd(this, _nodeTree);
+    /** @type {Element} */
+    __privateAdd(this, _node);
+    /** @type {string} */
+    __privateAdd(this, _name);
+    /** @type {StanzaAttrs} */
+    __privateAdd(this, _attrs);
+    if (name === "presence" || name === "message" || name === "iq") {
+      if (attrs && !attrs.xmlns) {
+        attrs.xmlns = NS.CLIENT;
+      } else if (!attrs) {
+        attrs = { xmlns: NS.CLIENT };
+      }
+    }
+    __privateSet(this, _name, name);
+    __privateSet(this, _attrs, attrs);
+  }
+  /**
+   * Creates a new Builder object from an XML string.
+   * @param {string} str
+   * @returns {Builder}
+   * @example const stanza = Builder.fromString('<presence from="juliet@example.com/chamber"></presence>');
+   */
+  static fromString(str) {
+    const el = toElement(str, true);
+    const b = new _Builder("");
+    __privateSet(b, _nodeTree, el);
+    return b;
+  }
+  buildTree() {
+    return xmlElement(__privateGet(this, _name), __privateGet(this, _attrs));
+  }
+  /** @return {Element} */
+  get nodeTree() {
+    if (!__privateGet(this, _nodeTree)) {
+      __privateSet(this, _nodeTree, this.buildTree());
+    }
+    return __privateGet(this, _nodeTree);
+  }
+  /** @return {Element} */
+  get node() {
+    if (!__privateGet(this, _node)) {
+      __privateSet(this, _node, this.tree());
+    }
+    return __privateGet(this, _node);
+  }
+  /** @param {Element} el */
+  set node(el) {
+    __privateSet(this, _node, el);
+  }
+  /**
+   * Render a DOM element and all descendants to a String.
+   * @param {Element|Builder} elem - A DOM element.
+   * @return {string} - The serialized element tree as a String.
+   */
+  static serialize(elem) {
+    if (!elem) return null;
+    const el = elem instanceof _Builder ? elem.tree() : elem;
+    const names = [...Array(el.attributes.length).keys()].map((i) => el.attributes[i].nodeName);
+    names.sort();
+    let result = names.reduce(
+      (a, n) => `${a} ${n}="${xmlescape(el.attributes.getNamedItem(n).value)}"`,
+      `<${el.nodeName}`
+    );
+    if (el.childNodes.length > 0) {
+      result += ">";
+      for (let i = 0; i < el.childNodes.length; i++) {
+        const child = el.childNodes[i];
+        switch (child.nodeType) {
+          case ElementType.NORMAL:
+            result += _Builder.serialize(
+              /** @type {Element} */
+              child
+            );
+            break;
+          case ElementType.TEXT:
+            result += xmlescape(child.nodeValue);
+            break;
+          case ElementType.CDATA:
+            result += "<![CDATA[" + child.nodeValue + "]]>";
+        }
+      }
+      result += "</" + el.nodeName + ">";
+    } else {
+      result += "/>";
+    }
+    return result;
+  }
+  /**
+   * Return the DOM tree.
+   *
+   * This function returns the current DOM tree as an element object.  This
+   * is suitable for passing to functions like Strophe.Connection.send().
+   *
+   * @return {Element} The DOM tree as a element object.
+   */
+  tree() {
+    return this.nodeTree;
+  }
+  /**
+   * Serialize the DOM tree to a String.
+   *
+   * This function returns a string serialization of the current DOM
+   * tree.  It is often used internally to pass data to a
+   * Strophe.Request object.
+   *
+   * @return {string} The serialized DOM tree in a String.
+   */
+  toString() {
+    return _Builder.serialize(this.tree());
+  }
+  /**
+   * Make the current parent element the new current element.
+   * This function is often used after c() to traverse back up the tree.
+   *
+   * @example
+   *  // For example, to add two children to the same element
+   *  builder.c('child1', {}).up().c('child2', {});
+   *
+   * @return {Builder} The Strophe.Builder object.
+   */
+  up() {
+    this.node = this.node.parentElement ? this.node.parentElement : (
+      /** @type {Element} */
+      this.node.parentNode
+    );
+    return this;
+  }
+  /**
+   * Make the root element the new current element.
+   *
+   * When at a deeply nested element in the tree, this function can be used
+   * to jump back to the root of the tree, instead of having to repeatedly
+   * call up().
+   *
+   * @return {Builder} The Strophe.Builder object.
+   */
+  root() {
+    this.node = this.tree();
+    return this;
+  }
+  /**
+   * Add or modify attributes of the current element.
+   *
+   * The attributes should be passed in object notation.
+   * This function does not move the current element pointer.
+   * @param {Object.<string, string|number|null>} moreattrs - The attributes to add/modify in object notation.
+   *  If an attribute is set to `null` or `undefined`, it will be removed.
+   * @return {Builder} The Strophe.Builder object.
+   */
+  attrs(moreattrs) {
+    for (const k2 in moreattrs) {
+      if (Object.prototype.hasOwnProperty.call(moreattrs, k2)) {
+        if (moreattrs[k2] != null) {
+          this.node.setAttribute(k2, moreattrs[k2].toString());
+        } else {
+          this.node.removeAttribute(k2);
+        }
+      }
+    }
+    return this;
+  }
+  /**
+   * Add a child to the current element and make it the new current
+   * element.
+   *
+   * This function moves the current element pointer to the child,
+   * unless text is provided.  If you need to add another child, it
+   * is necessary to use up() to go back to the parent in the tree.
+   *
+   * @param {string} name - The name of the child.
+   * @param {Object.<string, string>|string} [attrs] - The attributes of the child in object notation.
+   * @param {string} [text] - The text to add to the child.
+   *
+   * @return {Builder} The Strophe.Builder object.
+   */
+  c(name, attrs, text2) {
+    const child = xmlElement(name, attrs, text2);
+    this.node.appendChild(child);
+    if (typeof text2 !== "string" && typeof text2 !== "number") {
+      this.node = child;
+    }
+    return this;
+  }
+  /**
+   * Add a child to the current element and make it the new current
+   * element.
+   *
+   * This function is the same as c() except that instead of using a
+   * name and an attributes object to create the child it uses an
+   * existing DOM element object.
+   *
+   * @param {Element} elem - A DOM element.
+   * @return {Builder} The Strophe.Builder object.
+   */
+  cnode(elem) {
+    let impNode;
+    const xmlGen = xmlGenerator();
+    try {
+      impNode = xmlGen.importNode !== void 0;
+    } catch (e) {
+      impNode = false;
+    }
+    const newElem = impNode ? xmlGen.importNode(elem, true) : copyElement(elem);
+    this.node.appendChild(newElem);
+    this.node = /** @type {Element} */
+    newElem;
+    return this;
+  }
+  /**
+   * Add a child text element.
+   *
+   * This *does not* make the child the new current element since there
+   * are no children of text elements.
+   *
+   * @param {string} text - The text data to append to the current element.
+   * @return {Builder} The Strophe.Builder object.
+   */
+  t(text2) {
+    const child = xmlTextNode(text2);
+    this.node.appendChild(child);
+    return this;
+  }
+  /**
+   * Replace current element contents with the HTML passed in.
+   *
+   * This *does not* make the child the new current element
+   *
+   * @param {string} html - The html to insert as contents of current element.
+   * @return {Builder} The Strophe.Builder object.
+   */
+  h(html) {
+    const fragment = xmlGenerator().createElement("body");
+    fragment.innerHTML = html;
+    const xhtml = createHtml(fragment);
+    while (xhtml.childNodes.length > 0) {
+      this.node.appendChild(xhtml.childNodes[0]);
+    }
+    return this;
+  }
+};
+_nodeTree = new WeakMap();
+_node = new WeakMap();
+_name = new WeakMap();
+_attrs = new WeakMap();
+let Builder = _Builder;
+let _requestId = 0;
+class Request {
+  /**
+   * Create and initialize a new Request object.
+   *
+   * @param {Element} elem - The XML data to be sent in the request.
+   * @param {Function} func - The function that will be called when the
+   *     XMLHttpRequest readyState changes.
+   * @param {number} rid - The BOSH rid attribute associated with this request.
+   * @param {number} [sends=0] - The number of times this same request has been sent.
+   */
+  constructor(elem, func, rid, sends = 0) {
+    this.id = ++_requestId;
+    this.xmlData = elem;
+    this.data = Builder.serialize(elem);
+    this.origFunc = func;
+    this.func = func;
+    this.rid = rid;
+    this.date = NaN;
+    this.sends = sends;
+    this.abort = false;
+    this.dead = null;
+    this.age = () => this.date ? ((/* @__PURE__ */ new Date()).valueOf() - this.date.valueOf()) / 1e3 : 0;
+    this.timeDead = () => this.dead ? ((/* @__PURE__ */ new Date()).valueOf() - this.dead.valueOf()) / 1e3 : 0;
+    this.xhr = this._newXHR();
+  }
+  /**
+   * Get a response from the underlying XMLHttpRequest.
+   * This function attempts to get a response from the request and checks
+   * for errors.
+   * @throws "parsererror" - A parser error occured.
+   * @throws "bad-format" - The entity has sent XML that cannot be processed.
+   * @return {Element} - The DOM element tree of the response.
+   */
+  getResponse() {
+    var _a2;
+    const node2 = (_a2 = this.xhr.responseXML) == null ? void 0 : _a2.documentElement;
+    if (node2) {
+      if (node2.tagName === "parsererror") {
+        log.error("invalid response received");
+        log.error("responseText: " + this.xhr.responseText);
+        log.error("responseXML: " + Builder.serialize(node2));
+        throw new Error("parsererror");
+      }
+    } else if (this.xhr.responseText) {
+      log.debug("Got responseText but no responseXML; attempting to parse it with DOMParser...");
+      const doc = xmlHtmlNode(this.xhr.responseText);
+      const parserError = getParserError(doc);
+      if (!doc || parserError) {
+        if (parserError) {
+          log.error("invalid response received: " + parserError);
+          log.error("responseText: " + this.xhr.responseText);
+        }
+        const error2 = new Error();
+        error2.name = ErrorCondition.BAD_FORMAT;
+        throw error2;
+      }
+    }
+    return node2;
+  }
+  /**
+   * _Private_ helper function to create XMLHttpRequests.
+   * This function creates XMLHttpRequests across all implementations.
+   * @private
+   * @return {XMLHttpRequest}
+   */
+  _newXHR() {
+    const xhr = new XMLHttpRequest();
+    if (xhr.overrideMimeType) {
+      xhr.overrideMimeType("text/xml; charset=utf-8");
+    }
+    xhr.onreadystatechange = this.func.bind(null, this);
+    return xhr;
+  }
+}
+let timeoutMultiplier = 1.1;
+let secondaryTimeoutMultiplier = 0.1;
+class Bosh {
+  /**
+   * @param {Connection} connection - The Connection that will use BOSH.
+   */
+  constructor(connection) {
+    this._conn = connection;
+    this.rid = Math.floor(Math.random() * 4294967295);
+    this.sid = null;
+    this.hold = 1;
+    this.wait = 60;
+    this.window = 5;
+    this.errors = 0;
+    this.inactivity = null;
+    this.strip = Bosh.prototype.strip ?? false;
+    this.lastResponseHeaders = null;
+    this._requests = [];
+  }
+  /**
+   * @param {number} m
+   */
+  static setTimeoutMultiplier(m2) {
+    timeoutMultiplier = m2;
+  }
+  /**
+   * @returns {number}
+   */
+  static getTimeoutMultplier() {
+    return timeoutMultiplier;
+  }
+  /**
+   * @param {number} m
+   */
+  static setSecondaryTimeoutMultiplier(m2) {
+    secondaryTimeoutMultiplier = m2;
+  }
+  /**
+   * @returns {number}
+   */
+  static getSecondaryTimeoutMultplier() {
+    return secondaryTimeoutMultiplier;
+  }
+  /**
+   * _Private_ helper function to generate the <body/> wrapper for BOSH.
+   * @private
+   * @return {Builder} - A Builder with a <body/> element.
+   */
+  _buildBody() {
+    const bodyWrap = $build("body", {
+      "rid": this.rid++,
+      "xmlns": NS.HTTPBIND
+    });
+    if (this.sid !== null) {
+      bodyWrap.attrs({ "sid": this.sid });
+    }
+    if (this._conn.options.keepalive && this._conn._sessionCachingSupported()) {
+      this._cacheSession();
+    }
+    return bodyWrap;
+  }
+  /**
+   * Reset the connection.
+   * This function is called by the reset function of the Connection
+   */
+  _reset() {
+    this.rid = Math.floor(Math.random() * 4294967295);
+    this.sid = null;
+    this.errors = 0;
+    if (this._conn._sessionCachingSupported()) {
+      sessionStorage.removeItem("strophe-bosh-session");
+    }
+    this._conn.nextValidRid(this.rid);
+  }
+  /**
+   * _Private_ function that initializes the BOSH connection.
+   * Creates and sends the Request that initializes the BOSH connection.
+   * @param {number} wait - The optional HTTPBIND wait value.  This is the
+   *     time the server will wait before returning an empty result for
+   *     a request.  The default setting of 60 seconds is recommended.
+   *     Other settings will require tweaks to the Strophe.TIMEOUT value.
+   * @param {number} hold - The optional HTTPBIND hold value.  This is the
+   *     number of connections the server will hold at one time.  This
+   *     should almost always be set to 1 (the default).
+   * @param {string} route
+   */
+  _connect(wait, hold, route) {
+    this.wait = wait || this.wait;
+    this.hold = hold || this.hold;
+    this.errors = 0;
+    const body = this._buildBody().attrs({
+      "to": this._conn.domain,
+      "xml:lang": "en",
+      "wait": this.wait,
+      "hold": this.hold,
+      "content": "text/xml; charset=utf-8",
+      "ver": "1.6",
+      "xmpp:version": "1.0",
+      "xmlns:xmpp": NS.BOSH
+    });
+    if (route) {
+      body.attrs({ route });
+    }
+    const _connect_cb = this._conn._connect_cb;
+    this._requests.push(
+      new Request(
+        body.tree(),
+        this._onRequestStateChange.bind(this, _connect_cb.bind(this._conn)),
+        Number(body.tree().getAttribute("rid"))
+      )
+    );
+    this._throttledRequestHandler();
+  }
+  /**
+   * Attach to an already created and authenticated BOSH session.
+   *
+   * This function is provided to allow Strophe to attach to BOSH
+   * sessions which have been created externally, perhaps by a Web
+   * application.  This is often used to support auto-login type features
+   * without putting user credentials into the page.
+   *
+   * @param {string} jid - The full JID that is bound by the session.
+   * @param {string} sid - The SID of the BOSH session.
+   * @param {number} rid - The current RID of the BOSH session.  This RID
+   *     will be used by the next request.
+   * @param {Function} callback The connect callback function.
+   * @param {number} wait - The optional HTTPBIND wait value.  This is the
+   *     time the server will wait before returning an empty result for
+   *     a request.  The default setting of 60 seconds is recommended.
+   *     Other settings will require tweaks to the Strophe.TIMEOUT value.
+   * @param {number} hold - The optional HTTPBIND hold value.  This is the
+   *     number of connections the server will hold at one time.  This
+   *     should almost always be set to 1 (the default).
+   * @param {number} wind - The optional HTTBIND window value.  This is the
+   *     allowed range of request ids that are valid.  The default is 5.
+   */
+  _attach(jid, sid, rid, callback, wait, hold, wind) {
+    this._conn.jid = jid;
+    this.sid = sid;
+    this.rid = rid;
+    this._conn.connect_callback = callback;
+    this._conn.domain = getDomainFromJid(this._conn.jid);
+    this._conn.authenticated = true;
+    this._conn.connected = true;
+    this.wait = wait || this.wait;
+    this.hold = hold || this.hold;
+    this.window = wind || this.window;
+    this._conn._changeConnectStatus(Status.ATTACHED, null);
+  }
+  /**
+   * Attempt to restore a cached BOSH session
+   *
+   * @param {string} jid - The full JID that is bound by the session.
+   *     This parameter is optional but recommended, specifically in cases
+   *     where prebinded BOSH sessions are used where it's important to know
+   *     that the right session is being restored.
+   * @param {Function} callback The connect callback function.
+   * @param {number} wait - The optional HTTPBIND wait value.  This is the
+   *     time the server will wait before returning an empty result for
+   *     a request.  The default setting of 60 seconds is recommended.
+   *     Other settings will require tweaks to the Strophe.TIMEOUT value.
+   * @param {number} hold - The optional HTTPBIND hold value.  This is the
+   *     number of connections the server will hold at one time.  This
+   *     should almost always be set to 1 (the default).
+   * @param {number} wind - The optional HTTBIND window value.  This is the
+   *     allowed range of request ids that are valid.  The default is 5.
+   */
+  _restore(jid, callback, wait, hold, wind) {
+    const session = JSON.parse(sessionStorage.getItem("strophe-bosh-session"));
+    if (typeof session !== "undefined" && session !== null && session.rid && session.sid && session.jid && (typeof jid === "undefined" || jid === null || getBareJidFromJid(session.jid) === getBareJidFromJid(jid) || // If authcid is null, then it's an anonymous login, so
+    // we compare only the domains:
+    getNodeFromJid(jid) === null && getDomainFromJid(session.jid) === jid)) {
+      this._conn.restored = true;
+      this._attach(session.jid, session.sid, session.rid, callback, wait, hold, wind);
+    } else {
+      const error2 = new Error("_restore: no restoreable session.");
+      error2.name = "StropheSessionError";
+      throw error2;
+    }
+  }
+  /**
+   * _Private_ handler for the beforeunload event.
+   * This handler is used to process the Bosh-part of the initial request.
+   * @private
+   */
+  _cacheSession() {
+    if (this._conn.authenticated) {
+      if (this._conn.jid && this.rid && this.sid) {
+        sessionStorage.setItem(
+          "strophe-bosh-session",
+          JSON.stringify({
+            "jid": this._conn.jid,
+            "rid": this.rid,
+            "sid": this.sid
+          })
+        );
+      }
+    } else {
+      sessionStorage.removeItem("strophe-bosh-session");
+    }
+  }
+  /**
+   * _Private_ handler for initial connection request.
+   * This handler is used to process the Bosh-part of the initial request.
+   * @param {Element} bodyWrap - The received stanza.
+   */
+  _connect_cb(bodyWrap) {
+    const typ = bodyWrap.getAttribute("type");
+    if (typ !== null && typ === "terminate") {
+      let cond = bodyWrap.getAttribute("condition");
+      log.error("BOSH-Connection failed: " + cond);
+      const conflict = bodyWrap.getElementsByTagName("conflict");
+      if (cond !== null) {
+        if (cond === "remote-stream-error" && conflict.length > 0) {
+          cond = "conflict";
+        }
+        this._conn._changeConnectStatus(Status.CONNFAIL, cond);
+      } else {
+        this._conn._changeConnectStatus(Status.CONNFAIL, "unknown");
+      }
+      this._conn._doDisconnect(cond);
+      return Status.CONNFAIL;
+    }
+    if (!this.sid) {
+      this.sid = bodyWrap.getAttribute("sid");
+    }
+    const wind = bodyWrap.getAttribute("requests");
+    if (wind) {
+      this.window = parseInt(wind, 10);
+    }
+    const hold = bodyWrap.getAttribute("hold");
+    if (hold) {
+      this.hold = parseInt(hold, 10);
+    }
+    const wait = bodyWrap.getAttribute("wait");
+    if (wait) {
+      this.wait = parseInt(wait, 10);
+    }
+    const inactivity = bodyWrap.getAttribute("inactivity");
+    if (inactivity) {
+      this.inactivity = parseInt(inactivity, 10);
+    }
+  }
+  /**
+   * _Private_ part of Connection.disconnect for Bosh
+   * @param {Element|Builder} pres - This stanza will be sent before disconnecting.
+   */
+  _disconnect(pres) {
+    this._sendTerminate(pres);
+  }
+  /**
+   * _Private_ function to disconnect.
+   * Resets the SID and RID.
+   */
+  _doDisconnect() {
+    this.sid = null;
+    this.rid = Math.floor(Math.random() * 4294967295);
+    if (this._conn._sessionCachingSupported()) {
+      sessionStorage.removeItem("strophe-bosh-session");
+    }
+    this._conn.nextValidRid(this.rid);
+  }
+  /**
+   * _Private_ function to check if the Request queue is empty.
+   * @return {boolean} - True, if there are no Requests queued, False otherwise.
+   */
+  _emptyQueue() {
+    return this._requests.length === 0;
+  }
+  /**
+   * _Private_ function to call error handlers registered for HTTP errors.
+   * @private
+   * @param {Request} req - The request that is changing readyState.
+   */
+  _callProtocolErrorHandlers(req) {
+    const reqStatus = Bosh._getRequestStatus(req);
+    const err_callback = this._conn.protocolErrorHandlers.HTTP[reqStatus];
+    if (err_callback) {
+      err_callback.call(this, reqStatus);
+    }
+  }
+  /**
+   * _Private_ function to handle the error count.
+   *
+   * Requests are resent automatically until their error count reaches
+   * 5.  Each time an error is encountered, this function is called to
+   * increment the count and disconnect if the count is too high.
+   * @private
+   * @param {number} reqStatus - The request status.
+   */
+  _hitError(reqStatus) {
+    this.errors++;
+    log.warn("request errored, status: " + reqStatus + ", number of errors: " + this.errors);
+    if (this.errors > 4) {
+      this._conn._onDisconnectTimeout();
+    }
+  }
+  /**
+   * @callback connectionCallback
+   * @param {Connection} connection
+   */
+  /**
+   * Called on stream start/restart when no stream:features
+   * has been received and sends a blank poll request.
+   * @param {connectionCallback} callback
+   */
+  _no_auth_received(callback) {
+    log.warn("Server did not yet offer a supported authentication mechanism. Sending a blank poll request.");
+    if (callback) {
+      callback = callback.bind(this._conn);
+    } else {
+      callback = this._conn._connect_cb.bind(this._conn);
+    }
+    const body = this._buildBody();
+    this._requests.push(
+      new Request(
+        body.tree(),
+        this._onRequestStateChange.bind(this, callback),
+        Number(body.tree().getAttribute("rid"))
+      )
+    );
+    this._throttledRequestHandler();
+  }
+  /**
+   * _Private_ timeout handler for handling non-graceful disconnection.
+   * Cancels all remaining Requests and clears the queue.
+   */
+  _onDisconnectTimeout() {
+    this._abortAllRequests();
+  }
+  /**
+   * _Private_ helper function that makes sure all pending requests are aborted.
+   */
+  _abortAllRequests() {
+    while (this._requests.length > 0) {
+      const req = this._requests.pop();
+      req.abort = true;
+      req.xhr.abort();
+      req.xhr.onreadystatechange = function() {
+      };
+    }
+  }
+  /**
+   * _Private_ handler called by {@link Connection#_onIdle|Connection._onIdle()}.
+   * Sends all queued Requests or polls with empty Request if there are none.
+   */
+  _onIdle() {
+    const data = this._conn._data;
+    if (this._conn.authenticated && this._requests.length === 0 && data.length === 0 && !this._conn.disconnecting) {
+      log.debug("no requests during idle cycle, sending blank request");
+      data.push(null);
+    }
+    if (this._conn.paused) {
+      return;
+    }
+    if (this._requests.length < 2 && data.length > 0) {
+      const body = this._buildBody();
+      for (let i = 0; i < data.length; i++) {
+        if (data[i] !== null) {
+          if (data[i] === "restart") {
+            body.attrs({
+              "to": this._conn.domain,
+              "xml:lang": "en",
+              "xmpp:restart": "true",
+              "xmlns:xmpp": NS.BOSH
+            });
+          } else {
+            body.cnode(
+              /** @type {Element} */
+              data[i]
+            ).up();
+          }
+        }
+      }
+      delete this._conn._data;
+      this._conn._data = [];
+      this._requests.push(
+        new Request(
+          body.tree(),
+          this._onRequestStateChange.bind(this, this._conn._dataRecv.bind(this._conn)),
+          Number(body.tree().getAttribute("rid"))
+        )
+      );
+      this._throttledRequestHandler();
+    }
+    if (this._requests.length > 0) {
+      const time_elapsed = this._requests[0].age();
+      if (this._requests[0].dead !== null) {
+        if (this._requests[0].timeDead() > Math.floor(timeoutMultiplier * this.wait)) {
+          this._throttledRequestHandler();
+        }
+      }
+      if (time_elapsed > Math.floor(timeoutMultiplier * this.wait)) {
+        log.warn(
+          "Request " + this._requests[0].id + " timed out, over " + Math.floor(timeoutMultiplier * this.wait) + " seconds since last activity"
+        );
+        this._throttledRequestHandler();
+      }
+    }
+  }
+  /**
+   * Returns the HTTP status code from a {@link Request}
+   * @private
+   * @param {Request} req - The {@link Request} instance.
+   * @param {number} [def] - The default value that should be returned if no status value was found.
+   */
+  static _getRequestStatus(req, def) {
+    let reqStatus;
+    if (req.xhr.readyState === 4) {
+      try {
+        reqStatus = req.xhr.status;
+      } catch (e) {
+        log.error(
+          `Caught an error while retrieving a request's status, reqStatus: ${reqStatus}, message: ${e.message}`
+        );
+      }
+    }
+    if (typeof reqStatus === "undefined") {
+      reqStatus = typeof def === "number" ? def : 0;
+    }
+    return reqStatus;
+  }
+  /**
+   * _Private_ handler for {@link Request} state changes.
+   *
+   * This function is called when the XMLHttpRequest readyState changes.
+   * It contains a lot of error handling logic for the many ways that
+   * requests can fail, and calls the request callback when requests
+   * succeed.
+   * @private
+   *
+   * @param {Function} func - The handler for the request.
+   * @param {Request} req - The request that is changing readyState.
+   */
+  _onRequestStateChange(func, req) {
+    log.debug("request id " + req.id + "." + req.sends + " state changed to " + req.xhr.readyState);
+    if (req.abort) {
+      req.abort = false;
+      return;
+    }
+    if (req.xhr.readyState !== 4) {
+      return;
+    }
+    const reqStatus = Bosh._getRequestStatus(req);
+    this.lastResponseHeaders = req.xhr.getAllResponseHeaders();
+    if (this._conn.disconnecting && reqStatus >= 400) {
+      this._hitError(reqStatus);
+      this._callProtocolErrorHandlers(req);
+      return;
+    }
+    const reqIs0 = this._requests[0] === req;
+    const reqIs1 = this._requests[1] === req;
+    const valid_request = reqStatus > 0 && reqStatus < 500;
+    const too_many_retries = req.sends > this._conn.maxRetries;
+    if (valid_request || too_many_retries) {
+      this._removeRequest(req);
+      log.debug("request id " + req.id + " should now be removed");
+    }
+    if (reqStatus === 200) {
+      if (reqIs1 || reqIs0 && this._requests.length > 0 && this._requests[0].age() > Math.floor(timeoutMultiplier * this.wait)) {
+        this._restartRequest(0);
+      }
+      this._conn.nextValidRid(req.rid + 1);
+      log.debug("request id " + req.id + "." + req.sends + " got 200");
+      func(req);
+      this.errors = 0;
+    } else if (reqStatus === 0 || reqStatus >= 400 && reqStatus < 600 || reqStatus >= 12e3) {
+      log.error("request id " + req.id + "." + req.sends + " error " + reqStatus + " happened");
+      this._hitError(reqStatus);
+      this._callProtocolErrorHandlers(req);
+      if (reqStatus >= 400 && reqStatus < 500) {
+        this._conn._changeConnectStatus(Status.DISCONNECTING, null);
+        this._conn._doDisconnect();
+      }
+    } else {
+      log.error("request id " + req.id + "." + req.sends + " error " + reqStatus + " happened");
+    }
+    if (!valid_request && !too_many_retries) {
+      this._throttledRequestHandler();
+    } else if (too_many_retries && !this._conn.connected) {
+      this._conn._changeConnectStatus(Status.CONNFAIL, "giving-up");
+    }
+  }
+  /**
+   * _Private_ function to process a request in the queue.
+   *
+   * This function takes requests off the queue and sends them and
+   * restarts dead requests.
+   * @private
+   *
+   * @param {number} i - The index of the request in the queue.
+   */
+  _processRequest(i) {
+    var _a2, _b, _c, _d, _e, _f;
+    let req = this._requests[i];
+    const reqStatus = Bosh._getRequestStatus(req, -1);
+    if (req.sends > this._conn.maxRetries) {
+      this._conn._onDisconnectTimeout();
+      return;
+    }
+    const time_elapsed = req.age();
+    const primary_timeout = !isNaN(time_elapsed) && time_elapsed > Math.floor(timeoutMultiplier * this.wait);
+    const secondary_timeout = req.dead !== null && req.timeDead() > Math.floor(secondaryTimeoutMultiplier * this.wait);
+    const server_error = req.xhr.readyState === 4 && (reqStatus < 1 || reqStatus >= 500);
+    if (primary_timeout || secondary_timeout || server_error) {
+      if (secondary_timeout) {
+        log.error(`Request ${this._requests[i].id} timed out (secondary), restarting`);
+      }
+      req.abort = true;
+      req.xhr.abort();
+      req.xhr.onreadystatechange = function() {
+      };
+      this._requests[i] = new Request(req.xmlData, req.origFunc, req.rid, req.sends);
+      req = this._requests[i];
+    }
+    if (req.xhr.readyState === 0) {
+      log.debug("request id " + req.id + "." + req.sends + " posting");
+      try {
+        const content_type = this._conn.options.contentType || "text/xml; charset=utf-8";
+        req.xhr.open("POST", this._conn.service, this._conn.options.sync ? false : true);
+        if (typeof req.xhr.setRequestHeader !== "undefined") {
+          req.xhr.setRequestHeader("Content-Type", content_type);
+        }
+        if (this._conn.options.withCredentials) {
+          req.xhr.withCredentials = true;
+        }
+      } catch (e2) {
+        log.error("XHR open failed: " + e2.toString());
+        if (!this._conn.connected) {
+          this._conn._changeConnectStatus(Status.CONNFAIL, "bad-service");
+        }
+        this._conn.disconnect();
+        return;
+      }
+      const sendFunc = () => {
+        req.date = (/* @__PURE__ */ new Date()).valueOf();
+        if (this._conn.options.customHeaders) {
+          const headers = this._conn.options.customHeaders;
+          for (const header in headers) {
+            if (Object.prototype.hasOwnProperty.call(headers, header)) {
+              req.xhr.setRequestHeader(header, headers[header]);
+            }
+          }
+        }
+        req.xhr.send(req.data);
+      };
+      if (req.sends > 1) {
+        const backoff = Math.min(Math.floor(timeoutMultiplier * this.wait), Math.pow(req.sends, 3)) * 1e3;
+        setTimeout(function() {
+          sendFunc();
+        }, backoff);
+      } else {
+        sendFunc();
+      }
+      req.sends++;
+      if (this.strip && req.xmlData.nodeName === "body" && req.xmlData.childNodes.length) {
+        (_b = (_a2 = this._conn).xmlOutput) == null ? void 0 : _b.call(_a2, req.xmlData.children[0]);
+      } else {
+        (_d = (_c = this._conn).xmlOutput) == null ? void 0 : _d.call(_c, req.xmlData);
+      }
+      (_f = (_e = this._conn).rawOutput) == null ? void 0 : _f.call(_e, req.data);
+    } else {
+      log.debug(
+        "_processRequest: " + (i === 0 ? "first" : "second") + " request has readyState of " + req.xhr.readyState
+      );
+    }
+  }
+  /**
+   * _Private_ function to remove a request from the queue.
+   * @private
+   * @param {Request} req - The request to remove.
+   */
+  _removeRequest(req) {
+    log.debug("removing request");
+    for (let i = this._requests.length - 1; i >= 0; i--) {
+      if (req === this._requests[i]) {
+        this._requests.splice(i, 1);
+      }
+    }
+    req.xhr.onreadystatechange = function() {
+    };
+    this._throttledRequestHandler();
+  }
+  /**
+   * _Private_ function to restart a request that is presumed dead.
+   * @private
+   *
+   * @param {number} i - The index of the request in the queue.
+   */
+  _restartRequest(i) {
+    const req = this._requests[i];
+    if (req.dead === null) {
+      req.dead = /* @__PURE__ */ new Date();
+    }
+    this._processRequest(i);
+  }
+  /**
+   * _Private_ function to get a stanza out of a request.
+   * Tries to extract a stanza out of a Request Object.
+   * When this fails the current connection will be disconnected.
+   *
+   * @param {Request} req - The Request.
+   * @return {Element} - The stanza that was passed.
+   */
+  _reqToData(req) {
+    try {
+      return req.getResponse();
+    } catch (e) {
+      if (e.message !== "parsererror") {
+        throw e;
+      }
+      this._conn.disconnect("strophe-parsererror");
+    }
+  }
+  /**
+   * _Private_ function to send initial disconnect sequence.
+   *
+   * This is the first step in a graceful disconnect.  It sends
+   * the BOSH server a terminate body and includes an unavailable
+   * presence if authentication has completed.
+   * @private
+   * @param {Element|Builder} [pres]
+   */
+  _sendTerminate(pres) {
+    log.debug("_sendTerminate was called");
+    const body = this._buildBody().attrs({ type: "terminate" });
+    const el = pres instanceof Builder ? pres.tree() : pres;
+    if (pres) {
+      body.cnode(el);
+    }
+    const req = new Request(
+      body.tree(),
+      this._onRequestStateChange.bind(this, this._conn._dataRecv.bind(this._conn)),
+      Number(body.tree().getAttribute("rid"))
+    );
+    this._requests.push(req);
+    this._throttledRequestHandler();
+  }
+  /**
+   * _Private_ part of the Connection.send function for BOSH
+   * Just triggers the RequestHandler to send the messages that are in the queue
+   */
+  _send() {
+    clearTimeout(this._conn._idleTimeout);
+    this._throttledRequestHandler();
+    this._conn._idleTimeout = setTimeout(() => this._conn._onIdle(), 100);
+  }
+  /**
+   * Send an xmpp:restart stanza.
+   */
+  _sendRestart() {
+    this._throttledRequestHandler();
+    clearTimeout(this._conn._idleTimeout);
+  }
+  /**
+   * _Private_ function to throttle requests to the connection window.
+   *
+   * This function makes sure we don't send requests so fast that the
+   * request ids overflow the connection window in the case that one
+   * request died.
+   * @private
+   */
+  _throttledRequestHandler() {
+    if (!this._requests) {
+      log.debug("_throttledRequestHandler called with undefined requests");
+    } else {
+      log.debug("_throttledRequestHandler called with " + this._requests.length + " requests");
+    }
+    if (!this._requests || this._requests.length === 0) {
+      return;
+    }
+    if (this._requests.length > 0) {
+      this._processRequest(0);
+    }
+    if (this._requests.length > 1 && Math.abs(this._requests[0].rid - this._requests[1].rid) < this.window) {
+      this._processRequest(1);
+    }
+  }
+}
+class Handler {
+  /**
+   * @typedef {Object} HandlerOptions
+   * @property {boolean} [HandlerOptions.matchBareFromJid]
+   * @property {boolean} [HandlerOptions.ignoreNamespaceFragment]
+   */
+  /**
+   * Create and initialize a new Handler.
+   *
+   * @param {Function} handler - A function to be executed when the handler is run.
+   * @param {string} ns - The namespace to match.
+   * @param {string} name - The element name to match.
+   * @param {string|string[]} type - The stanza type (or types if an array) to match.
+   * @param {string} [id] - The element id attribute to match.
+   * @param {string} [from] - The element from attribute to match.
+   * @param {HandlerOptions} [options] - Handler options
+   */
+  constructor(handler, ns, name, type, id, from2, options) {
+    this.handler = handler;
+    this.ns = ns;
+    this.name = name;
+    this.type = type;
+    this.id = id;
+    this.options = options || { "matchBareFromJid": false, "ignoreNamespaceFragment": false };
+    if (this.options.matchBareFromJid) {
+      this.from = from2 ? getBareJidFromJid(from2) : null;
+    } else {
+      this.from = from2;
+    }
+    this.user = true;
+  }
+  /**
+   * Returns the XML namespace attribute on an element.
+   * If `ignoreNamespaceFragment` was passed in for this handler, then the
+   * URL fragment will be stripped.
+   * @param {Element} elem - The XML element with the namespace.
+   * @return {string} - The namespace, with optionally the fragment stripped.
+   */
+  getNamespace(elem) {
+    let elNamespace = elem.getAttribute("xmlns");
+    if (elNamespace && this.options.ignoreNamespaceFragment) {
+      elNamespace = elNamespace.split("#")[0];
+    }
+    return elNamespace;
+  }
+  /**
+   * Tests if a stanza element (or any of its children) matches the
+   * namespace set for this Handler.
+   * @param {Element} elem - The XML element to test.
+   * @return {boolean} - true if the stanza matches and false otherwise.
+   */
+  namespaceMatch(elem) {
+    if (!this.ns || this.getNamespace(elem) === this.ns) {
+      return true;
+    }
+    for (const child of elem.children ?? []) {
+      if (this.getNamespace(child) === this.ns) {
+        return true;
+      } else if (this.namespaceMatch(child)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  /**
+   * Tests if a stanza matches the Handler.
+   * @param {Element} elem - The XML element to test.
+   * @return {boolean} - true if the stanza matches and false otherwise.
+   */
+  isMatch(elem) {
+    let from2 = elem.getAttribute("from");
+    if (this.options.matchBareFromJid) {
+      from2 = getBareJidFromJid(from2);
+    }
+    const elem_type = elem.getAttribute("type");
+    if (this.namespaceMatch(elem) && (!this.name || isTagEqual(elem, this.name)) && (!this.type || (Array.isArray(this.type) ? this.type.indexOf(elem_type) !== -1 : elem_type === this.type)) && (!this.id || elem.getAttribute("id") === this.id) && (!this.from || from2 === this.from)) {
+      return true;
+    }
+    return false;
+  }
+  /**
+   * Run the callback on a matching stanza.
+   * @param {Element} elem - The DOM element that triggered the Handler.
+   * @return {boolean} - A boolean indicating if the handler should remain active.
+   */
+  run(elem) {
+    let result = null;
+    try {
+      result = this.handler(elem);
+    } catch (e) {
+      handleError(e);
+      throw e;
+    }
+    return result;
+  }
+  /**
+   * Get a String representation of the Handler object.
+   * @return {string}
+   */
+  toString() {
+    return "{Handler: " + this.handler + "(" + this.name + "," + this.id + "," + this.ns + ")}";
+  }
+}
+class TimedHandler {
+  /**
+   * Create and initialize a new Strophe.TimedHandler object.
+   * @param {number} period - The number of milliseconds to wait before the
+   *     handler is called.
+   * @param {Function} handler - The callback to run when the handler fires.  This
+   *     function should take no arguments.
+   */
+  constructor(period, handler) {
+    this.period = period;
+    this.handler = handler;
+    this.lastCalled = (/* @__PURE__ */ new Date()).getTime();
+    this.user = true;
+  }
+  /**
+   * Run the callback for the Strophe.TimedHandler.
+   *
+   * @return {boolean} Returns the result of running the handler,
+   *  which is `true` if the Strophe.TimedHandler should be called again,
+   *  and `false` otherwise.
+   */
+  run() {
+    this.lastCalled = (/* @__PURE__ */ new Date()).getTime();
+    return this.handler();
+  }
+  /**
+   * Reset the last called time for the Strophe.TimedHandler.
+   */
+  reset() {
+    this.lastCalled = (/* @__PURE__ */ new Date()).getTime();
+  }
+  /**
+   * Get a string representation of the Strophe.TimedHandler object.
+   * @return {string}
+   */
+  toString() {
+    return "{TimedHandler: " + this.handler + "(" + this.period + ")}";
+  }
+}
+class SASLMechanism {
+  /**
+   * PrivateConstructor: Strophe.SASLMechanism
+   * SASL auth mechanism abstraction.
+   * @param {String} [name] - SASL Mechanism name.
+   * @param {Boolean} [isClientFirst] - If client should send response first without challenge.
+   * @param {Number} [priority] - Priority.
+   */
+  constructor(name, isClientFirst, priority) {
+    this.mechname = name;
+    this.isClientFirst = isClientFirst;
+    this.priority = priority;
+  }
+  /**
+   * Checks if mechanism able to run.
+   * To disable a mechanism, make this return false;
+   *
+   * To disable plain authentication run
+   * > Strophe.SASLPlain.test = function() {
+   * >   return false;
+   * > }
+   *
+   * See <SASL mechanisms> for a list of available mechanisms.
+   * @param {Connection} connection - Target Connection.
+   * @return {boolean} If mechanism was able to run.
+   */
+  // eslint-disable-next-line class-methods-use-this, no-unused-vars
+  test(connection) {
+    return true;
+  }
+  /**
+   * Called before starting mechanism on some connection.
+   * @param {Connection} connection - Target Connection.
+   */
+  onStart(connection) {
+    this._connection = connection;
+  }
+  /**
+   * Called by protocol implementation on incoming challenge.
+   *
+   * By deafult, if the client is expected to send data first (isClientFirst === true),
+   * this method is called with `challenge` as null on the first call,
+   * unless `clientChallenge` is overridden in the relevant subclass.
+   * @param {Connection} connection - Target Connection.
+   * @param {string} [challenge] - current challenge to handle.
+   * @return {string|Promise<string|false>} Mechanism response.
+   */
+  // eslint-disable-next-line no-unused-vars, class-methods-use-this
+  onChallenge(connection, challenge) {
+    throw new Error("You should implement challenge handling!");
+  }
+  /**
+   * Called by the protocol implementation if the client is expected to send
+   * data first in the authentication exchange (i.e. isClientFirst === true).
+   * @param {Connection} connection - Target Connection.
+   * @return {string|Promise<string|false>} Mechanism response.
+   */
+  clientChallenge(connection) {
+    if (!this.isClientFirst) {
+      throw new Error("clientChallenge should not be called if isClientFirst is false!");
+    }
+    return this.onChallenge(connection);
+  }
+  /**
+   * Protocol informs mechanism implementation about SASL failure.
+   */
+  onFailure() {
+    this._connection = null;
+  }
+  /**
+   * Protocol informs mechanism implementation about SASL success.
+   */
+  onSuccess() {
+    this._connection = null;
+  }
+}
+class SASLAnonymous extends SASLMechanism {
+  /**
+   * SASL ANONYMOUS authentication.
+   */
+  constructor(mechname = "ANONYMOUS", isClientFirst = false, priority = 20) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  test(connection) {
+    return connection.authcid === null;
+  }
+}
+class SASLExternal extends SASLMechanism {
+  /**
+   * SASL EXTERNAL authentication.
+   *
+   * The EXTERNAL mechanism allows a client to request the server to use
+   * credentials established by means external to the mechanism to
+   * authenticate the client. The external means may be, for instance,
+   * TLS services.
+   */
+  constructor(mechname = "EXTERNAL", isClientFirst = true, priority = 10) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  onChallenge(connection) {
+    return connection.authcid === connection.authzid ? "" : connection.authzid;
+  }
+}
+class SASLOAuthBearer extends SASLMechanism {
+  /**
+   * SASL OAuth Bearer authentication.
+   */
+  constructor(mechname = "OAUTHBEARER", isClientFirst = true, priority = 40) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  test(connection) {
+    return connection.pass !== null;
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  onChallenge(connection) {
+    let auth_str = "n,";
+    if (connection.authcid !== null) {
+      auth_str = auth_str + "a=" + connection.authzid;
+    }
+    auth_str = auth_str + ",";
+    auth_str = auth_str + "";
+    auth_str = auth_str + "auth=Bearer ";
+    auth_str = auth_str + connection.pass;
+    auth_str = auth_str + "";
+    auth_str = auth_str + "";
+    return utils.utf16to8(auth_str);
+  }
+}
+class SASLPlain extends SASLMechanism {
+  /**
+   * SASL PLAIN authentication.
+   */
+  constructor(mechname = "PLAIN", isClientFirst = true, priority = 50) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  test(connection) {
+    return connection.authcid !== null;
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  onChallenge(connection) {
+    const { authcid, authzid, domain, pass } = connection;
+    if (!domain) {
+      throw new Error("SASLPlain onChallenge: domain is not defined!");
+    }
+    let auth_str = authzid !== `${authcid}@${domain}` ? authzid : "";
+    auth_str = auth_str + "\0";
+    auth_str = auth_str + authcid;
+    auth_str = auth_str + "\0";
+    auth_str = auth_str + pass;
+    return utils.utf16to8(auth_str);
+  }
+}
+async function scramClientProof(authMessage, clientKey, hashName) {
+  const storedKey = await crypto.subtle.importKey(
+    "raw",
+    await crypto.subtle.digest(hashName, clientKey),
+    { "name": "HMAC", "hash": hashName },
+    false,
+    ["sign"]
+  );
+  const clientSignature = await crypto.subtle.sign("HMAC", storedKey, utils.stringToArrayBuf(authMessage));
+  return utils.xorArrayBuffers(clientKey, clientSignature);
+}
+function scramParseChallenge(challenge) {
+  let nonce, salt, iter;
+  const attribMatch = /([a-z]+)=([^,]+)(,|$)/;
+  while (challenge.match(attribMatch)) {
+    const matches = challenge.match(attribMatch);
+    challenge = challenge.replace(matches[0], "");
+    switch (matches[1]) {
+      case "r":
+        nonce = matches[2];
+        break;
+      case "s":
+        salt = utils.base64ToArrayBuf(matches[2]);
+        break;
+      case "i":
+        iter = parseInt(matches[2], 10);
+        break;
+      case "m":
+        return void 0;
+    }
+  }
+  if (isNaN(iter) || iter < 4096) {
+    log.warn("Failing SCRAM authentication because server supplied iteration count < 4096.");
+    return void 0;
+  }
+  if (!salt) {
+    log.warn("Failing SCRAM authentication because server supplied incorrect salt.");
+    return void 0;
+  }
+  return { "nonce": nonce, "salt": salt, "iter": iter };
+}
+async function scramDeriveKeys(password, salt, iter, hashName, hashBits) {
+  const saltedPasswordBits = await crypto.subtle.deriveBits(
+    { "name": "PBKDF2", "salt": salt, "iterations": iter, "hash": { "name": hashName } },
+    await crypto.subtle.importKey("raw", utils.stringToArrayBuf(password), "PBKDF2", false, ["deriveBits"]),
+    hashBits
+  );
+  const saltedPassword = await crypto.subtle.importKey(
+    "raw",
+    saltedPasswordBits,
+    { "name": "HMAC", "hash": hashName },
+    false,
+    ["sign"]
+  );
+  return {
+    "ck": await crypto.subtle.sign("HMAC", saltedPassword, utils.stringToArrayBuf("Client Key")),
+    "sk": await crypto.subtle.sign("HMAC", saltedPassword, utils.stringToArrayBuf("Server Key"))
+  };
+}
+async function scramServerSign(authMessage, sk, hashName) {
+  const serverKey = await crypto.subtle.importKey("raw", sk, { "name": "HMAC", "hash": hashName }, false, ["sign"]);
+  return crypto.subtle.sign("HMAC", serverKey, utils.stringToArrayBuf(authMessage));
+}
+function generate_cnonce() {
+  const bytes = new Uint8Array(16);
+  return utils.arrayBufToBase64(crypto.getRandomValues(bytes).buffer);
+}
+const scram = {
+  /**
+   * On success, sets
+   * connection_sasl_data["server-signature"]
+   * and
+   * connection._sasl_data.keys
+   *
+   * The server signature should be verified after this function completes..
+   *
+   * On failure, returns connection._sasl_failure_cb();
+   * @param {Connection} connection
+   * @param {string} challenge
+   * @param {string} hashName
+   * @param {number} hashBits
+   */
+  async scramResponse(connection, challenge, hashName, hashBits) {
+    const cnonce = connection._sasl_data.cnonce;
+    const challengeData = scramParseChallenge(challenge);
+    if (!challengeData && (challengeData == null ? void 0 : challengeData.nonce.slice(0, cnonce.length)) !== cnonce) {
+      log.warn("Failing SCRAM authentication because server supplied incorrect nonce.");
+      connection._sasl_data = {};
+      return connection._sasl_failure_cb();
+    }
+    let clientKey, serverKey;
+    const { pass } = connection;
+    if (typeof connection.pass === "string" || connection.pass instanceof String) {
+      const keys = await scramDeriveKeys(
+        /** @type {string} */
+        pass,
+        challengeData.salt,
+        challengeData.iter,
+        hashName,
+        hashBits
+      );
+      clientKey = keys.ck;
+      serverKey = keys.sk;
+    } else if (
+      // Either restore the client key and server key passed in, or derive new ones
+      /** @type {Password} */
+      (pass == null ? void 0 : pass.name) === hashName && /** @type {Password} */
+      (pass == null ? void 0 : pass.salt) === utils.arrayBufToBase64(challengeData.salt) && /** @type {Password} */
+      (pass == null ? void 0 : pass.iter) === challengeData.iter
+    ) {
+      const { ck, sk } = (
+        /** @type {Password} */
+        pass
+      );
+      clientKey = utils.base64ToArrayBuf(ck);
+      serverKey = utils.base64ToArrayBuf(sk);
+    } else {
+      return connection._sasl_failure_cb();
+    }
+    const clientFirstMessageBare = connection._sasl_data["client-first-message-bare"];
+    const serverFirstMessage = challenge;
+    const clientFinalMessageBare = `c=biws,r=${challengeData.nonce}`;
+    const authMessage = `${clientFirstMessageBare},${serverFirstMessage},${clientFinalMessageBare}`;
+    const clientProof = await scramClientProof(authMessage, clientKey, hashName);
+    const serverSignature = await scramServerSign(authMessage, serverKey, hashName);
+    connection._sasl_data["server-signature"] = utils.arrayBufToBase64(serverSignature);
+    connection._sasl_data.keys = {
+      "name": hashName,
+      "iter": challengeData.iter,
+      "salt": utils.arrayBufToBase64(challengeData.salt),
+      "ck": utils.arrayBufToBase64(clientKey),
+      "sk": utils.arrayBufToBase64(serverKey)
+    };
+    return `${clientFinalMessageBare},p=${utils.arrayBufToBase64(clientProof)}`;
+  },
+  /**
+   * Returns a string containing the client first message
+   * @param {Connection} connection
+   * @param {string} test_cnonce
+   */
+  clientChallenge(connection, test_cnonce) {
+    const cnonce = test_cnonce || generate_cnonce();
+    const client_first_message_bare = `n=${connection.authcid},r=${cnonce}`;
+    connection._sasl_data.cnonce = cnonce;
+    connection._sasl_data["client-first-message-bare"] = client_first_message_bare;
+    return `n,,${client_first_message_bare}`;
+  }
+};
+class SASLSHA1 extends SASLMechanism {
+  /**
+   * SASL SCRAM SHA 1 authentication.
+   */
+  constructor(mechname = "SCRAM-SHA-1", isClientFirst = true, priority = 60) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  test(connection) {
+    return connection.authcid !== null;
+  }
+  /**
+   * @param {Connection} connection
+   * @param {string} [challenge]
+   * @return {Promise<string|false>} Mechanism response.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async onChallenge(connection, challenge) {
+    return await scram.scramResponse(connection, challenge, "SHA-1", 160);
+  }
+  /**
+   * @param {Connection} connection
+   * @param {string} [test_cnonce]
+   */
+  // eslint-disable-next-line class-methods-use-this
+  clientChallenge(connection, test_cnonce) {
+    return scram.clientChallenge(connection, test_cnonce);
+  }
+}
+class SASLSHA256 extends SASLMechanism {
+  /**
+   * SASL SCRAM SHA 256 authentication.
+   */
+  constructor(mechname = "SCRAM-SHA-256", isClientFirst = true, priority = 70) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  test(connection) {
+    return connection.authcid !== null;
+  }
+  /**
+   * @param {Connection} connection
+   * @param {string} [challenge]
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async onChallenge(connection, challenge) {
+    return await scram.scramResponse(connection, challenge, "SHA-256", 256);
+  }
+  /**
+   * @param {Connection} connection
+   * @param {string} [test_cnonce]
+   */
+  // eslint-disable-next-line class-methods-use-this
+  clientChallenge(connection, test_cnonce) {
+    return scram.clientChallenge(connection, test_cnonce);
+  }
+}
+class SASLSHA384 extends SASLMechanism {
+  /**
+   * SASL SCRAM SHA 384 authentication.
+   */
+  constructor(mechname = "SCRAM-SHA-384", isClientFirst = true, priority = 71) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  test(connection) {
+    return connection.authcid !== null;
+  }
+  /**
+   * @param {Connection} connection
+   * @param {string} [challenge]
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async onChallenge(connection, challenge) {
+    return await scram.scramResponse(connection, challenge, "SHA-384", 384);
+  }
+  /**
+   * @param {Connection} connection
+   * @param {string} [test_cnonce]
+   */
+  // eslint-disable-next-line class-methods-use-this
+  clientChallenge(connection, test_cnonce) {
+    return scram.clientChallenge(connection, test_cnonce);
+  }
+}
+class SASLSHA512 extends SASLMechanism {
+  /**
+   * SASL SCRAM SHA 512 authentication.
+   */
+  constructor(mechname = "SCRAM-SHA-512", isClientFirst = true, priority = 72) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  test(connection) {
+    return connection.authcid !== null;
+  }
+  /**
+   * @param {Connection} connection
+   * @param {string} [challenge]
+   */
+  // eslint-disable-next-line class-methods-use-this
+  async onChallenge(connection, challenge) {
+    return await scram.scramResponse(connection, challenge, "SHA-512", 512);
+  }
+  /**
+   * @param {Connection} connection
+   * @param {string} [test_cnonce]
+   */
+  // eslint-disable-next-line class-methods-use-this
+  clientChallenge(connection, test_cnonce) {
+    return scram.clientChallenge(connection, test_cnonce);
+  }
+}
+class SASLXOAuth2 extends SASLMechanism {
+  /**
+   * SASL X-OAuth2 authentication.
+   */
+  constructor(mechname = "X-OAUTH2", isClientFirst = true, priority = 30) {
+    super(mechname, isClientFirst, priority);
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  test(connection) {
+    return connection.pass !== null;
+  }
+  /**
+   * @param {Connection} connection
+   */
+  // eslint-disable-next-line class-methods-use-this
+  onChallenge(connection) {
+    let auth_str = "\0";
+    if (connection.authcid !== null) {
+      auth_str = auth_str + connection.authzid;
+    }
+    auth_str = auth_str + "\0";
+    auth_str = auth_str + connection.pass;
+    return utils.utf16to8(auth_str);
+  }
+}
+class SessionError extends Error {
+  /**
+   * @param {string} message
+   */
+  constructor(message2) {
+    super(message2);
+    this.name = "StropheSessionError";
+  }
+}
+class Websocket {
+  /**
+   * Create and initialize a WebSocket object.
+   * Currently only sets the connection Object.
+   * @param {Connection} connection - The Connection that will use WebSockets.
+   */
+  constructor(connection) {
+    this._conn = connection;
+    this.strip = "wrapper";
+    const service = connection.service;
+    if (service.indexOf("ws:") !== 0 && service.indexOf("wss:") !== 0) {
+      let new_service = "";
+      if (connection.options.protocol === "ws" && location.protocol !== "https:") {
+        new_service += "ws";
+      } else {
+        new_service += "wss";
+      }
+      new_service += "://" + location.host;
+      if (service.indexOf("/") !== 0) {
+        new_service += location.pathname + service;
+      } else {
+        new_service += service;
+      }
+      connection.service = new_service;
+    }
+  }
+  /**
+   * _Private_ helper function to generate the <stream> start tag for WebSockets
+   * @private
+   * @return {Builder} - A Builder with a <stream> element.
+   */
+  _buildStream() {
+    return $build("open", {
+      "xmlns": NS.FRAMING,
+      "to": this._conn.domain,
+      "version": "1.0"
+    });
+  }
+  /**
+   * _Private_ checks a message for stream:error
+   * @private
+   * @param {Element} bodyWrap - The received stanza.
+   * @param {number} connectstatus - The ConnectStatus that will be set on error.
+   * @return {boolean} - true if there was a streamerror, false otherwise.
+   */
+  _checkStreamError(bodyWrap, connectstatus) {
+    let errors2;
+    if (bodyWrap.getElementsByTagNameNS) {
+      errors2 = bodyWrap.getElementsByTagNameNS(NS.STREAM, "error");
+    } else {
+      errors2 = bodyWrap.getElementsByTagName("stream:error");
+    }
+    if (errors2.length === 0) {
+      return false;
+    }
+    const error2 = errors2[0];
+    let condition = "";
+    let text2 = "";
+    const ns = "urn:ietf:params:xml:ns:xmpp-streams";
+    for (let i = 0; i < error2.childNodes.length; i++) {
+      const e = error2.childNodes[i];
+      if (e.nodeType === e.ELEMENT_NODE) {
+        const el = (
+          /** @type {any} */
+          e
+        );
+        if (el.getAttribute("xmlns") !== ns) {
+          break;
+        }
+      }
+      if (e.nodeName === "text") {
+        text2 = e.textContent;
+      } else {
+        condition = e.nodeName;
+      }
+    }
+    let errorString = "WebSocket stream error: ";
+    if (condition) {
+      errorString += condition;
+    } else {
+      errorString += "unknown";
+    }
+    if (text2) {
+      errorString += " - " + text2;
+    }
+    log.error(errorString);
+    this._conn._changeConnectStatus(connectstatus, condition);
+    this._conn._doDisconnect();
+    return true;
+  }
+  /**
+   * Reset the connection.
+   *
+   * This function is called by the reset function of the Strophe Connection.
+   * Is not needed by WebSockets.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  _reset() {
+    return;
+  }
+  /**
+   * _Private_ function called by Connection.connect
+   *
+   * Creates a WebSocket for a connection and assigns Callbacks to it.
+   * Does nothing if there already is a WebSocket.
+   */
+  _connect() {
+    this._closeSocket();
+    this.socket = new WebSocket(this._conn.service, "xmpp");
+    this.socket.onopen = () => this._onOpen();
+    this.socket.onerror = (e) => this._onError(e);
+    this.socket.onclose = (e) => this._onClose(e);
+    this.socket.onmessage = (message2) => this._onInitialMessage(message2);
+  }
+  /**
+   * _Private_ function called by Connection._connect_cb
+   * checks for stream:error
+   * @param {Element} bodyWrap - The received stanza.
+   */
+  _connect_cb(bodyWrap) {
+    const error2 = this._checkStreamError(bodyWrap, Status.CONNFAIL);
+    if (error2) {
+      return Status.CONNFAIL;
+    }
+  }
+  /**
+   * _Private_ function that checks the opening <open /> tag for errors.
+   *
+   * Disconnects if there is an error and returns false, true otherwise.
+   * @private
+   * @param {Element} message - Stanza containing the <open /> tag.
+   */
+  _handleStreamStart(message2) {
+    let error2 = null;
+    const ns = message2.getAttribute("xmlns");
+    if (typeof ns !== "string") {
+      error2 = "Missing xmlns in <open />";
+    } else if (ns !== NS.FRAMING) {
+      error2 = "Wrong xmlns in <open />: " + ns;
+    }
+    const ver = message2.getAttribute("version");
+    if (typeof ver !== "string") {
+      error2 = "Missing version in <open />";
+    } else if (ver !== "1.0") {
+      error2 = "Wrong version in <open />: " + ver;
+    }
+    if (error2) {
+      this._conn._changeConnectStatus(Status.CONNFAIL, error2);
+      this._conn._doDisconnect();
+      return false;
+    }
+    return true;
+  }
+  /**
+   * _Private_ function that handles the first connection messages.
+   *
+   * On receiving an opening stream tag this callback replaces itself with the real
+   * message handler. On receiving a stream error the connection is terminated.
+   * @param {MessageEvent} message
+   */
+  _onInitialMessage(message2) {
+    if (message2.data.indexOf("<open ") === 0 || message2.data.indexOf("<?xml") === 0) {
+      const data = message2.data.replace(/^(<\?.*?\?>\s*)*/, "");
+      if (data === "") return;
+      const streamStart = new DOMParser().parseFromString(data, "text/xml").documentElement;
+      this._conn.xmlInput(streamStart);
+      this._conn.rawInput(message2.data);
+      if (this._handleStreamStart(streamStart)) {
+        this._connect_cb(streamStart);
+      }
+    } else if (message2.data.indexOf("<close ") === 0) {
+      const parsedMessage = new DOMParser().parseFromString(message2.data, "text/xml").documentElement;
+      this._conn.xmlInput(parsedMessage);
+      this._conn.rawInput(message2.data);
+      const see_uri = parsedMessage.getAttribute("see-other-uri");
+      if (see_uri) {
+        const service = this._conn.service;
+        const isSecureRedirect = service.indexOf("wss:") >= 0 && see_uri.indexOf("wss:") >= 0 || service.indexOf("ws:") >= 0;
+        if (isSecureRedirect) {
+          this._conn._changeConnectStatus(
+            Status.REDIRECT,
+            "Received see-other-uri, resetting connection"
+          );
+          this._conn.reset();
+          this._conn.service = see_uri;
+          this._connect();
+        }
+      } else {
+        this._conn._changeConnectStatus(Status.CONNFAIL, "Received closing stream");
+        this._conn._doDisconnect();
+      }
+    } else {
+      this._replaceMessageHandler();
+      const string = this._streamWrap(message2.data);
+      const elem = new DOMParser().parseFromString(string, "text/xml").documentElement;
+      this._conn._connect_cb(elem, null, message2.data);
+    }
+  }
+  /**
+   * Called by _onInitialMessage in order to replace itself with the general message handler.
+   * This method is overridden by WorkerWebsocket, which manages a
+   * websocket connection via a service worker and doesn't have direct access
+   * to the socket.
+   */
+  _replaceMessageHandler() {
+    this.socket.onmessage = (m2) => this._onMessage(m2);
+  }
+  /**
+   * _Private_ function called by Connection.disconnect
+   * Disconnects and sends a last stanza if one is given
+   * @param {Element|Builder} [pres] - This stanza will be sent before disconnecting.
+   */
+  _disconnect(pres) {
+    if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
+      if (pres) {
+        this._conn.send(pres);
+      }
+      const close2 = $build("close", { "xmlns": NS.FRAMING });
+      this._conn.xmlOutput(close2.tree());
+      const closeString = Builder.serialize(close2);
+      this._conn.rawOutput(closeString);
+      try {
+        this.socket.send(closeString);
+      } catch (e) {
+        log.warn(`Couldn't send <close /> tag. "${e.message}"`);
+      }
+    }
+    setTimeout(() => this._conn._doDisconnect(), 0);
+  }
+  /**
+   * _Private_ function to disconnect.
+   * Just closes the Socket for WebSockets
+   */
+  _doDisconnect() {
+    log.debug("WebSockets _doDisconnect was called");
+    this._closeSocket();
+  }
+  /**
+   * PrivateFunction _streamWrap
+   * _Private_ helper function to wrap a stanza in a <stream> tag.
+   * This is used so Strophe can process stanzas from WebSockets like BOSH
+   * @param {string} stanza
+   */
+  // eslint-disable-next-line class-methods-use-this
+  _streamWrap(stanza) {
+    return "<wrapper>" + stanza + "</wrapper>";
+  }
+  /**
+   * _Private_ function to close the WebSocket.
+   *
+   * Closes the socket if it is still open and deletes it
+   */
+  _closeSocket() {
+    if (this.socket) {
+      try {
+        this.socket.onclose = null;
+        this.socket.onerror = null;
+        this.socket.onmessage = null;
+        this.socket.close();
+      } catch (e) {
+        log.debug(e.message);
+      }
+    }
+    this.socket = null;
+  }
+  /**
+   * _Private_ function to check if the message queue is empty.
+   * @return {true} - True, because WebSocket messages are send immediately after queueing.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  _emptyQueue() {
+    return true;
+  }
+  /**
+   * _Private_ function to handle websockets closing.
+   * @param {CloseEvent} [e]
+   */
+  _onClose(e) {
+    if (this._conn.connected && !this._conn.disconnecting) {
+      log.error("Websocket closed unexpectedly");
+      this._conn._doDisconnect();
+    } else if (e && e.code === 1006 && !this._conn.connected && this.socket) {
+      log.error("Websocket closed unexcectedly");
+      this._conn._changeConnectStatus(
+        Status.CONNFAIL,
+        "The WebSocket connection could not be established or was disconnected."
+      );
+      this._conn._doDisconnect();
+    } else {
+      log.debug("Websocket closed");
+    }
+  }
+  /**
+   * @callback connectionCallback
+   * @param {Connection} connection
+   */
+  /**
+   * Called on stream start/restart when no stream:features
+   * has been received.
+   * @param {connectionCallback} callback
+   */
+  _no_auth_received(callback) {
+    log.error("Server did not offer a supported authentication mechanism");
+    this._conn._changeConnectStatus(Status.CONNFAIL, ErrorCondition.NO_AUTH_MECH);
+    callback == null ? void 0 : callback.call(this._conn);
+    this._conn._doDisconnect();
+  }
+  /**
+   * _Private_ timeout handler for handling non-graceful disconnection.
+   *
+   * This does nothing for WebSockets
+   */
+  _onDisconnectTimeout() {
+  }
+  // eslint-disable-line class-methods-use-this
+  /**
+   * _Private_ helper function that makes sure all pending requests are aborted.
+   */
+  _abortAllRequests() {
+  }
+  // eslint-disable-line class-methods-use-this
+  /**
+   * _Private_ function to handle websockets errors.
+   * @param {Object} error - The websocket error.
+   */
+  _onError(error2) {
+    log.error("Websocket error " + JSON.stringify(error2));
+    this._conn._changeConnectStatus(
+      Status.CONNFAIL,
+      "The WebSocket connection could not be established or was disconnected."
+    );
+    this._disconnect();
+  }
+  /**
+   * _Private_ function called by Connection._onIdle
+   * sends all queued stanzas
+   */
+  _onIdle() {
+    const data = this._conn._data;
+    if (data.length > 0 && !this._conn.paused) {
+      for (let i = 0; i < data.length; i++) {
+        if (data[i] !== null) {
+          const stanza = data[i] === "restart" ? this._buildStream().tree() : data[i];
+          if (stanza === "restart") throw new Error("Wrong type for stanza");
+          const rawStanza = Builder.serialize(stanza);
+          this._conn.xmlOutput(stanza);
+          this._conn.rawOutput(rawStanza);
+          this.socket.send(rawStanza);
+        }
+      }
+      this._conn._data = [];
+    }
+  }
+  /**
+   * _Private_ function to handle websockets messages.
+   *
+   * This function parses each of the messages as if they are full documents.
+   * [TODO : We may actually want to use a SAX Push parser].
+   *
+   * Since all XMPP traffic starts with
+   * <stream:stream version='1.0'
+   *                xml:lang='en'
+   *                xmlns='jabber:client'
+   *                xmlns:stream='http://etherx.jabber.org/streams'
+   *                id='3697395463'
+   *                from='SERVER'>
+   *
+   * The first stanza will always fail to be parsed.
+   *
+   * Additionally, the seconds stanza will always be <stream:features> with
+   * the stream NS defined in the previous stanza, so we need to 'force'
+   * the inclusion of the NS in this stanza.
+   *
+   * @param {MessageEvent} message - The websocket message event
+   */
+  _onMessage(message2) {
+    let elem;
+    const close2 = '<close xmlns="urn:ietf:params:xml:ns:xmpp-framing" />';
+    if (message2.data === close2) {
+      this._conn.rawInput(close2);
+      this._conn.xmlInput(message2);
+      if (!this._conn.disconnecting) {
+        this._conn._doDisconnect();
+      }
+      return;
+    } else if (message2.data.search("<open ") === 0) {
+      elem = new DOMParser().parseFromString(message2.data, "text/xml").documentElement;
+      if (!this._handleStreamStart(elem)) {
+        return;
+      }
+    } else {
+      const data = this._streamWrap(message2.data);
+      elem = new DOMParser().parseFromString(data, "text/xml").documentElement;
+    }
+    if (this._checkStreamError(elem, Status.ERROR)) {
+      return;
+    }
+    if (this._conn.disconnecting && elem.firstElementChild.nodeName === "presence" && elem.firstElementChild.getAttribute("type") === "unavailable") {
+      this._conn.xmlInput(elem);
+      this._conn.rawInput(Builder.serialize(elem));
+      return;
+    }
+    this._conn._dataRecv(elem, message2.data);
+  }
+  /**
+   * _Private_ function to handle websockets connection setup.
+   * The opening stream tag is sent here.
+   * @private
+   */
+  _onOpen() {
+    log.debug("Websocket open");
+    const start = this._buildStream();
+    this._conn.xmlOutput(start.tree());
+    const startString = Builder.serialize(start);
+    this._conn.rawOutput(startString);
+    this.socket.send(startString);
+  }
+  /**
+   * _Private_ part of the Connection.send function for WebSocket
+   * Just flushes the messages that are in the queue
+   */
+  _send() {
+    this._conn.flush();
+  }
+  /**
+   * Send an xmpp:restart stanza.
+   */
+  _sendRestart() {
+    clearTimeout(this._conn._idleTimeout);
+    this._conn._onIdle.bind(this._conn)();
+  }
+}
+/**
+ * @license MIT
+ * @copyright JC Brand
+ */
+class WorkerWebsocket extends Websocket {
+  /**
+   * @typedef {import("./connection.js").default} Connection
+   */
+  /**
+   * Create and initialize a WorkerWebsocket object.
+   * @param {Connection} connection - The Connection
+   */
+  constructor(connection) {
+    super(connection);
+    this._conn = connection;
+    this.worker = new SharedWorker(this._conn.options.worker, "Strophe XMPP Connection");
+    this.worker.onerror = (e) => {
+      console == null ? void 0 : console.error(e);
+      log.error(`Shared Worker Error: ${e}`);
+    };
+  }
+  /**
+   * @private
+   */
+  _setSocket() {
+    this.socket = {
+      /** @param {string} str */
+      send: (str) => this.worker.port.postMessage(["send", str]),
+      close: () => this.worker.port.postMessage(["_closeSocket"]),
+      onopen: () => {
+      },
+      /** @param {ErrorEvent} e */
+      onerror: (e) => this._onError(e),
+      /** @param {CloseEvent} e */
+      onclose: (e) => this._onClose(e),
+      onmessage: () => {
+      },
+      readyState: null
+    };
+  }
+  _connect() {
+    this._setSocket();
+    this._messageHandler = (m2) => this._onInitialMessage(m2);
+    this.worker.port.start();
+    this.worker.port.onmessage = (ev) => this._onWorkerMessage(ev);
+    this.worker.port.postMessage(["_connect", this._conn.service, this._conn.jid]);
+  }
+  /**
+   * @param {Function} callback
+   */
+  _attach(callback) {
+    this._setSocket();
+    this._messageHandler = (m2) => this._onMessage(m2);
+    this._conn.connect_callback = callback;
+    this.worker.port.start();
+    this.worker.port.onmessage = (ev) => this._onWorkerMessage(ev);
+    this.worker.port.postMessage(["_attach", this._conn.service]);
+  }
+  /**
+   * @param {number} status
+   * @param {string} jid
+   */
+  _attachCallback(status, jid) {
+    if (status === Status.ATTACHED) {
+      this._conn.jid = jid;
+      this._conn.authenticated = true;
+      this._conn.connected = true;
+      this._conn.restored = true;
+      this._conn._changeConnectStatus(Status.ATTACHED);
+    } else if (status === Status.ATTACHFAIL) {
+      this._conn.authenticated = false;
+      this._conn.connected = false;
+      this._conn.restored = false;
+      this._conn._changeConnectStatus(Status.ATTACHFAIL);
+    }
+  }
+  /**
+   * @param {Element|Builder} pres - This stanza will be sent before disconnecting.
+   */
+  _disconnect(pres) {
+    pres && this._conn.send(pres);
+    const close2 = $build("close", { "xmlns": NS.FRAMING });
+    this._conn.xmlOutput(close2.tree());
+    const closeString = Builder.serialize(close2);
+    this._conn.rawOutput(closeString);
+    this.worker.port.postMessage(["send", closeString]);
+    this._conn._doDisconnect();
+  }
+  _closeSocket() {
+    this.socket.close();
+  }
+  /**
+   * Called by _onInitialMessage in order to replace itself with the general message handler.
+   * This method is overridden by WorkerWebsocket, which manages a
+   * websocket connection via a service worker and doesn't have direct access
+   * to the socket.
+   */
+  _replaceMessageHandler() {
+    this._messageHandler = (m2) => this._onMessage(m2);
+  }
+  /**
+   * function that handles messages received from the service worker
+   * @private
+   * @param {MessageEvent} ev
+   */
+  _onWorkerMessage(ev) {
+    const { data } = ev;
+    const method_name = data[0];
+    if (method_name === "_onMessage") {
+      this._messageHandler(data[1]);
+    } else if (method_name in this) {
+      try {
+        this[
+          /** @type {'_attachCallback'|'_onOpen'|'_onClose'|'_onError'} */
+          method_name
+        ].apply(this, ev.data.slice(1));
+      } catch (e) {
+        log.error(e);
+      }
+    } else if (method_name === "log") {
+      const lmap = {
+        debug: LOG_LEVELS.DEBUG,
+        info: LOG_LEVELS.INFO,
+        warn: LOG_LEVELS.WARN,
+        error: LOG_LEVELS.ERROR,
+        fatal: LOG_LEVELS.FATAL
+      };
+      const level = data[1];
+      const msg = data[2];
+      log.log(lmap[level], msg);
+    } else {
+      log.error(`Found unhandled service worker message: ${data}`);
+    }
+  }
+}
+const connectionPlugins = {};
+class Connection {
+  /**
+   * @typedef {Object.<string, string>} Cookie
+   * @typedef {Cookie|Object.<string, Cookie>} Cookies
+   */
+  /**
+   * Create and initialize a {@link Connection} object.
+   *
+   * The transport-protocol for this connection will be chosen automatically
+   * based on the given service parameter. URLs starting with "ws://" or
+   * "wss://" will use WebSockets, URLs starting with "http://", "https://"
+   * or without a protocol will use [BOSH](https://xmpp.org/extensions/xep-0124.html).
+   *
+   * To make Strophe connect to the current host you can leave out the protocol
+   * and host part and just pass the path:
+   *
+   *  const conn = new Strophe.Connection("/http-bind/");
+   *
+   * @param {string} service - The BOSH or WebSocket service URL.
+   * @param {ConnectionOptions} options - A object containing configuration options
+   */
+  constructor(service, options = {}) {
+    this.service = service;
+    this.options = options;
+    this.setProtocol();
+    this.jid = "";
+    this.domain = null;
+    this.features = null;
+    this._sasl_data = {};
+    this.do_bind = false;
+    this.do_session = false;
+    this.mechanisms = {};
+    this.timedHandlers = [];
+    this.handlers = [];
+    this.removeTimeds = [];
+    this.removeHandlers = [];
+    this.addTimeds = [];
+    this.addHandlers = [];
+    this.protocolErrorHandlers = {
+      /** @type {Object.<number, Function>} */
+      "HTTP": {},
+      /** @type {Object.<number, Function>} */
+      "websocket": {}
+    };
+    this._idleTimeout = null;
+    this._disconnectTimeout = null;
+    this.authenticated = false;
+    this.connected = false;
+    this.disconnecting = false;
+    this.do_authentication = true;
+    this.paused = false;
+    this.restored = false;
+    this._data = [];
+    this._uniqueId = 0;
+    this._sasl_success_handler = null;
+    this._sasl_failure_handler = null;
+    this._sasl_challenge_handler = null;
+    this.maxRetries = 5;
+    this._idleTimeout = setTimeout(() => this._onIdle(), 100);
+    addCookies(this.options.cookies);
+    this.registerSASLMechanisms(this.options.mechanisms);
+    this.iqFallbackHandler = new Handler(
+      /**
+       * @param {Element} iq
+       */
+      (iq) => this.send(
+        $iq({ type: "error", id: iq.getAttribute("id") }).c("error", { "type": "cancel" }).c("service-unavailable", { "xmlns": NS.STANZAS })
+      ),
+      null,
+      "iq",
+      ["get", "set"]
+    );
+    for (const k2 in connectionPlugins) {
+      if (Object.prototype.hasOwnProperty.call(connectionPlugins, k2)) {
+        const F = function() {
+        };
+        F.prototype = connectionPlugins[k2];
+        this[k2] = new F();
+        this[k2].init(this);
+      }
+    }
+  }
+  /**
+   * Extends the Connection object with the given plugin.
+   * @param {string} name - The name of the extension.
+   * @param {Object} ptype - The plugin's prototype.
+   */
+  static addConnectionPlugin(name, ptype) {
+    connectionPlugins[name] = ptype;
+  }
+  /**
+   * Select protocal based on this.options or this.service
+   */
+  setProtocol() {
+    const proto = this.options.protocol || "";
+    if (this.options.worker) {
+      this._proto = new WorkerWebsocket(this);
+    } else if (this.service.indexOf("ws:") === 0 || this.service.indexOf("wss:") === 0 || proto.indexOf("ws") === 0) {
+      this._proto = new Websocket(this);
+    } else {
+      this._proto = new Bosh(this);
+    }
+  }
+  /**
+   * Reset the connection.
+   *
+   * This function should be called after a connection is disconnected
+   * before that connection is reused.
+   */
+  reset() {
+    this._proto._reset();
+    this.do_session = false;
+    this.do_bind = false;
+    this.timedHandlers = [];
+    this.handlers = [];
+    this.removeTimeds = [];
+    this.removeHandlers = [];
+    this.addTimeds = [];
+    this.addHandlers = [];
+    this.authenticated = false;
+    this.connected = false;
+    this.disconnecting = false;
+    this.restored = false;
+    this._data = [];
+    this._requests = [];
+    this._uniqueId = 0;
+  }
+  /**
+   * Pause the request manager.
+   *
+   * This will prevent Strophe from sending any more requests to the
+   * server.  This is very useful for temporarily pausing
+   * BOSH-Connections while a lot of send() calls are happening quickly.
+   * This causes Strophe to send the data in a single request, saving
+   * many request trips.
+   */
+  pause() {
+    this.paused = true;
+  }
+  /**
+   * Resume the request manager.
+   *
+   * This resumes after pause() has been called.
+   */
+  resume() {
+    this.paused = false;
+  }
+  /**
+   * Generate a unique ID for use in <iq/> elements.
+   *
+   * All <iq/> stanzas are required to have unique id attributes.  This
+   * function makes creating these easy.  Each connection instance has
+   * a counter which starts from zero, and the value of this counter
+   * plus a colon followed by the suffix becomes the unique id. If no
+   * suffix is supplied, the counter is used as the unique id.
+   *
+   * Suffixes are used to make debugging easier when reading the stream
+   * data, and their use is recommended.  The counter resets to 0 for
+   * every new connection for the same reason.  For connections to the
+   * same server that authenticate the same way, all the ids should be
+   * the same, which makes it easy to see changes.  This is useful for
+   * automated testing as well.
+   *
+   * @param {string} suffix - A optional suffix to append to the id.
+   * @returns {string} A unique string to be used for the id attribute.
+   */
+  // eslint-disable-next-line class-methods-use-this
+  getUniqueId(suffix) {
+    const uuid = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+      const r2 = Math.random() * 16 | 0, v2 = c === "x" ? r2 : r2 & 3 | 8;
+      return v2.toString(16);
+    });
+    if (typeof suffix === "string" || typeof suffix === "number") {
+      return uuid + ":" + suffix;
+    } else {
+      return uuid + "";
+    }
+  }
+  /**
+   * Register a handler function for when a protocol (websocker or HTTP)
+   * error occurs.
+   *
+   * NOTE: Currently only HTTP errors for BOSH requests are handled.
+   * Patches that handle websocket errors would be very welcome.
+   *
+   * @example
+   *  function onError(err_code){
+   *    //do stuff
+   *  }
+   *
+   *  const conn = Strophe.connect('http://example.com/http-bind');
+   *  conn.addProtocolErrorHandler('HTTP', 500, onError);
+   *  // Triggers HTTP 500 error and onError handler will be called
+   *  conn.connect('user_jid@incorrect_jabber_host', 'secret', onConnect);
+   *
+   * @param {'HTTP'|'websocket'} protocol - 'HTTP' or 'websocket'
+   * @param {number} status_code - Error status code (e.g 500, 400 or 404)
+   * @param {Function} callback - Function that will fire on Http error
+   */
+  addProtocolErrorHandler(protocol, status_code, callback) {
+    this.protocolErrorHandlers[protocol][status_code] = callback;
+  }
+  /**
+   * @typedef {Object} Password
+   * @property {string} Password.name
+   * @property {string} Password.ck
+   * @property {string} Password.sk
+   * @property {number} Password.iter
+   * @property {string} Password.salt
+   */
+  /**
+   * Starts the connection process.
+   *
+   * As the connection process proceeds, the user supplied callback will
+   * be triggered multiple times with status updates.  The callback
+   * should take two arguments - the status code and the error condition.
+   *
+   * The status code will be one of the values in the Strophe.Status
+   * constants.  The error condition will be one of the conditions
+   * defined in RFC 3920 or the condition 'strophe-parsererror'.
+   *
+   * The Parameters _wait_, _hold_ and _route_ are optional and only relevant
+   * for BOSH connections. Please see XEP 124 for a more detailed explanation
+   * of the optional parameters.
+   *
+   * @param {string} jid - The user's JID.  This may be a bare JID,
+   *     or a full JID.  If a node is not supplied, SASL OAUTHBEARER or
+   *     SASL ANONYMOUS authentication will be attempted (OAUTHBEARER will
+   *     process the provided password value as an access token).
+   *   (String or Object) pass - The user's password, or an object containing
+   *     the users SCRAM client and server keys, in a fashion described as follows:
+   *
+   *     { name: String, representing the hash used (eg. SHA-1),
+   *       salt: String, base64 encoded salt used to derive the client key,
+   *       iter: Int,    the iteration count used to derive the client key,
+   *       ck:   String, the base64 encoding of the SCRAM client key
+   *       sk:   String, the base64 encoding of the SCRAM server key
+   *     }
+   * @param {string|Password} pass - The user password
+   * @param {Function} callback - The connect callback function.
+   * @param {number} [wait] - The optional HTTPBIND wait value.  This is the
+   *     time the server will wait before returning an empty result for
+   *     a request.  The default setting of 60 seconds is recommended.
+   * @param {number} [hold] - The optional HTTPBIND hold value.  This is the
+   *     number of connections the server will hold at one time.  This
+   *     should almost always be set to 1 (the default).
+   * @param {string} [route] - The optional route value.
+   * @param {string} [authcid] - The optional alternative authentication identity
+   *     (username) if intending to impersonate another user.
+   *     When using the SASL-EXTERNAL authentication mechanism, for example
+   *     with client certificates, then the authcid value is used to
+   *     determine whether an authorization JID (authzid) should be sent to
+   *     the server. The authzid should NOT be sent to the server if the
+   *     authzid and authcid are the same. So to prevent it from being sent
+   *     (for example when the JID is already contained in the client
+   *     certificate), set authcid to that same JID. See XEP-178 for more
+   *     details.
+   *  @param {number} [disconnection_timeout=3000] - The optional disconnection timeout
+   *     in milliseconds before _doDisconnect will be called.
+   */
+  connect(jid, pass, callback, wait, hold, route, authcid, disconnection_timeout = 3e3) {
+    this.jid = jid;
+    this.authzid = getBareJidFromJid(this.jid);
+    this.authcid = authcid || getNodeFromJid(this.jid);
+    this.pass = pass;
+    this.scram_keys = null;
+    this.connect_callback = callback;
+    this.disconnecting = false;
+    this.connected = false;
+    this.authenticated = false;
+    this.restored = false;
+    this.disconnection_timeout = disconnection_timeout;
+    this.domain = getDomainFromJid(this.jid);
+    this._changeConnectStatus(Status.CONNECTING, null);
+    this._proto._connect(wait, hold, route);
+  }
+  /**
+   * Attach to an already created and authenticated BOSH session.
+   *
+   * This function is provided to allow Strophe to attach to BOSH
+   * sessions which have been created externally, perhaps by a Web
+   * application.  This is often used to support auto-login type features
+   * without putting user credentials into the page.
+   *
+   * @param {string|Function} jid - The full JID that is bound by the session.
+   * @param {string} [sid] - The SID of the BOSH session.
+   * @param {number} [rid] - The current RID of the BOSH session.  This RID
+   *     will be used by the next request.
+   * @param {Function} [callback] - The connect callback function.
+   * @param {number} [wait] - The optional HTTPBIND wait value.  This is the
+   *     time the server will wait before returning an empty result for
+   *     a request.  The default setting of 60 seconds is recommended.
+   *     Other settings will require tweaks to the Strophe.TIMEOUT value.
+   * @param {number} [hold] - The optional HTTPBIND hold value.  This is the
+   *     number of connections the server will hold at one time.  This
+   *     should almost always be set to 1 (the default).
+   * @param {number} [wind] - The optional HTTBIND window value.  This is the
+   *     allowed range of request ids that are valid.  The default is 5.
+   */
+  attach(jid, sid, rid, callback, wait, hold, wind) {
+    if (this._proto instanceof Bosh && typeof jid === "string") {
+      return this._proto._attach(jid, sid, rid, callback, wait, hold, wind);
+    } else if (this._proto instanceof WorkerWebsocket && typeof jid === "function") {
+      const callback2 = jid;
+      return this._proto._attach(callback2);
+    } else {
+      throw new SessionError('The "attach" method is not available for your connection protocol');
+    }
+  }
+  /**
+   * Attempt to restore a cached BOSH session.
+   *
+   * This function is only useful in conjunction with providing the
+   * "keepalive":true option when instantiating a new {@link Connection}.
+   *
+   * When "keepalive" is set to true, Strophe will cache the BOSH tokens
+   * RID (Request ID) and SID (Session ID) and then when this function is
+   * called, it will attempt to restore the session from those cached
+   * tokens.
+   *
+   * This function must therefore be called instead of connect or attach.
+   *
+   * For an example on how to use it, please see examples/restore.js
+   *
+   * @param {string} jid - The user's JID.  This may be a bare JID or a full JID.
+   * @param {Function} callback - The connect callback function.
+   * @param {number} [wait] - The optional HTTPBIND wait value.  This is the
+   *     time the server will wait before returning an empty result for
+   *     a request.  The default setting of 60 seconds is recommended.
+   * @param {number} [hold] - The optional HTTPBIND hold value.  This is the
+   *     number of connections the server will hold at one time.  This
+   *     should almost always be set to 1 (the default).
+   * @param {number} [wind] - The optional HTTBIND window value.  This is the
+   *     allowed range of request ids that are valid.  The default is 5.
+   */
+  restore(jid, callback, wait, hold, wind) {
+    if (!(this._proto instanceof Bosh) || !this._sessionCachingSupported()) {
+      throw new SessionError('The "restore" method can only be used with a BOSH connection.');
+    }
+    if (this._sessionCachingSupported()) {
+      this._proto._restore(jid, callback, wait, hold, wind);
+    }
+  }
+  /**
+   * Checks whether sessionStorage and JSON are supported and whether we're
+   * using BOSH.
+   */
+  _sessionCachingSupported() {
+    if (this._proto instanceof Bosh) {
+      if (!JSON) {
+        return false;
+      }
+      try {
+        sessionStorage.setItem("_strophe_", "_strophe_");
+        sessionStorage.removeItem("_strophe_");
+      } catch (e) {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+  /**
+   * User overrideable function that receives XML data coming into the
+   * connection.
+   *
+   * The default function does nothing.  User code can override this with
+   * > Connection.xmlInput = function (elem) {
+   * >   (user code)
+   * > };
+   *
+   * Due to limitations of current Browsers' XML-Parsers the opening and closing
+   * <stream> tag for WebSocket-Connoctions will be passed as selfclosing here.
+   *
+   * BOSH-Connections will have all stanzas wrapped in a <body> tag. See
+   * <Bosh.strip> if you want to strip this tag.
+   *
+   * @param {Node|MessageEvent} elem - The XML data received by the connection.
+   */
+  // eslint-disable-next-line no-unused-vars, class-methods-use-this
+  xmlInput(elem) {
+    return;
+  }
+  /**
+   * User overrideable function that receives XML data sent to the
+   * connection.
+   *
+   * The default function does nothing.  User code can override this with
+   * > Connection.xmlOutput = function (elem) {
+   * >   (user code)
+   * > };
+   *
+   * Due to limitations of current Browsers' XML-Parsers the opening and closing
+   * <stream> tag for WebSocket-Connoctions will be passed as selfclosing here.
+   *
+   * BOSH-Connections will have all stanzas wrapped in a <body> tag. See
+   * <Bosh.strip> if you want to strip this tag.
+   *
+   * @param {Element} elem - The XMLdata sent by the connection.
+   */
+  // eslint-disable-next-line no-unused-vars, class-methods-use-this
+  xmlOutput(elem) {
+    return;
+  }
+  /**
+   * User overrideable function that receives raw data coming into the
+   * connection.
+   *
+   * The default function does nothing.  User code can override this with
+   * > Connection.rawInput = function (data) {
+   * >   (user code)
+   * > };
+   *
+   * @param {string} data - The data received by the connection.
+   */
+  // eslint-disable-next-line no-unused-vars, class-methods-use-this
+  rawInput(data) {
+    return;
+  }
+  /**
+   * User overrideable function that receives raw data sent to the
+   * connection.
+   *
+   * The default function does nothing.  User code can override this with
+   * > Connection.rawOutput = function (data) {
+   * >   (user code)
+   * > };
+   *
+   * @param {string} data - The data sent by the connection.
+   */
+  // eslint-disable-next-line no-unused-vars, class-methods-use-this
+  rawOutput(data) {
+    return;
+  }
+  /**
+   * User overrideable function that receives the new valid rid.
+   *
+   * The default function does nothing. User code can override this with
+   * > Connection.nextValidRid = function (rid) {
+   * >    (user code)
+   * > };
+   *
+   * @param {number} rid - The next valid rid
+   */
+  // eslint-disable-next-line no-unused-vars, class-methods-use-this
+  nextValidRid(rid) {
+    return;
+  }
+  /**
+   * Send a stanza.
+   *
+   * This function is called to push data onto the send queue to
+   * go out over the wire.  Whenever a request is sent to the BOSH
+   * server, all pending data is sent and the queue is flushed.
+   *
+   * @param {Element|Builder|Element[]|Builder[]} stanza - The stanza to send
+   */
+  send(stanza) {
+    if (stanza === null) return;
+    if (Array.isArray(stanza)) {
+      stanza.forEach((s) => this._queueData(s instanceof Builder ? s.tree() : s));
+    } else {
+      const el = stanza instanceof Builder ? stanza.tree() : stanza;
+      this._queueData(el);
+    }
+    this._proto._send();
+  }
+  /**
+   * Immediately send any pending outgoing data.
+   *
+   * Normally send() queues outgoing data until the next idle period
+   * (100ms), which optimizes network use in the common cases when
+   * several send()s are called in succession. flush() can be used to
+   * immediately send all pending data.
+   */
+  flush() {
+    clearTimeout(this._idleTimeout);
+    this._onIdle();
+  }
+  /**
+   * Helper function to send presence stanzas. The main benefit is for
+   * sending presence stanzas for which you expect a responding presence
+   * stanza with the same id (for example when leaving a chat room).
+   *
+   * @param {Element} stanza - The stanza to send.
+   * @param {Function} [callback] - The callback function for a successful request.
+   * @param {Function} [errback] - The callback function for a failed or timed
+   *    out request.  On timeout, the stanza will be null.
+   * @param {number} [timeout] - The time specified in milliseconds for a
+   *    timeout to occur.
+   * @return {string} The id used to send the presence.
+   */
+  sendPresence(stanza, callback, errback, timeout) {
+    let timeoutHandler = null;
+    const el = stanza instanceof Builder ? stanza.tree() : stanza;
+    let id = el.getAttribute("id");
+    if (!id) {
+      id = this.getUniqueId("sendPresence");
+      el.setAttribute("id", id);
+    }
+    if (typeof callback === "function" || typeof errback === "function") {
+      const handler = this.addHandler(
+        /** @param {Element} stanza */
+        (stanza2) => {
+          if (timeoutHandler) this.deleteTimedHandler(timeoutHandler);
+          if (stanza2.getAttribute("type") === "error") {
+            errback == null ? void 0 : errback(stanza2);
+          } else if (callback) {
+            callback(stanza2);
+          }
+        },
+        null,
+        "presence",
+        null,
+        id
+      );
+      if (timeout) {
+        timeoutHandler = this.addTimedHandler(timeout, () => {
+          this.deleteHandler(handler);
+          errback == null ? void 0 : errback(null);
+          return false;
+        });
+      }
+    }
+    this.send(el);
+    return id;
+  }
+  /**
+   * Helper function to send IQ stanzas.
+   *
+   * @param {Element|Builder} stanza - The stanza to send.
+   * @param {Function} [callback] - The callback function for a successful request.
+   * @param {Function} [errback] - The callback function for a failed or timed
+   *     out request.  On timeout, the stanza will be null.
+   * @param {number} [timeout] - The time specified in milliseconds for a
+   *     timeout to occur.
+   * @return {string} The id used to send the IQ.
+   */
+  sendIQ(stanza, callback, errback, timeout) {
+    let timeoutHandler = null;
+    const el = stanza instanceof Builder ? stanza.tree() : stanza;
+    let id = el.getAttribute("id");
+    if (!id) {
+      id = this.getUniqueId("sendIQ");
+      el.setAttribute("id", id);
+    }
+    if (typeof callback === "function" || typeof errback === "function") {
+      const handler = this.addHandler(
+        /** @param {Element} stanza */
+        (stanza2) => {
+          if (timeoutHandler) this.deleteTimedHandler(timeoutHandler);
+          const iqtype = stanza2.getAttribute("type");
+          if (iqtype === "result") {
+            callback == null ? void 0 : callback(stanza2);
+          } else if (iqtype === "error") {
+            errback == null ? void 0 : errback(stanza2);
+          } else {
+            const error2 = new Error(`Got bad IQ type of ${iqtype}`);
+            error2.name = "StropheError";
+            throw error2;
+          }
+        },
+        null,
+        "iq",
+        ["error", "result"],
+        id
+      );
+      if (timeout) {
+        timeoutHandler = this.addTimedHandler(timeout, () => {
+          this.deleteHandler(handler);
+          errback == null ? void 0 : errback(null);
+          return false;
+        });
+      }
+    }
+    this.send(el);
+    return id;
+  }
+  /**
+   * Queue outgoing data for later sending.  Also ensures that the data
+   * is a DOMElement.
+   * @private
+   * @param {Element} element
+   */
+  _queueData(element) {
+    if (element === null || !element.tagName || !element.childNodes) {
+      const error2 = new Error("Cannot queue non-DOMElement.");
+      error2.name = "StropheError";
+      throw error2;
+    }
+    this._data.push(element);
+  }
+  /**
+   * Send an xmpp:restart stanza.
+   * @private
+   */
+  _sendRestart() {
+    this._data.push("restart");
+    this._proto._sendRestart();
+    this._idleTimeout = setTimeout(() => this._onIdle(), 100);
+  }
+  /**
+   * Add a timed handler to the connection.
+   *
+   * This function adds a timed handler.  The provided handler will
+   * be called every period milliseconds until it returns false,
+   * the connection is terminated, or the handler is removed.  Handlers
+   * that wish to continue being invoked should return true.
+   *
+   * Because of method binding it is necessary to save the result of
+   * this function if you wish to remove a handler with
+   * deleteTimedHandler().
+   *
+   * Note that user handlers are not active until authentication is
+   * successful.
+   *
+   * @param {number} period - The period of the handler.
+   * @param {Function} handler - The callback function.
+   * @return {TimedHandler} A reference to the handler that can be used to remove it.
+   */
+  addTimedHandler(period, handler) {
+    const thand = new TimedHandler(period, handler);
+    this.addTimeds.push(thand);
+    return thand;
+  }
+  /**
+   * Delete a timed handler for a connection.
+   *
+   * This function removes a timed handler from the connection.  The
+   * handRef parameter is *not* the function passed to addTimedHandler(),
+   * but is the reference returned from addTimedHandler().
+   * @param {TimedHandler} handRef - The handler reference.
+   */
+  deleteTimedHandler(handRef) {
+    this.removeTimeds.push(handRef);
+  }
+  /**
+   * @typedef {Object} HandlerOptions
+   * @property {boolean} [HandlerOptions.matchBareFromJid]
+   * @property {boolean} [HandlerOptions.ignoreNamespaceFragment]
+   */
+  /**
+   * Add a stanza handler for the connection.
+   *
+   * This function adds a stanza handler to the connection.  The
+   * handler callback will be called for any stanza that matches
+   * the parameters.  Note that if multiple parameters are supplied,
+   * they must all match for the handler to be invoked.
+   *
+   * The handler will receive the stanza that triggered it as its argument.
+   * *The handler should return true if it is to be invoked again;
+   * returning false will remove the handler after it returns.*
+   *
+   * As a convenience, the ns parameters applies to the top level element
+   * and also any of its immediate children.  This is primarily to make
+   * matching /iq/query elements easy.
+   *
+   * ### Options
+   *
+   * With the options argument, you can specify boolean flags that affect how
+   * matches are being done.
+   *
+   * Currently two flags exist:
+   *
+   * * *matchBareFromJid*:
+   *     When set to true, the from parameter and the
+   *     from attribute on the stanza will be matched as bare JIDs instead
+   *     of full JIDs. To use this, pass {matchBareFromJid: true} as the
+   *     value of options. The default value for matchBareFromJid is false.
+   *
+   * * *ignoreNamespaceFragment*:
+   *     When set to true, a fragment specified on the stanza's namespace
+   *     URL will be ignored when it's matched with the one configured for
+   *     the handler.
+   *
+   *     This means that if you register like this:
+   *
+   *     >   connection.addHandler(
+   *     >       handler,
+   *     >       'http://jabber.org/protocol/muc',
+   *     >       null, null, null, null,
+   *     >       {'ignoreNamespaceFragment': true}
+   *     >   );
+   *
+   *     Then a stanza with XML namespace of
+   *     'http://jabber.org/protocol/muc#user' will also be matched. If
+   *     'ignoreNamespaceFragment' is false, then only stanzas with
+   *     'http://jabber.org/protocol/muc' will be matched.
+   *
+   * ### Deleting the handler
+   *
+   * The return value should be saved if you wish to remove the handler
+   * with `deleteHandler()`.
+   *
+   * @param {Function} handler - The user callback.
+   * @param {string} ns - The namespace to match.
+   * @param {string} name - The stanza name to match.
+   * @param {string|string[]} type - The stanza type (or types if an array) to match.
+   * @param {string} [id] - The stanza id attribute to match.
+   * @param {string} [from] - The stanza from attribute to match.
+   * @param {HandlerOptions} [options] - The handler options
+   * @return {Handler} A reference to the handler that can be used to remove it.
+   */
+  addHandler(handler, ns, name, type, id, from2, options) {
+    const hand = new Handler(handler, ns, name, type, id, from2, options);
+    this.addHandlers.push(hand);
+    return hand;
+  }
+  /**
+   * Delete a stanza handler for a connection.
+   *
+   * This function removes a stanza handler from the connection.  The
+   * handRef parameter is *not* the function passed to addHandler(),
+   * but is the reference returned from addHandler().
+   *
+   * @param {Handler} handRef - The handler reference.
+   */
+  deleteHandler(handRef) {
+    this.removeHandlers.push(handRef);
+    const i = this.addHandlers.indexOf(handRef);
+    if (i >= 0) {
+      this.addHandlers.splice(i, 1);
+    }
+  }
+  /**
+   * Register the SASL mechanisms which will be supported by this instance of
+   * Connection (i.e. which this XMPP client will support).
+   * @param {SASLMechanism[]} mechanisms - Array of objects with SASLMechanism prototypes
+   */
+  registerSASLMechanisms(mechanisms) {
+    this.mechanisms = {};
+    (mechanisms || [
+      SASLAnonymous,
+      SASLExternal,
+      SASLOAuthBearer,
+      SASLXOAuth2,
+      SASLPlain,
+      SASLSHA1,
+      SASLSHA256,
+      SASLSHA384,
+      SASLSHA512
+    ]).forEach((m2) => this.registerSASLMechanism(m2));
+  }
+  /**
+   * Register a single SASL mechanism, to be supported by this client.
+   * @param {any} Mechanism - Object with a Strophe.SASLMechanism prototype
+   */
+  registerSASLMechanism(Mechanism) {
+    const mechanism = new Mechanism();
+    this.mechanisms[mechanism.mechname] = mechanism;
+  }
+  /**
+   * Start the graceful disconnection process.
+   *
+   * This function starts the disconnection process.  This process starts
+   * by sending unavailable presence and sending BOSH body of type
+   * terminate.  A timeout handler makes sure that disconnection happens
+   * even if the BOSH server does not respond.
+   * If the Connection object isn't connected, at least tries to abort all pending requests
+   * so the connection object won't generate successful requests (which were already opened).
+   *
+   * The user supplied connection callback will be notified of the
+   * progress as this process happens.
+   *
+   * @param {string} [reason] - The reason the disconnect is occuring.
+   */
+  disconnect(reason) {
+    this._changeConnectStatus(Status.DISCONNECTING, reason);
+    if (reason) {
+      log.info("Disconnect was called because: " + reason);
+    } else {
+      log.debug("Disconnect was called");
+    }
+    if (this.connected) {
+      let pres = null;
+      this.disconnecting = true;
+      if (this.authenticated) {
+        pres = $pres({
+          "xmlns": NS.CLIENT,
+          "type": "unavailable"
+        });
+      }
+      this._disconnectTimeout = this._addSysTimedHandler(
+        this.disconnection_timeout,
+        this._onDisconnectTimeout.bind(this)
+      );
+      this._proto._disconnect(pres);
+    } else {
+      log.debug("Disconnect was called before Strophe connected to the server");
+      this._proto._abortAllRequests();
+      this._doDisconnect();
+    }
+  }
+  /**
+   * _Private_ helper function that makes sure plugins and the user's
+   * callback are notified of connection status changes.
+   * @param {number} status - the new connection status, one of the values
+   *     in Strophe.Status
+   * @param {string|null} [condition] - the error condition
+   * @param {Element} [elem] - The triggering stanza.
+   */
+  _changeConnectStatus(status, condition, elem) {
+    for (const k2 in connectionPlugins) {
+      if (Object.prototype.hasOwnProperty.call(connectionPlugins, k2)) {
+        const plugin = this[k2];
+        if (plugin.statusChanged) {
+          try {
+            plugin.statusChanged(status, condition);
+          } catch (err) {
+            log.error(`${k2} plugin caused an exception changing status: ${err}`);
+          }
+        }
+      }
+    }
+    if (this.connect_callback) {
+      try {
+        this.connect_callback(status, condition, elem);
+      } catch (e) {
+        handleError(e);
+        log.error(`User connection callback caused an exception: ${e}`);
+      }
+    }
+  }
+  /**
+   * _Private_ function to disconnect.
+   *
+   * This is the last piece of the disconnection logic.  This resets the
+   * connection and alerts the user's connection callback.
+   * @param {string|null} [condition] - the error condition
+   */
+  _doDisconnect(condition) {
+    if (typeof this._idleTimeout === "number") {
+      clearTimeout(this._idleTimeout);
+    }
+    if (this._disconnectTimeout !== null) {
+      this.deleteTimedHandler(this._disconnectTimeout);
+      this._disconnectTimeout = null;
+    }
+    log.debug("_doDisconnect was called");
+    this._proto._doDisconnect();
+    this.authenticated = false;
+    this.disconnecting = false;
+    this.restored = false;
+    this.handlers = [];
+    this.timedHandlers = [];
+    this.removeTimeds = [];
+    this.removeHandlers = [];
+    this.addTimeds = [];
+    this.addHandlers = [];
+    this._changeConnectStatus(Status.DISCONNECTED, condition);
+    this.connected = false;
+  }
+  /**
+   * _Private_ handler to processes incoming data from the the connection.
+   *
+   * Except for _connect_cb handling the initial connection request,
+   * this function handles the incoming data for all requests.  This
+   * function also fires stanza handlers that match each incoming
+   * stanza.
+   * @param {Element | Request} req - The request that has data ready.
+   * @param {string} [raw] - The stanza as raw string.
+   */
+  _dataRecv(req, raw) {
+    const elem = (
+      /** @type {Element} */
+      "_reqToData" in this._proto ? this._proto._reqToData(
+        /** @type {Request} */
+        req
+      ) : req
+    );
+    if (elem === null) {
+      return;
+    }
+    if (this.xmlInput !== Connection.prototype.xmlInput) {
+      if (elem.nodeName === this._proto.strip && elem.childNodes.length) {
+        this.xmlInput(elem.childNodes[0]);
+      } else {
+        this.xmlInput(elem);
+      }
+    }
+    if (this.rawInput !== Connection.prototype.rawInput) {
+      if (raw) {
+        this.rawInput(raw);
+      } else {
+        this.rawInput(Builder.serialize(elem));
+      }
+    }
+    while (this.removeHandlers.length > 0) {
+      const hand = this.removeHandlers.pop();
+      const i = this.handlers.indexOf(hand);
+      if (i >= 0) {
+        this.handlers.splice(i, 1);
+      }
+    }
+    while (this.addHandlers.length > 0) {
+      this.handlers.push(this.addHandlers.pop());
+    }
+    if (this.disconnecting && this._proto._emptyQueue()) {
+      this._doDisconnect();
+      return;
+    }
+    const type = elem.getAttribute("type");
+    if (type !== null && type === "terminate") {
+      if (this.disconnecting) {
+        return;
+      }
+      let cond = elem.getAttribute("condition");
+      const conflict = elem.getElementsByTagName("conflict");
+      if (cond !== null) {
+        if (cond === "remote-stream-error" && conflict.length > 0) {
+          cond = "conflict";
+        }
+        this._changeConnectStatus(Status.CONNFAIL, cond);
+      } else {
+        this._changeConnectStatus(Status.CONNFAIL, ErrorCondition.UNKNOWN_REASON);
+      }
+      this._doDisconnect(cond);
+      return;
+    }
+    forEachChild(
+      elem,
+      null,
+      /** @param {Element} child */
+      (child) => {
+        const matches = [];
+        this.handlers = this.handlers.reduce((handlers, handler) => {
+          try {
+            if (handler.isMatch(child) && (this.authenticated || !handler.user)) {
+              if (handler.run(child)) {
+                handlers.push(handler);
+              }
+              matches.push(handler);
+            } else {
+              handlers.push(handler);
+            }
+          } catch (e) {
+            log.warn("Removing Strophe handlers due to uncaught exception: " + e.message);
+          }
+          return handlers;
+        }, []);
+        if (!matches.length && this.iqFallbackHandler.isMatch(child)) {
+          this.iqFallbackHandler.run(child);
+        }
+      }
+    );
+  }
+  /**
+   * @callback connectionCallback
+   * @param {Connection} connection
+   */
+  /**
+   * _Private_ handler for initial connection request.
+   *
+   * This handler is used to process the initial connection request
+   * response from the BOSH server. It is used to set up authentication
+   * handlers and start the authentication process.
+   *
+   * SASL authentication will be attempted if available, otherwise
+   * the code will fall back to legacy authentication.
+   *
+   * @param {Element | Request} req - The current request.
+   * @param {connectionCallback} _callback - low level (xmpp) connect callback function.
+   *     Useful for plugins with their own xmpp connect callback (when they
+   *     want to do something special).
+   * @param {string} [raw] - The stanza as raw string.
+   */
+  _connect_cb(req, _callback, raw) {
+    log.debug("_connect_cb was called");
+    this.connected = true;
+    let bodyWrap;
+    try {
+      bodyWrap = /** @type {Element} */
+      "_reqToData" in this._proto ? this._proto._reqToData(
+        /** @type {Request} */
+        req
+      ) : req;
+    } catch (e) {
+      if (e.name !== ErrorCondition.BAD_FORMAT) {
+        throw e;
+      }
+      this._changeConnectStatus(Status.CONNFAIL, ErrorCondition.BAD_FORMAT);
+      this._doDisconnect(ErrorCondition.BAD_FORMAT);
+    }
+    if (!bodyWrap) {
+      return;
+    }
+    if (this.xmlInput !== Connection.prototype.xmlInput) {
+      if (bodyWrap.nodeName === this._proto.strip && bodyWrap.childNodes.length) {
+        this.xmlInput(bodyWrap.childNodes[0]);
+      } else {
+        this.xmlInput(bodyWrap);
+      }
+    }
+    if (this.rawInput !== Connection.prototype.rawInput) {
+      if (raw) {
+        this.rawInput(raw);
+      } else {
+        this.rawInput(Builder.serialize(bodyWrap));
+      }
+    }
+    const conncheck = this._proto._connect_cb(bodyWrap);
+    if (conncheck === Status.CONNFAIL) {
+      return;
+    }
+    let hasFeatures;
+    if (bodyWrap.getElementsByTagNameNS) {
+      hasFeatures = bodyWrap.getElementsByTagNameNS(NS.STREAM, "features").length > 0;
+    } else {
+      hasFeatures = bodyWrap.getElementsByTagName("stream:features").length > 0 || bodyWrap.getElementsByTagName("features").length > 0;
+    }
+    if (!hasFeatures) {
+      this._proto._no_auth_received(_callback);
+      return;
+    }
+    const matched = Array.from(bodyWrap.getElementsByTagName("mechanism")).map((m2) => this.mechanisms[m2.textContent]).filter((m2) => m2);
+    if (matched.length === 0) {
+      if (bodyWrap.getElementsByTagName("auth").length === 0) {
+        this._proto._no_auth_received(_callback);
+        return;
+      }
+    }
+    if (this.do_authentication !== false) {
+      this.authenticate(matched);
+    }
+  }
+  /**
+   * Sorts an array of objects with prototype SASLMechanism according to
+   * their priorities.
+   * @param {SASLMechanism[]} mechanisms - Array of SASL mechanisms.
+   */
+  // eslint-disable-next-line  class-methods-use-this
+  sortMechanismsByPriority(mechanisms) {
+    for (let i = 0; i < mechanisms.length - 1; ++i) {
+      let higher = i;
+      for (let j2 = i + 1; j2 < mechanisms.length; ++j2) {
+        if (mechanisms[j2].priority > mechanisms[higher].priority) {
+          higher = j2;
+        }
+      }
+      if (higher !== i) {
+        const swap = mechanisms[i];
+        mechanisms[i] = mechanisms[higher];
+        mechanisms[higher] = swap;
+      }
+    }
+    return mechanisms;
+  }
+  /**
+   * Set up authentication
+   *
+   * Continues the initial connection request by setting up authentication
+   * handlers and starting the authentication process.
+   *
+   * SASL authentication will be attempted if available, otherwise
+   * the code will fall back to legacy authentication.
+   *
+   * @param {SASLMechanism[]} matched - Array of SASL mechanisms supported.
+   */
+  authenticate(matched) {
+    if (!this._attemptSASLAuth(matched)) {
+      this._attemptLegacyAuth();
+    }
+  }
+  /**
+   * Iterate through an array of SASL mechanisms and attempt authentication
+   * with the highest priority (enabled) mechanism.
+   *
+   * @private
+   * @param {SASLMechanism[]} mechanisms - Array of SASL mechanisms.
+   * @return {Boolean} mechanism_found - true or false, depending on whether a
+   *  valid SASL mechanism was found with which authentication could be started.
+   */
+  _attemptSASLAuth(mechanisms) {
+    mechanisms = this.sortMechanismsByPriority(mechanisms || []);
+    let mechanism_found = false;
+    for (let i = 0; i < mechanisms.length; ++i) {
+      if (!mechanisms[i].test(this)) {
+        continue;
+      }
+      this._sasl_success_handler = this._addSysHandler(
+        this._sasl_success_cb.bind(this),
+        null,
+        "success",
+        null,
+        null
+      );
+      this._sasl_failure_handler = this._addSysHandler(
+        this._sasl_failure_cb.bind(this),
+        null,
+        "failure",
+        null,
+        null
+      );
+      this._sasl_challenge_handler = this._addSysHandler(
+        this._sasl_challenge_cb.bind(this),
+        null,
+        "challenge",
+        null,
+        null
+      );
+      this._sasl_mechanism = mechanisms[i];
+      this._sasl_mechanism.onStart(this);
+      const request_auth_exchange = $build("auth", {
+        "xmlns": NS.SASL,
+        "mechanism": this._sasl_mechanism.mechname
+      });
+      if (this._sasl_mechanism.isClientFirst) {
+        const response = this._sasl_mechanism.clientChallenge(this);
+        request_auth_exchange.t(btoa(
+          /** @type {string} */
+          response
+        ));
+      }
+      this.send(request_auth_exchange.tree());
+      mechanism_found = true;
+      break;
+    }
+    return mechanism_found;
+  }
+  /**
+   * _Private_ handler for the SASL challenge
+   * @private
+   * @param {Element} elem
+   */
+  async _sasl_challenge_cb(elem) {
+    const challenge = atob(getText(elem));
+    const response = await this._sasl_mechanism.onChallenge(this, challenge);
+    const stanza = $build("response", { "xmlns": NS.SASL });
+    if (response) stanza.t(btoa(response));
+    this.send(stanza.tree());
+    return true;
+  }
+  /**
+   * Attempt legacy (i.e. non-SASL) authentication.
+   * @private
+   */
+  _attemptLegacyAuth() {
+    if (getNodeFromJid(this.jid) === null) {
+      this._changeConnectStatus(Status.CONNFAIL, ErrorCondition.MISSING_JID_NODE);
+      this.disconnect(ErrorCondition.MISSING_JID_NODE);
+    } else {
+      this._changeConnectStatus(Status.AUTHENTICATING, null);
+      this._addSysHandler(this._onLegacyAuthIQResult.bind(this), null, null, null, "_auth_1");
+      this.send(
+        $iq({
+          "type": "get",
+          "to": this.domain,
+          "id": "_auth_1"
+        }).c("query", { xmlns: NS.AUTH }).c("username", {}).t(getNodeFromJid(this.jid)).tree()
+      );
+    }
+  }
+  /**
+   * _Private_ handler for legacy authentication.
+   *
+   * This handler is called in response to the initial <iq type='get'/>
+   * for legacy authentication.  It builds an authentication <iq/> and
+   * sends it, creating a handler (calling back to _auth2_cb()) to
+   * handle the result
+   * @private
+   * @return {false} `false` to remove the handler.
+   */
+  _onLegacyAuthIQResult() {
+    const pass = typeof this.pass === "string" ? this.pass : "";
+    const iq = $iq({ type: "set", id: "_auth_2" }).c("query", { xmlns: NS.AUTH }).c("username", {}).t(getNodeFromJid(this.jid)).up().c("password").t(pass);
+    if (!getResourceFromJid(this.jid)) {
+      this.jid = getBareJidFromJid(this.jid) + "/strophe";
+    }
+    iq.up().c("resource", {}).t(getResourceFromJid(this.jid));
+    this._addSysHandler(this._auth2_cb.bind(this), null, null, null, "_auth_2");
+    this.send(iq.tree());
+    return false;
+  }
+  /**
+   * _Private_ handler for succesful SASL authentication.
+   * @private
+   * @param {Element} elem - The matching stanza.
+   * @return {false} `false` to remove the handler.
+   */
+  _sasl_success_cb(elem) {
+    if (this._sasl_data["server-signature"]) {
+      let serverSignature;
+      const success = atob(getText(elem));
+      const attribMatch = /([a-z]+)=([^,]+)(,|$)/;
+      const matches = success.match(attribMatch);
+      if (matches[1] === "v") {
+        serverSignature = matches[2];
+      }
+      if (serverSignature !== this._sasl_data["server-signature"]) {
+        this.deleteHandler(this._sasl_failure_handler);
+        this._sasl_failure_handler = null;
+        if (this._sasl_challenge_handler) {
+          this.deleteHandler(this._sasl_challenge_handler);
+          this._sasl_challenge_handler = null;
+        }
+        this._sasl_data = {};
+        return this._sasl_failure_cb(null);
+      }
+    }
+    log.info("SASL authentication succeeded.");
+    if (this._sasl_data.keys) {
+      this.scram_keys = this._sasl_data.keys;
+    }
+    if (this._sasl_mechanism) {
+      this._sasl_mechanism.onSuccess();
+    }
+    this.deleteHandler(this._sasl_failure_handler);
+    this._sasl_failure_handler = null;
+    if (this._sasl_challenge_handler) {
+      this.deleteHandler(this._sasl_challenge_handler);
+      this._sasl_challenge_handler = null;
+    }
+    const streamfeature_handlers = [];
+    const wrapper2 = (handlers, elem2) => {
+      while (handlers.length) {
+        this.deleteHandler(handlers.pop());
+      }
+      this._onStreamFeaturesAfterSASL(elem2);
+      return false;
+    };
+    streamfeature_handlers.push(
+      this._addSysHandler(
+        /** @param {Element} elem */
+        (elem2) => wrapper2(streamfeature_handlers, elem2),
+        null,
+        "stream:features",
+        null,
+        null
+      )
+    );
+    streamfeature_handlers.push(
+      this._addSysHandler(
+        /** @param {Element} elem */
+        (elem2) => wrapper2(streamfeature_handlers, elem2),
+        NS.STREAM,
+        "features",
+        null,
+        null
+      )
+    );
+    this._sendRestart();
+    return false;
+  }
+  /**
+   * @private
+   * @param {Element} elem - The matching stanza.
+   * @return {false} `false` to remove the handler.
+   */
+  _onStreamFeaturesAfterSASL(elem) {
+    this.features = elem;
+    for (let i = 0; i < elem.childNodes.length; i++) {
+      const child = elem.childNodes[i];
+      if (child.nodeName === "bind") {
+        this.do_bind = true;
+      }
+      if (child.nodeName === "session") {
+        this.do_session = true;
+      }
+    }
+    if (!this.do_bind) {
+      this._changeConnectStatus(Status.AUTHFAIL, null);
+      return false;
+    } else if (!this.options.explicitResourceBinding) {
+      this.bind();
+    } else {
+      this._changeConnectStatus(Status.BINDREQUIRED, null);
+    }
+    return false;
+  }
+  /**
+   * Sends an IQ to the XMPP server to bind a JID resource for this session.
+   *
+   * https://tools.ietf.org/html/rfc6120#section-7.5
+   *
+   * If `explicitResourceBinding` was set to a truthy value in the options
+   * passed to the Connection constructor, then this function needs
+   * to be called explicitly by the client author.
+   *
+   * Otherwise it'll be called automatically as soon as the XMPP server
+   * advertises the "urn:ietf:params:xml:ns:xmpp-bind" stream feature.
+   */
+  bind() {
+    if (!this.do_bind) {
+      log.info(`Connection.prototype.bind called but "do_bind" is false`);
+      return;
+    }
+    this._addSysHandler(this._onResourceBindResultIQ.bind(this), null, null, null, "_bind_auth_2");
+    const resource = getResourceFromJid(this.jid);
+    if (resource) {
+      this.send(
+        $iq({ type: "set", id: "_bind_auth_2" }).c("bind", { xmlns: NS.BIND }).c("resource", {}).t(resource).tree()
+      );
+    } else {
+      this.send($iq({ type: "set", id: "_bind_auth_2" }).c("bind", { xmlns: NS.BIND }).tree());
+    }
+  }
+  /**
+   * _Private_ handler for binding result and session start.
+   * @private
+   * @param {Element} elem - The matching stanza.
+   * @return {false} `false` to remove the handler.
+   */
+  _onResourceBindResultIQ(elem) {
+    if (elem.getAttribute("type") === "error") {
+      log.warn("Resource binding failed.");
+      const conflict = elem.getElementsByTagName("conflict");
+      let condition;
+      if (conflict.length > 0) {
+        condition = ErrorCondition.CONFLICT;
+      }
+      this._changeConnectStatus(Status.AUTHFAIL, condition, elem);
+      return false;
+    }
+    const bind = elem.getElementsByTagName("bind");
+    if (bind.length > 0) {
+      const jidNode = bind[0].getElementsByTagName("jid");
+      if (jidNode.length > 0) {
+        this.authenticated = true;
+        this.jid = getText(jidNode[0]);
+        if (this.do_session) {
+          this._establishSession();
+        } else {
+          this._changeConnectStatus(Status.CONNECTED, null);
+        }
+      }
+    } else {
+      log.warn("Resource binding failed.");
+      this._changeConnectStatus(Status.AUTHFAIL, null, elem);
+      return false;
+    }
+  }
+  /**
+   * Send IQ request to establish a session with the XMPP server.
+   *
+   * See https://xmpp.org/rfcs/rfc3921.html#session
+   *
+   * Note: The protocol for session establishment has been determined as
+   * unnecessary and removed in RFC-6121.
+   * @private
+   */
+  _establishSession() {
+    if (!this.do_session) {
+      throw new Error(
+        `Connection.prototype._establishSession called but apparently ${NS.SESSION} wasn't advertised by the server`
+      );
+    }
+    this._addSysHandler(this._onSessionResultIQ.bind(this), null, null, null, "_session_auth_2");
+    this.send($iq({ type: "set", id: "_session_auth_2" }).c("session", { xmlns: NS.SESSION }).tree());
+  }
+  /**
+   * _Private_ handler for the server's IQ response to a client's session
+   * request.
+   *
+   * This sets Connection.authenticated to true on success, which
+   * starts the processing of user handlers.
+   *
+   * See https://xmpp.org/rfcs/rfc3921.html#session
+   *
+   * Note: The protocol for session establishment has been determined as
+   * unnecessary and removed in RFC-6121.
+   * @private
+   * @param {Element} elem - The matching stanza.
+   * @return {false} `false` to remove the handler.
+   */
+  _onSessionResultIQ(elem) {
+    if (elem.getAttribute("type") === "result") {
+      this.authenticated = true;
+      this._changeConnectStatus(Status.CONNECTED, null);
+    } else if (elem.getAttribute("type") === "error") {
+      this.authenticated = false;
+      log.warn("Session creation failed.");
+      this._changeConnectStatus(Status.AUTHFAIL, null, elem);
+      return false;
+    }
+    return false;
+  }
+  /**
+   * _Private_ handler for SASL authentication failure.
+   * @param {Element} [elem] - The matching stanza.
+   * @return {false} `false` to remove the handler.
+   */
+  _sasl_failure_cb(elem) {
+    if (this._sasl_success_handler) {
+      this.deleteHandler(this._sasl_success_handler);
+      this._sasl_success_handler = null;
+    }
+    if (this._sasl_challenge_handler) {
+      this.deleteHandler(this._sasl_challenge_handler);
+      this._sasl_challenge_handler = null;
+    }
+    if (this._sasl_mechanism) this._sasl_mechanism.onFailure();
+    this._changeConnectStatus(Status.AUTHFAIL, null, elem);
+    return false;
+  }
+  /**
+   * _Private_ handler to finish legacy authentication.
+   *
+   * This handler is called when the result from the jabber:iq:auth
+   * <iq/> stanza is returned.
+   * @private
+   * @param {Element} elem - The stanza that triggered the callback.
+   * @return {false} `false` to remove the handler.
+   */
+  _auth2_cb(elem) {
+    if (elem.getAttribute("type") === "result") {
+      this.authenticated = true;
+      this._changeConnectStatus(Status.CONNECTED, null);
+    } else if (elem.getAttribute("type") === "error") {
+      this._changeConnectStatus(Status.AUTHFAIL, null, elem);
+      this.disconnect("authentication failed");
+    }
+    return false;
+  }
+  /**
+   * _Private_ function to add a system level timed handler.
+   *
+   * This function is used to add a TimedHandler for the
+   * library code.  System timed handlers are allowed to run before
+   * authentication is complete.
+   * @param {number} period - The period of the handler.
+   * @param {Function} handler - The callback function.
+   */
+  _addSysTimedHandler(period, handler) {
+    const thand = new TimedHandler(period, handler);
+    thand.user = false;
+    this.addTimeds.push(thand);
+    return thand;
+  }
+  /**
+   * _Private_ function to add a system level stanza handler.
+   *
+   * This function is used to add a Handler for the
+   * library code.  System stanza handlers are allowed to run before
+   * authentication is complete.
+   * @param {Function} handler - The callback function.
+   * @param {string} ns - The namespace to match.
+   * @param {string} name - The stanza name to match.
+   * @param {string} type - The stanza type attribute to match.
+   * @param {string} id - The stanza id attribute to match.
+   */
+  _addSysHandler(handler, ns, name, type, id) {
+    const hand = new Handler(handler, ns, name, type, id);
+    hand.user = false;
+    this.addHandlers.push(hand);
+    return hand;
+  }
+  /**
+   * _Private_ timeout handler for handling non-graceful disconnection.
+   *
+   * If the graceful disconnect process does not complete within the
+   * time allotted, this handler finishes the disconnect anyway.
+   * @return {false} `false` to remove the handler.
+   */
+  _onDisconnectTimeout() {
+    log.debug("_onDisconnectTimeout was called");
+    this._changeConnectStatus(Status.CONNTIMEOUT, null);
+    this._proto._onDisconnectTimeout();
+    this._doDisconnect();
+    return false;
+  }
+  /**
+   * _Private_ handler to process events during idle cycle.
+   *
+   * This handler is called every 100ms to fire timed handlers that
+   * are ready and keep poll requests going.
+   */
+  _onIdle() {
+    while (this.addTimeds.length > 0) {
+      this.timedHandlers.push(this.addTimeds.pop());
+    }
+    while (this.removeTimeds.length > 0) {
+      const thand = this.removeTimeds.pop();
+      const i = this.timedHandlers.indexOf(thand);
+      if (i >= 0) {
+        this.timedHandlers.splice(i, 1);
+      }
+    }
+    const now = (/* @__PURE__ */ new Date()).getTime();
+    const newList = [];
+    for (let i = 0; i < this.timedHandlers.length; i++) {
+      const thand = this.timedHandlers[i];
+      if (this.authenticated || !thand.user) {
+        const since = thand.lastCalled + thand.period;
+        if (since - now <= 0) {
+          if (thand.run()) {
+            newList.push(thand);
+          }
+        } else {
+          newList.push(thand);
+        }
+      }
+    }
+    this.timedHandlers = newList;
+    clearTimeout(this._idleTimeout);
+    this._proto._onIdle();
+    if (this.connected) {
+      this._idleTimeout = setTimeout(() => this._onIdle(), 100);
+    }
+  }
+}
+const _Stanza = class _Stanza extends Builder {
+  /**
+   * @param {string[]} strings
+   * @param {any[]} values
+   */
+  constructor(strings, values2) {
+    super("stanza");
+    /** @type {string} */
+    __privateAdd(this, _string);
+    /** @type {Array<string>} */
+    __privateAdd(this, _strings);
+    /**
+     * @typedef {Array<string|Stanza|Builder>} StanzaValue
+     * @type {StanzaValue|Array<StanzaValue>}
+     */
+    __privateAdd(this, _values);
+    __privateSet(this, _strings, strings);
+    __privateSet(this, _values, values2);
+  }
+  /**
+   * A directive which can be used to pass a string of XML as a value to the
+   * stx tagged template literal.
+   *
+   * It's considered "unsafe" because it can pose a security risk if used with
+   * untrusted input.
+   *
+   * @param {string} string
+   * @returns {Builder}
+   * @example
+   *    const status = '<status>I am busy!</status>';
+   *    const pres = stx`
+   *       <presence from='juliet@example.com/chamber' id='pres1'>
+   *           <show>dnd</show>
+   *           ${unsafeXML(status)}
+   *       </presence>`;
+   *    connection.send(pres);
+   */
+  static unsafeXML(string) {
+    return Builder.fromString(string);
+  }
+  /**
+   * Turns the passed-in string into an XML Element.
+   * @param {string} string
+   * @param {boolean} [throwErrorIfInvalidNS]
+   * @returns {Element}
+   */
+  static toElement(string, throwErrorIfInvalidNS) {
+    const doc = xmlHtmlNode(string);
+    const parserError = getParserError(doc);
+    if (parserError) {
+      throw new Error(`Parser Error: ${parserError}`);
+    }
+    const node2 = getFirstElementChild(doc);
+    if (["message", "iq", "presence"].includes(node2.nodeName.toLowerCase()) && node2.namespaceURI !== "jabber:client" && node2.namespaceURI !== "jabber:server") {
+      const err_msg = `Invalid namespaceURI ${node2.namespaceURI}`;
+      if (throwErrorIfInvalidNS) {
+        throw new Error(err_msg);
+      } else {
+        log.error(err_msg);
+      }
+    }
+    return node2;
+  }
+  buildTree() {
+    return _Stanza.toElement(this.toString(), true);
+  }
+  /**
+   * @return {string}
+   */
+  toString() {
+    __privateSet(this, _string, __privateGet(this, _string) || __privateGet(this, _strings).reduce((acc, str) => {
+      const idx = __privateGet(this, _strings).indexOf(str);
+      const value = __privateGet(this, _values).length > idx ? __privateGet(this, _values)[idx] : "";
+      return acc + str + (Array.isArray(value) ? value.map(
+        (v2) => v2 instanceof _Stanza || v2 instanceof Builder ? v2 : xmlescape(v2.toString())
+      ).join("") : value instanceof _Stanza || value instanceof Builder ? value : xmlescape(value.toString()));
+    }, "").trim());
+    return __privateGet(this, _string);
+  }
+};
+_string = new WeakMap();
+_strings = new WeakMap();
+_values = new WeakMap();
+let Stanza = _Stanza;
+function stx(strings, ...values2) {
+  return new Stanza(strings, values2);
+}
+const Strophe = {
+  /** @constant: VERSION */
+  VERSION: "3.0.0",
+  /**
+   * @returns {number}
+   */
+  get TIMEOUT() {
+    return Bosh.getTimeoutMultplier();
+  },
+  /**
+   * @param {number} n
+   */
+  set TIMEOUT(n) {
+    Bosh.setTimeoutMultiplier(n);
+  },
+  /**
+   * @returns {number}
+   */
+  get SECONDARY_TIMEOUT() {
+    return Bosh.getSecondaryTimeoutMultplier();
+  },
+  /**
+   * @param {number} n
+   */
+  set SECONDARY_TIMEOUT(n) {
+    Bosh.setSecondaryTimeoutMultiplier(n);
+  },
+  ...utils$1,
+  ...log,
+  shims,
+  Request,
+  // Transports
+  Bosh,
+  Websocket,
+  WorkerWebsocket,
+  Connection,
+  Handler,
+  // Available authentication mechanisms
+  SASLAnonymous,
+  SASLPlain,
+  SASLSHA1,
+  SASLSHA256,
+  SASLSHA384,
+  SASLSHA512,
+  SASLOAuthBearer,
+  SASLExternal,
+  SASLXOAuth2,
+  Stanza,
+  Builder,
+  ElementType,
+  ErrorCondition,
+  LogLevel: LOG_LEVELS,
+  /** @type {Object.<string, string>} */
+  NS,
+  SASLMechanism,
+  /** @type {Status} */
+  Status,
+  TimedHandler,
+  XHTML: {
+    ...XHTML,
+    validTag,
+    validCSS,
+    validAttribute
+  },
+  /**
+   * Render a DOM element and all descendants to a String.
+   * @method Strophe.serialize
+   * @param {Element|Builder} elem - A DOM element.
+   * @return {string} - The serialized element tree as a String.
+   */
+  serialize(elem) {
+    return Builder.serialize(elem);
+  },
+  /**
+   * @typedef {import('./constants').LogLevel} LogLevel
+   *
+   * Library consumers can use this function to set the log level of Strophe.
+   * The default log level is Strophe.LogLevel.INFO.
+   * @param {LogLevel} level
+   * @example Strophe.setLogLevel(Strophe.LogLevel.DEBUG);
+   */
+  setLogLevel(level) {
+    log.setLogLevel(level);
+  },
+  /**
+   * This function is used to extend the current namespaces in
+   * Strophe.NS. It takes a key and a value with the key being the
+   * name of the new namespace, with its actual value.
+   * @example: Strophe.addNamespace('PUBSUB', "http://jabber.org/protocol/pubsub");
+   *
+   * @param {string} name - The name under which the namespace will be
+   *     referenced under Strophe.NS
+   * @param {string} value - The actual namespace.
+   */
+  addNamespace(name, value) {
+    Strophe.NS[name] = value;
+  },
+  /**
+   * Extends the Strophe.Connection object with the given plugin.
+   * @param {string} name - The name of the extension.
+   * @param {Object} ptype - The plugin's prototype.
+   */
+  addConnectionPlugin(name, ptype) {
+    Connection.addConnectionPlugin(name, ptype);
+  }
+};
+globalThis.$build = $build;
+globalThis.$iq = $iq;
+globalThis.$msg = $msg;
+globalThis.$pres = $pres;
+globalThis.Strophe = Strophe;
+globalThis.stx = stx;
+Stanza.toElement;
+globalThis.toStanza = Stanza.toElement;
+function joinMucRoom(connection, roomJid, nickname) {
+  if (nickname.trim() === "") {
+    console.error("Nickname is required to join the room.");
+    return;
+  }
+  const fullRoomJid = `${roomJid}/${nickname}`;
+  const presenceStanza = $build("presence", { to: fullRoomJid }).c("x", { xmlns: "http://jabber.org/protocol/muc" });
+  connection.send(presenceStanza);
+  console.log(`Joined room: ${roomJid} as ${nickname}`);
+}
+function joinBot(apiUrl, jid, nickName) {
+  const finalUrl = `${apiUrl}?jid=${encodeURIComponent(jid)}&nickname=${encodeURIComponent(nickName)}`;
+  fetch(finalUrl, {
+    method: "GET",
+    mode: "no-cors"
+    // Use no-cors mode for bypassing CORS
+  }).then((response) => {
+    console.log("Request sent, but response cannot be read due to no-cors mode.", response);
+  }).catch((error2) => {
+    console.error("Error during API call:", error2);
+  });
+}
+function decodeHtmlEntities(str) {
+  return str.replace(/&quot;/g, '"');
+}
+const truncateText = (text2, maxLength) => {
+  return text2.length > maxLength ? text2.slice(0, maxLength) + "..." : text2;
+};
+function sendMessage(connection, message2, roomJid) {
+  if (connection) {
+    const messageStanza = $build("message", {
+      type: "groupchat",
+      // Use 'groupchat' for MUC rooms
+      to: roomJid
+      // Room JID
+    }).c("body").t(message2);
+    connection.send(messageStanza);
+    console.log(`Sent message to room: ${message2} for room ${roomJid}`);
+  } else {
+    console.error("Connection is not established.");
+  }
+}
+function initializeWebSocket(userJID, roomJID, wsUrl, botAPIUrl) {
+  const connection = new Strophe.Connection(wsUrl);
+  connection.connect(userJID, "", function(status) {
+    onConnect(status, connection, roomJID, botAPIUrl);
+  });
+  return connection;
+}
+function onConnect(status, connection, roomJid, botAPIUrl) {
+  switch (status) {
+    case Strophe.Status.CONNECTING:
+      console.log("Connecting...");
+      toggleInputDisabled();
+      break;
+    case Strophe.Status.CONNFAIL:
+      console.log("Connection failed!");
+      toggleInputDisabled();
+      break;
+    case Strophe.Status.DISCONNECTING:
+      console.log("Disconnecting...");
+      toggleInputDisabled();
+      break;
+    case Strophe.Status.CONNECTED:
+      console.log("Connected to the server");
+      toggleInputDisabled();
+      startProcessingMsg(connection, roomJid, botAPIUrl);
+      break;
+    case Strophe.Status.DISCONNECTED:
+      console.log("Disconnected from the server");
+      toggleInputDisabled();
+      break;
+    case Strophe.Status.AUTHFAIL:
+      console.log("Authentication failed!");
+      toggleInputDisabled();
+      break;
+  }
+}
+function onResize(w2, h) {
+  console.log("@@@Resize", w2, h);
+}
+function handleToggle(isPopup) {
+  if (!isPopup) return void 0;
+  return async (isOpened) => {
+    console.log("@@@handleToggle", isOpened);
+    if (isOpened) {
+      await new Promise((done) => setTimeout(done, 0));
+    }
+    return true;
+  };
+}
+function onMessage(message2) {
+  var _a2, _b, _c, _d;
+  const fromJid = message2.getAttribute("from");
+  const type = message2.getAttribute("type");
+  const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
+  if (fromJid && fromJid.split("/")[1] == "Customer") {
+    console.debug(`Ignoring message from self: ${fromJid}`);
+    return true;
+  }
+  if (type == "groupchat" && body && body.length > 0) {
+    toggleMsgLoader();
+    const apiResponse = decodeHtmlEntities(body);
+    const obj = JSON.parse(apiResponse);
+    console.log("api response", obj);
+    if ((obj == null ? void 0 : obj.type) == "text") {
+      addResponseMessage((_a2 = obj == null ? void 0 : obj.data) == null ? void 0 : _a2.summary);
+    } else if ((obj == null ? void 0 : obj.type) == "carousel") {
+      console.log(obj);
+      const productArray = (_c = (_b = obj.data) == null ? void 0 : _b.products) == null ? void 0 : _c.map((product) => ({
+        link: product.url,
+        image: product.image_url,
+        title: truncateText(product.title, 30),
+        price: product["Variant Price"],
+        category: product.category,
+        color: product.Color,
+        description: truncateText(product.description, 30)
+      }));
+      addCarouselMessage(productArray, (_d = obj == null ? void 0 : obj.data) == null ? void 0 : _d.summary);
+    }
+    return true;
+  } else if (type == "error") {
+    toggleMsgLoader();
+    addResponseMessage("Something Went Wrong");
+    return true;
+  } else {
+    console.debug("onMessage -> to ", message2.getAttribute("to"));
+    console.debug("onMessage -> from ", fromJid);
+    console.debug("onMessage -> type ", type);
+    console.debug("onMessage -> body ", body);
+  }
+  return true;
+}
+function handleQuickButtonClicked(e) {
+  console.log("Selected " + e);
+  addResponseMessage(e);
+  setTimeout(() => showNotification("You are now being connected to agent", { severity: "info" }), 1e3);
+  setQuickButtons([]);
+}
+function generateRandomString() {
+  return Math.random().toString(36).substring(2, 15);
+}
+function generateRandomGuestJid(host) {
+  const randomString = "guest-" + generateRandomString();
+  return `${randomString}@${host}`;
+}
+function generateRandomRoomJid(conference) {
+  const randomString = "room-" + generateRandomString();
+  return `${randomString}@${conference}`;
+}
+function startProcessingMsg(connection, roomJID, botUrl) {
+  joinMucRoom(connection, roomJID, "Customer");
+  joinBot(botUrl, roomJID, "Bot");
+  connection.addHandler(onMessage, "", "message", "");
+  fetchMUCChatHistory(connection, "guest-djiwnpm1qni@dev.sysmog.com", function(err, response) {
+    if (err) {
+      console.error("Error fetching history:", err);
+    } else {
+      console.log("Chat History Response:", response);
+    }
+  });
+}
+function fetchMUCChatHistory(connection, withJid, callback) {
+  const iqId = connection.getUniqueId("mam");
+  const iq = $iq({
+    type: "set",
+    id: iqId
+  }).c("query", {
+    xmlns: "urn:xmpp:mam:2"
+  }).c("x", {
+    xmlns: "jabber:x:data",
+    type: "submit"
+  }).c("field", {
+    var: "FORM_TYPE",
+    type: "hidden"
+  }).c("value").t("urn:xmpp:mam:2").up().up().c("field", {
+    var: "with"
+  }).c("value").t(withJid).up().up();
+  connection.sendIQ(iq, function(response) {
+    console.log("MAM history received:", response);
+    callback(null, response);
+  }, function(error2) {
+    console.error("Error fetching MAM history:", error2);
+    callback(error2, null);
+  });
+}
+function showSamples(connection, roomJID) {
+  addCarouselMessage([
+    {
+      "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-1.jpg",
+      "link": "https://beatsmate.in/products/wired-headphones-3-5mm-sport-earbuds-with-bass-phone-earphones-stereo-headset-with-mic-volume-control-music-earphones",
+      "text": "Audio-Technica ATH-M50x Professional Studio Monitor Headphones"
+    },
+    {
+      "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-3.jpg",
+      "link": "https://beatsmate.in/products/wired-earphones-with-microphone-3-5mm-earphones-plug-in-ear-headphones-music-earplugs-ergonomic-headphones-for-smartphones",
+      "text": "Vintage cameras and accessories for the modern photographer"
+    },
+    {
+      "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-3.jpg",
+      "link": "https://beatsmate.in/products/wired-earphones-with-microphone-3-5mm-earphones-plug-in-ear-headphones-music-earplugs-ergonomic-headphones-for-smartphones",
+      "text": "Vintage cameras and accessories for the modern photographer"
+    },
+    {
+      "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-3.jpg",
+      "link": "https://beatsmate.in/products/wired-earphones-with-microphone-3-5mm-earphones-plug-in-ear-headphones-music-earplugs-ergonomic-headphones-for-smartphones",
+      "text": "Vintage cameras and accessories for the modern photographer"
+    },
+    {
+      "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-3.jpg",
+      "link": "https://beatsmate.in/products/wired-earphones-with-microphone-3-5mm-earphones-plug-in-ear-headphones-music-earplugs-ergonomic-headphones-for-smartphones",
+      "text": "Vintage cameras and accessories for the modern photographer"
+    }
+  ], "We have a range of orange and black earbuds available. These models come with features like Environmental Noise Cancellation (ENC) and low-latency modes, perfect for both casual listening and gaming experiences. Please check our website for specific models and their details!");
+  setQuickButtons([{ label: "Connect To Agent", value: "connect to agent" }, {
+    label: "Quote Of the Day",
+    value: "Quote Of the Day"
+  }]);
+  const bottom = {
+    "T&C": () => {
+      toggleMsgLoader();
+      addResponseMessage("T&C");
+      sendMessage(connection, "T&C", roomJID);
+    },
+    "About SysMog": () => addResponseMessage("About SysMog")
+  };
+  showSuggestions({}, bottom);
+  addLinkSnippet({ link: "https://sysmog.com", title: "SysMog Link Snippet" });
+  addResponseMessage("![SysMog Image Snippet](https://reactnative.dev/img/header_logo.svg)");
 }
 function Overlay({ zIndex: zIndex2 = 1e3, backgroundColor: backgroundColor2, opacity, onClick }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -49216,7 +49446,6 @@ function Sender({
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: cn("rcw-new-message", {
       "rcw-message-disable": disabledInput
     }), children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: cn("rcw-input-placeholder", { "show": !isTextReady }), children: placeholder }),
       /* @__PURE__ */ jsxRuntimeExports.jsx(
         "div",
         {
@@ -49225,6 +49454,7 @@ function Sender({
           className: "rcw-input",
           role: "textbox",
           ref: inputRef,
+          "data-placeholder": "Type a message...",
           onInput: handlerOnChange,
           onKeyPress: handlerOnKeyPress,
           onKeyUp: handlerOnKeyUp,
@@ -52342,7 +52572,7 @@ function Widget({
   handleTextInputChange,
   disableRichTextInput,
   handleToggle: handleToggle2,
-  handleSubmit: handleSubmit2,
+  handleSubmit,
   onResize: onResize2
   // connectionRef,
 }) {
@@ -52380,8 +52610,8 @@ function Widget({
     }
     const msgText = text2 ? text2.trim() : "";
     const id = v4();
-    if (handleSubmit2) {
-      const error2 = await handleSubmit2({ text: text2, files });
+    if (handleSubmit) {
+      const error2 = await handleSubmit({ text: text2, files });
       if (error2) {
         addUserMessage(msgText, { id, status: "error", props: { files, error: error2, replyMessage } });
         return;
@@ -52419,184 +52649,6 @@ function Widget({
 }
 const hacker = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='512'%20height='512'%20viewBox='0%200%20512%20512'%3e%3cimage%20href='data:image/png;base64,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'%20height='512'%20width='512'%20/%3e%3c/svg%3e";
 const programmer = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20width='512'%20height='512'%20viewBox='0%200%20512%20512'%3e%3cimage%20href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAN1wAADdcBQiibeAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAACAASURBVHic7d15nF1FnTbwp852t95ysy8swbCFHURpkOzQNBK0VQZFkF1BiAswgApxhhkl77zjq/OSYUYHUVTEGUdHjUPMDOqMji8DOuKCiqggi2FN0iR9u++951TV+8dNAkKW7tu3Tp3l+X4++ShLn98vofvWc6rq1BFaaxBRy8rBAbfRaL5GKfUardWrAFS1Rg+AbgBdACqALmmNIoCC1joA4GmtXQCO1loAgBBCbv8VAYiEEGHrF0YBsRnAswCeAvAkgEcB/KxUKv5s3foNysJvm4hySDAAUB6dsnTJNEAv1xonaa2P0FofoLWarpQumfyZcBwBx3HhOA5c14HjvPgLQATgaQAbAfwBwC8B/BjAA+vWb3jUWFNElEsMAJRpp61Y5kqp3qyUeqPWeqHWep7Wqlcp7ZmsK4SA67pw3T8e7IUQ7V5yC4AHtv/68fZfD3PGgIjaxQBAmXPqsiWnKKUuVEqfLKWco7V2TNfcMeB7ngfPaw38MagB+Cm2zxJs/98H163fEMVRnIjSjQGAUu/UZUuOU0pfqpRaoZTaXyllfPQVAnDd1mDveV5cA/54bAPwXQAbAPzbuvUbfmu5HyJKKAYASp1Tli6eqTWu1loNSqkOUkoFcdR1HAe+7++8y0+JRwD8G1qB4Dvr1m/YarkfIkoIBgBKhVOWLnG01lcppS6XMjogrm9bIQR830cQ+Em6y29XE60g8CUA31i3fsOI5X6IyCIGAEq0U5ctOUVKtVpKeYJSyujGvR1ag763824/o8YAfBOtMHD3uvUb6pb7IaKYMQBQ4gwsX7aPlPKjUso3SCm746r74qDvo/3N+qm0FcDXAXxu3foN99huhojiwQBAibBycMCr1xvXSSnfKaXcN67vS8dxEAQBgsCfzCN6WfIQgLUA7uASAVG2MQCQVcsXL+oDcJuU8kyllB9XXcdxUCgUEASxlUybrQDuALB23foND9tuhog6jwGArDhl6ZJpSqlPR1F0RhzP6e/geS6CoADfz+zafqdptJ4iuAXAeh48RJQdDAAUq4HlS2dGkbw9iqLT4hz4fd9DoVDIwk5+m34B4MMAvrpu/QZ+cBClHAMAxeK0FcvmRlH0mTCMVux4YU4cgsBHoVDYcdY+dcYDAFavW7/hm7YbIaL2MQCQUaetWD4/iqLbwzBcHOfA7/seisUiB36z7gNw47r1G/7ddiNENHEMAGTE8sWLegF8MYqiwTgHfsdxUCoVs/z8fhJ9D60g8D3bjRDR+DEAUMctX7zow1EU3aC12TfuvZQQAsViAUEQy6nAtGtfA7Bq3foNT9puhIj2jgGAOmbFksXHSCm/IaWcF2fdIAhQLBb4HH8yjAC4EcAt69ZvkLabIaLdYwCgSRtYvtSPIvnFKIreHOd0v+e11vldl+v8CfQAgHetW7/hh7YbIaJdYwCgSTll6ZJzoyj8pJSqHFdNIQRKpRKf5U8+BeBWAB/iWwiJkocBgNpy2oplc8Iw+tcwDI+Os67v+yiVipzuT5eNAN67bv2Gf7bdCBG9iAGAJuyUpYs/GIbRTUqp2E7VaW3yK/Lo3nT7IlrLAnzHAFECMADQuC09+XUzhcC3o0geFmdd13VRLpf4TH82/BrAn6xbv+Fnthshyjt+otK4LF+86HSt1WNxD/7FYgFdXRUO/tlxMID7Vg4OXGq7EaK84wwA7dXyxYv+JgzDVQBiPdCnXC7x7P5suxPAZVwSILKDAYB269RlSytRFP0giqKj4qzL5/pz5dcAzlq3fsPPbTdClDecV6VdOnXZ0v4wDJ+Oe/AvlYrc5Z8vO5YELrbdCFHeMADQK5y6bMkNjUbjB1LKrrhqCiFQqZR5lG8+lQDctnJw4GbbjRDlCZcAaKeVgwNibKz+781mc3mcdR3HQaVS5kY/AoDbAbyTxwgTmccAQACAFUsWdSulfxJF0QFx1vU8F+VymVP+9FJfB/DWdes31G03QpRlDACEZYtOfpVS6sdKqZ446/q+j3K5FGdJSo/vAThz3foNL9huhCirOOeacyuWLDpaKfVg3IN/sVjg4E97sgjA91YODsy23QhRVjEA5NiKJYsXR1F0v1KqGGfdcrmEQqEQZ0lKpyMB/GDl4MAC240QZREDQE6dsnTJG8Mw/LZSOrbD9YUAKpUyfJ/n+dO4zUcrBMT6OCpRHjAA5NCpy5Zc1Gw2v6q1jvFlPkC5XIbn8RW+NGEzAGxYOTgQ6wZVoqxjAMiZU5ct+dNGo3mb1jrWbfcc/GmSZgL41srBgem2GyHKCgaAHDll6ZIbG43mX8U9+FcqHPypIw4E8K8rBwcqthshygIGgJxYsWTxdc1m46a4H/vk4E8ddjyAL68cHOA3FdEkMQDkwPLFJ1/VbDbXxH3kAwd/MmQQwG22myBKOwaAjFu26OSLwjD6WNx1OfiTYefz3QFEk8OTADNs+eJFS6MoukdrHWvQK5fL8H0O/hSLVevWb1hruwmiNGIAyKhTli4+KAyjnyulYn29XqlUQhDwOX+KjQLwbgCfWrd+Az/MiCaASwAZNLB86ZQokj+Ke/AvFAIO/hQ3B8DfA/jxysGBAdvNEKUJZwAyZuXggF+rjf4+iqI5cdb1PA+VSjnOkkS78l0A161bv+GHthshSjoGgAxZOTggxsbqP2k2m0fGWddxHHR1VfhKX0qSTwC4dt36DaHtRoiSiksAGVKvN+6Me/AXQqBSKXPwp6R5H4Dvrxwc2Nd2I0RJxQCQEacsXXJps9l4W9x1y+USHIffRpRIrwXwwMrBgTNsN0KURFwCyIAVSxYdHYbRj+J8uQ8AlEpFBEGs+wyJ2qEB/C8AH+STAkQv4q1byi0+6cRKFMnvxT34B0HAwZ/SQgC4HsAtthshShIGgJRzXffflVLdMddEqVSMsyRRJ1yxcnDgb2w3QZQUDAAptmLJoquiKOqPs6YQAuVyKc6SRJ30npWDAx+33QRREnAPQEqdumzJgkaj+RDX/Yna8rF16zdcY7sJIps4A5BCKwcHhI11f8/zOPhTVly9cnDgf9lugsgmBoAUqtcbd0ZRNDvOmkIIrvtT1ly7cnDgMttNENnCJYCUOW3FssGxsfrdcf93K5dL8H2e80+ZMwrg6HXrN/zGdiNEcWMASJGVgwNurVbbHEWyJ866vu9z4x9l2f0ATlq3fkNkuxGiOHEJIEXGxsbujHvw59Q/5cBrANxguwmiuHEGICVWLFl0QhhG/09rHeuh++VyGb7vxVmSyIYIwOvWrd9wn+1GiOLCAJACi07sdxzHeUYpNS3OukHgo1Ti1D/lxm8AHLNu/Yaa7UaI4sAlgBTwPO+v4h78hRAoFjn1T7lyIICP2W6CKC6cAUi45YsX9UVR9JzWOtZ5+GKxgEKhEGdJoqR4/br1G+623QSRaZwBSL6vxD34O46DIODgT7n1NysHB7jxhTKPASDBBpYvfU0URcvirlsoFCBi3WpIlCgLAFxouwki0xgAEiyK5D/HvUTjui6CgAf+UO6tXjk4wE0wlGkMAAk1sHzZFWEY7hN3XW78IwIAzANwue0miExiAEioMAw/GndN3/fgebG+X4goyT6wcnCgbLsJIlMYABLolKVLPhBFUawn/gG8+yd6mekA3mq7CSJTGAASZtGJ/SKKwg/FXbdQCOA4/HYgehm+LZAyi5/4CeP7/kelVJU4awoh+Mw/0a4dv3Jw4FjbTRCZwACQIItO7C9EUfS+uOv6vg/B5/6IdoezAJRJDAAJ4nneaq117AvxhUIQd0miNDln5eBA7HtyiExjAEgQpdSVcdf0fY9r/0R7VgEwZLsJok7jJ39CnLJ08YVKqdjvMnjkL9G4nGm7AaJOYwBICCnVTXHXdF2Xz/0Tjc+pKwcHmJYpUxgAEuC0FcuWRVE0L+66XPsnGrcuAEttN0HUSQwACRBF8uNx13QcB77PM/+JJmCl7QaIOokBwLLTT11RjaLwiLjrBgHv/okmiAGAMoUBwLIwDD+ilI71IXwhBN/4RzRx+6wcHFhouwmiTmEAsCyK5NvirsmDf4jadoLtBog6hQHAohVLFp0upeyNuy7v/ona9hrbDRB1CgOARUrpv4i7puM4cF0++kfUJgYAygyhtbbdQy4tPunECoBtWse7/l8oBHztL1H7IgA969ZvGLPdCNFkcQbAEs/z3hf34A+Aj/4RTY4H4BjbTRB1AgOAJVrr8+Ouyel/oo54re0GiDqBAcCC009d0S2lXBB3Xd79E3XEUbYbIOoEBgALoii61s70vxd3SaIs2s92A0SdwABggVLqvLhrcvqfqGMYACgTGABitnJwoBxFct+463L6n6hj5q0cHOBnJ6Uev4lj1mw2z1FKxT79z8N/iDrGBzDHdhNEk8UAEDMp5blx13QcB47D/9REHcRlAEo9jgoxk1IeF3dNz+PmP6IOYwCg1GMAiNHyxYsOlFJ1xV3X87j5j6jDGAAo9XhrGCv9XhtVufufJmLulACLDu5BKXAQeA4EgPsfGcEDj41A8eTwHababoBoshgAYqSUPi3umlz/p/Ga3uNj6LipOHFBN17+tugTFnRj00iEDT/fgg0/H7bTYLKUbTdANFkMADFSSsX++B/v/mk8li/sxdtPnA7X2f0DKlO7PJzTPx2Vgouv/mhTjN0lUsl2A0STxQAQkxVLFh+qtY79WTyu/9OeeK7A+a+bgUUH94z7a95wbBXDoxG+88sXDHaWeJwBoNRjAIiJEIj99D+ATwDQ7lUrHt5z6mzMnz7x10O/46QZeGq4iV9tzO1bcTkDQKnHxeGYaK2Xx11TCMH1f9qlg2eX8Odv2retwR8AhAAuXjwTBS+3318MAJR6uf3pjZtS+tC4a/Lun3bllMP7cN3r56KnNLnloendPv7ktbndDM8lAEo9BoAYrBwcCJRS3XHX5fo/vVTBc/DOJTNx7l42+03E8sP6cMicXN4M5/I3TdnCABCDMAyPV0rFXpdPANAOC2YW8Zdv2RcnHTT+zX7jIQBcsiiXSwHtrZ0QJUjufmptkFKeaqMu1//JdQTe/Oqp+NCZ+2BGj5mHUKb35HIpgD9clHpcJI6BUvqEuGsKISBefpoL5crsvgCXLZuF/acVjNdaflgf/ufRGn65cdR4LSLqDKbYGGitDo67Ju/+80sAWHFYH256076xDP47al55ymzM6QtiqUdEk8dRIgZK6Vlx12QAyKfpPT6uOX0uzjtpOgIv3hmgSsHB1afPRV+ZE4tEacBRwrBFJ/ZPUUrFcxv2Eq7L/7R5EngCQ6+eipvP2g+Hz7P3hNq0Lg9XnTYHRZ/ff0RJx59SwzzPO95GXc4A5Mdx+3fh5rP2wxuPrcJ37e/72G9aAdefMRfdRT6FQpRkHCUMcxxxjJ26/E+bdTN7fVwzOBfvOXU2pnXH/pqJPZo/vYgb37gPpht68oCIJo+jhHkLbRRlAMiuou/grNdMxUfP2g9H7JPcA+lm9vi48Q37xLYRkYgmhrt1zDsg7oJ8BDCbAk/glMP6cPpRU9CVkun13pKLD525D/7xvudxzy+GbbdDRC/BAGCY1pgbd03e/WeL7wosPbQXZxxTRe8kz++3IfAEzjtpOo7et4Lb/vMZDI9GtlsiIjAAxED3xV2RASAbXEdg8SE9OPOYKqZU0v+jesQ+ZXzkLfvicz94Dvf9bpvtdohyL/2fKgmnlI79zHCnQy96ITsqBRevO6gbpx7el7jNfZPVVXTx7uWzcPpRU/AvP9qEnzxes90SUW4xABimtbbwCc4AkEaHzC5hyaG9OH5+F7wEPM5n0v7TCnj/aXPw6HN1fPVHm/GzJxgEiOLGAGCY1jr2RVvu/0uP7qKL1x3Ug8WH9GB2Do/RnT+9iKsH5+Cp4SZ++MgI7n9kBE9sbthuiygXGAAMWrFkcUFrHftwzCcAkk0AOHROGUsO7cFx87vgcckGs/sCnHlsFWceW8XTLzRx/yMj+OnjNTy5uYl6GP+rtInygAHAIK31/nYqc0BJop6Si5MP7sHiQ3oxkwfk7Nas3gBnHlPFmcdUoQFsGonwh80NPLm5iSe3NPC7Z+t45oXQdptEqccAYNZ8G0U5AZAcAsBh88pYckgvjt2/Apd3+xMi0Hq/wLQuD0ftW9n5958abuIL/+85PPgkXz9M1C4GAIO01vvYqMslALuqFQ8L55axcG4Zh80t8e14BszuC3DN4Fysvecp/OjREdvtEKUSP5kMEkJMsVTXRtncqhRcHDqnhMPmlrFwbgmzevO3mc8GIYDzTpqOnz5eQyi17XaIUocBwCAhkNyD2qltgSdw0KzS9jv8MvabWuCyiyV9ZQ/7TSvgt8/UbbdClDoMAEaJkpWqHI06qlJwMW9KgEPmtAb9BTOL3LmfIHOnBAwARG1gADBICGQ2ADgCKAUu9p0aoFJwEUqNMNIIpUIoNZqRRlNqbB2L0IySPz3ruwIzewPM6vUxqzfArD4fs7f/dVpevJNXDgMvUVsYAIyyMwNgwtwpPl6zfwULpgaY3uWg4Dnoq1b2/oUAag2JTSMRttQibN7+a8vIS/5/LTL+rHfgCZQCByXfxfRuD7P6XjrYB5ha8TiNT0S5wgBglpU/307NAHiOwBuO6sUJ+xURvOz9Qu4E3jdUKbioFFzsO3X374UfbSqM1CWaL5tFCOX2X9H2v7dzpkEjUhqF7QN70X/x146/Lm3//wXfAWfssyv580tEycQAQK8wvdvDnxzbhwOn+RA6no/XcuCg/PKUQURExjAA0E4l38GqpdMwt9tp3VbFNPgTTQq/TYnawgBgVmomnk84oIKzj+6BA80PVCKiHGAAyLnAE7hy8TTs1+uCIz8RUX4wABiV7AH1VdMLuOJ1Vbgi2X0S7Qm/e4nawwBgVmKXAA6a2Rr8uc5PRJRP3HadQwtmcPCnLOH3MVE7GAByZsH0Aq7k4E9ElHsMAGYlagmgWnZxxclVCN4xUYYwyxK1hwEgJ4QArhuY0XrMj4iIco8BICcuOnEqitztT0RE2zEA5MCC6QUcOdO33QaREYy1RO1hADArEXsALu6f0vmL8lOXiCjVGADMsh4AVhzSjTJPe6AsYxglagsDQIa5jsDpC7tst0FERAnEAJBhAwu74fL2iIiIdoEBIMNOPqBsuwUi4xhxidrDAGCQ1vb2AMzs8bj2T0REu8UAkFErDu623QJRLDgDQNQeBoCMOmx2wXYLRESUYAwAZllZAqgUHHT51p9AJIoHXwZA1BYGgAw6YX4Fmh+KRES0BwwAGTS/GthugYiIEo4BwCwr8/B9Zf5npfzgXBdRezhSZFB3gf9ZiYhozzhSmGVlBqDEDYCUI9zuQtQeBoAM8h0GACIi2jMGgAzi+E9ERHvDAGCWpaGYc6JERLRnPC0+4Yq+g/nTitivWoDrvjJPjNQlfvPsGJ4abnLYp9wrBw7mV33M6vEgdhG/h0cVHt3cxKaajL85ooRhAEiYroKLo/apYMH0EhbMKGLulMK4pvRrTYnfPVvHb54ZM98kUYK8alqA/Xp6ccBUHzO6vXFNu21rKPx+UxOPbg7x62ebeHI4NN4nUdIwAJg17iWAasXDaYdNweKDe1HwJr4yUwlcHDmvgiPnVSDARQDKj5Pml9FsTGwA7y44OGJOEUfMKQIAfvt8E/f8uoZfPdMw0SJRIjEAWDanL8DpR1TRf0A3XO7eI2rD5OPugmkBFkwL8IcXItzz6xH85A91KKZoyjgGAKN2/wkiBPCmY6fhjCOrBnYKcg6AqB1zez2c/5o+LB8Ocft9w9wrQJnGpwDM2uXY3lVwcc2p87DSyOBPRJM1r8/HNcumYuEsvlabsosBIGb7Ty3iz8/cF4fNKdtuZVI4v0BJYep7sew7eOeJUzB4aNcunyggSjsuAcToiLkVvGf5HPi7eJyPiJJHADjt0C7M6fVw+33DPHaYMoUzADGZ2RPg8iWzOfgTpdCRc4p4/cJu220QdRQDgFkCaB3m897lc1AO+MdNlFanHFzBUXOLttsg6hiOSGYJAeDSk2dhTl9guxcimqS3H9eLWT1cOaVsYAAwbMXCPhy3X5ftNoioAwqewMUn9MF1+AAPpR8DgEF9JTcYPLxquw0i6qAZXR4WzS/32u6DaLIYAAx6+7F9R1dcZbsNIuogJRWWzfdn/OxjZ/Hzk1KN38CG/OxjZ7kHVP05YTOClAwBRFlRH2vCgRae711luxeiyWAAMMTz3T8V0A4ANMYaPDmHKAPqYw0o1Qr0SqlrLLdDNCkMAIZojfN2/H+lNOpjfMsYUZrVRxuIwhffDaCkmvnQ2nOmWmyJaFIYAAzRSu330r+OIon6KEMAUdporTE22kAUvfLFQEqpN1hoiagjGAAM+NnHzqoqpSsv//sMAUQGGFxek5HEWK0OuYvBHwC00qeYq05kFgOAAUKIQ3b3z6LtHyiKLxsnSi4NNOpNjI029vizqoGDY+yKqKMYAAxwXefAPf1zKRXGamMIm1FcLRHROIVhhNHx/3zyoA9KLZ5paYAQYv+9/Tt6+x1GFEkUCj4cl1mMyKYwjBA2wonOzvGYT0otBgADtNYvjPfflZHEaCThei6CwIPruSZbI6KXkFIhCiWiKIJuZ1lOI+x8V0TxYAAwQCn9PxP9GhlJjEUSjuPA9Vx4ngPHdVtvExonrTQiKREE/kTLE6VWawCXcF0HYi8/MEoqKKUhpUQUSmg9ub04QuCZSV2AyCIGAAOUUg9P4muhmgphs/XXruvAcRwIR0CI1i+I1qNJWmtAAUprKCl3Tl0yAFCeRFG08+maHT8rOwi0HhLQSpnaePuYiYsSxYEBwIxnhRCh1nrSI7GUikcJE42TUgqI88dFiB/GWI2oo7jzzIAjr/6ydj3nN7b7ICJzhBDwfPd2230QtYsBwBDXcz9rrTjfVE5knOs5zx787js32u6DqF0MAIb4vvdxx3WatvsgyjxLZ2o5jvO3dioTdQYDgCEHXHpH5DrO3bb7IKLOcxwRBQX/I7b7IJoMBgCThOD7wokMszEB4LjOtw+49I5dvyCAKCUYAAw6dNUXH/V8l7uEiTJEOEIJIS633QfRZDEAGBYUglNc16nZ7oOIOiMI/A8cuuquR233QTRZDACGLXjX517wA2+ZcAQf5idKOT/w7j74ijv/ynYfRJ3AABCDg9595/2+711tuw8iap/nuU8WisFK230QdQoDQEwOufKLn/AD72u2+yCiiXMcp+H53qsPuPQOzuRRZjAAxOjQVXcNeb73j7b7IKLxc11ni+e7xx307i/wxT+UKQwAMVv4nrveGhT88xxHRLZ7IaI9833ve0HBn3HIlV/8he1eiDpNTPZ1mNSeh//u3P2jMLo3CuWsTl+7u6/S3rvNJ8BxHfRMqRitQTQezz89vPNtgJ0iHKGCwLvx4Cu++NGOXpgoQTgDYMlBl3/h98VSYR8/8D4tBJ8QIEoK13UeKRSD4zj4U9ZxBiABHvzE2X2O46xRSp2rpJr0bXVPX8XUu8934gwAJUUnZgCEENp1nf8BcO3C937pu53pjCjZGAAS5te3vv0iGan3ykgu1Fp7E/16x3G2dvWUupXSRt8JyABASbHlua3Pjo7Up2mtJzyj6brOM67n/qvrudceeNnnN5nojyipGAAS6mcfO8txHGelcMQZ0Po4DeyntS5CQ2D7C3+FEA3hiC0AHgLwXSXVZ4+46p+e/f2nLwiVmnh4mAgGAEqQwScfeebfXdcZgBBnATgGWs9VSpfRWubUALQQkEKI5yHEL6D195VSnz3iqi8/a7d1InsYADLo97df2FRS+SZrOI5AT7XLZAmi8RqsDq39lu0miNKGmwAzSAhRN13D9B4DogkIbTdAlEYMABkkBGJ5+RBnjygheEAPURsYADJICLE1jjqmzxogGqenbDdAlEYMABkkHLE5jjqKMwBkX7M6tJa794nawACQQUKI5+KowxkASoCnbTdAlFYMABkkRDwfigwAlACc/idqEwNABgkhnoyjDpcAKAEYAIjaxACQQcIRP4ujDmcAKAEYAIjaxACQQUKI++KooxXfYUTWMQAQtYkBIINmnv33TwkhjN+ey4gBgKx7zHYDRGnFAJBRjiOMHwYkJQMAWfeA7QaI0ooBIKMc14llIyBnAciiOoBf2W6CKK0YADLKccSDcdSRUsZRhmhXflodWhvZboIorRgAMsrxnP+Kow5nAMiiH9tugCjNGAAyyve9rwlhvg4DAFn0P7YbIEozBoCMmvaWWx9zXLdhuo7iEgDZwxkAoklgAMgwxxW/N11DKc0DgciGJoBY9rkQZRUDQIY5wvnvOOpEEWcBKHY/rw6tDW03QZRmDAAZJhzxtTjqRE1uxKbYfc92A0RpxwCQYa7rrIvjRMAw5AwAxe6bthsgSjsGgAyb+da/l47rbDZdR0kFxVMBKT5bAXzfdhNEaccAkHGu53w3jjqcBaAY/RvX/4kmjwEg41zX+es46nAfAMWI0/9EHcAAkHGzz/nUfa7nGn8xUMQZAIqHAnC37SaIsoABIAfcGI4F1lozBFAc7q8OrX3OdhNEWcAAkAOe5/7fOOqEXAYg8zj9T9QhDAA5MOttn7zb9dym6Tphg/uyyLiv226AKCsYAHLC85z7TddQSnMWgEy6vzq0lsf/EnUIA0BOOK7z0TjqNDkLQOZ8ynYDRFnCAJATs8/51HrXdYw/DRA2ImjNlwNRx20F8CXbTRBlCQNAjjie84046jTrnAWgjruzOrTWeIAlyhMGgBxxHOd9cbwbgMsAZACn/4k6jAEgR+ae+w/P+oH3E9N1ZKQgI74bgDrm/urQWuPft0R5wwCQM17gXgdhvk6jbvypQ8oP3v0TGcAAkDOz3vrJf/d97ynTdZqNEEpxMyBN2jC4+Y/ICAaAHPJ894PGi2igMcZZAJq0/8PNf0RmMADk0OxzPvVZz3c3m67TrDehOQtA7dsE4BO2myDKXLcH0wAAIABJREFUKgaAnHI992bTNbQG6pwFoPb97+rQ2m22myDKKgaAnJp77j/8dRwHAzXrIQ8GonY8C+AW200QZRkDQI55vvtx0zW01twLQO24uTq0dtR2E0RZxgCQY3PPu+1Gz3M3ma7TGOMsAE3IRgB/b7sJoqxjAMg513fPNn0ugNYa9RpnAWjcPlIdWlu33QRR1jEA5Nzcc//h277vfcd0nUa9CRlJ02Uo/X4D4DbbTRDlAQMAQQNDjiOM36KPjjRMl6D0e1d1aC2ni4hiwABA2Pf8T291PfdG03VkJPmmQNqTT1eH1n7XdhNEecEAQACAfc7/9F+5nvO46TpjtQYPB6JdeQbAn9pugihPGADoJcQbARgdnbXWGBvlUgC9wqrq0NottpsgyhMGANppvwtvf8D13H82XadZDxGF3BBIO62rDq39su0miPKGAYD+iIzkuY7rGL8TGx2p82wAAoBtAN5tuwmiPGIAoD9ywKV3ND3fHRRCGB2dlVQYHeGj3oTrq0Nrn7TdBFEeMQDQK8w777b7gqJv/CS2sBGhwacC8uwr1aG1t9pugiivGABol0qVwhV+wXvEdJ16rQ4ZKdNlKHkeBnCh7SaI8owBgHapOrRW+753nOs6Rl/IojVQ2zbG/QD5MgrgzXzVL5FdDAC0W7Pe9slh13eXCSGM3qIrqTDGUwLz5J3VobUP2m6CKO8YAGiP5p13232u515tuk6zEfKUwHz42+rQ2jttN0FEDAA0Dvte8OlPuJ7zFdN1RkfqCJuR6TJkz30ArrLdBBG1MADQuMhIneV6zg9N1xndVudbA7PpGQBn8UU/RMnBAEDjcsCld2gZqRNdz3nUZB2tNUa2jkFJPhmQIcMABqpDa5+w3QgRvYgBgMbtgEvviAAc4XrOJpN1tGqFAD4ZkAmjAM6oDq39qe1GiOiPMQDQhOx34WdqrucebvrxQCUValvHwAyQaiFaj/v9wHYjRPRKDAA0YfPOu+1pv+Cf4LiO0R17USgxum3MZAkyRwE4tzq09lu2GyGiXWMAoLbMefunfl4o+qc5jjC6Yy9sRpwJSKfLqkNr/8l2E0S0ewwA1LbZ53zq257vLRdCGJ0JaIWAUe4JSI/rqkNr/8F2E0S0Z4IfqjRZj3/2oiOVVPcqpcsm67iei67eEoQQJstQ+zSAa6tDa//adiNEtHcMANQRj33mopnQ+mdSqhkm67ieg66eMoTDEJAwEYCLqkNrP2+7ESIaHwYA6phH/uH8guu5P5aRXGiyjuM66OotwXG4gpUQNbQO+VlvuxEiGj9+glLHHHDpHQ0ZycM9391gso6SCiPDo4h4YmASbAKwnIM/UfpwBoCMeOKOi9eGzegK03XKXUUERd90Gdq1x9A64e/XthshoonjDAAZsc/5n77SL3jvF0IYTZijI3WMjtRNlqBd+z6AEzj4E6UXZwDIqCc/f8lpMpRfk1IVTNbxfBfl7hIcbg6Mw/9B61E/vrqRKMUYAMi4p7/0rqlhI/p22IyOMlnHcQTKPSV4nmuyTJ5tA3BxdWjtl203QkSTxwBAsfnD5y+5ptmM1miljY7QxXIBxXJgskQe/RKtc/0fst0IEXUGAwDF6snPXbKPlOo/ZCQPMFnH9VyUu4twXW5z6YA7AbyrOrS2ZrsRIuocBgCy4vHPXvxXMoqu1trcRlQhWrMBhRJnA9r0DIDLq0Nr/8V2I0TUeQwAZM1jn7nwSK3xLSXVbJN1PN9FuasIh7MBE3EngPdUh9Zutt0IEZnBAEDWPXHHxR+WkbxBKe2ZqiGEQLEccDZg7zai9Sa/dbYbISKzGAAoETbeeWmfknpd2IxeZ/J70nEdlCoF+IGxrJFWCsBnAFxTHVo7bLsZIjKPAYAS5ekvvWt52IhuC5vR/ibreL6LUqUAl48MAsA9aA38P7XdCBHFhwGAEunJz1/yJhnJW2WkZpqsExR8FCtBLl8spJV+SjjiourQ2m/Z7oWI4scAQIn2+GcvukwpfbOSqs9UDSGAoNjaH5CHkwSV0qiPNvDbF4JPL7ny1kts90NEduTvtodSZd8Lbv/7X28JLm3UQwhDg7PWQGOsia2bRzA6UoeUykgd25RUGBupY9uWETTrIWrSm2q7JyKyhzuhKBXCZoiwGW5fuy8CGjAxe9Wsh2jWQ/iBh0IpgOenf4+AjCTqY02EDR7dT0QvYgCgVIlCiW3DNbiei0pXERqAVp0PAmEzQtiM4HouCiUffuBDpGx1IGpGqI81EYXSditElEAMAJRKMpLYOlwDBFAqF+D7HpSBICAjidFtEkI04Bc8BAU/0bMCSio0GxGajRAqo0sZRNQZDACUbhoYqzUwhsbOw34832stD3QwD2itdy4POI6AX/ARFLxEPEaotUa4fdDn3T4RjRcDAGWG1hpjtQaARus9AKUCvMADtEYntwsopdEYa6Ix1oTrOvALHjzfi3VmQCuNMGwtU0RNaWQ/BBFlGwMAZZLWwNhoAxhtAGi9FCgIPAghOrrLX0oFOdoE0IQQAp7vwgtc+L7X8XcPyEgibEqEzQgy4p0+EU0OAwDlQn20gfr2MOA4DoJiay3fEQK6Q08UaK13bh4cQwOO48ALXHieC9dz4LjuuDcSaq0hI4UokpChRBRJI5sdiSi/GAAod5RSO8PADo4rUCi2ZgkgsPMxw8lsLFRKoVlXaCLc+fdc12mFAc+F6zhwHLHzSQalFGSkICOZ2bMIiCg5GACIACjZunt3XzZt7zgCwnGw48ZdY/vmwlfcyW9PDdj5L774t1/6L2uNMJQA1+2JyDIGAKI9UEoDiuvtRJQ9PAqYiIgohxgAiIiIcogBgIiIKIcYAIiIiHKIAYCIiCiHGACIiIhyiAGAiIgohxgAiIiIcogBgIiIKIcYAIiIiHKIAYCIiCiHGAAo8eraK9vuIYuUFgXbPRCRPQwAlHhbZGFf2z1kUV05M2z3QET2MABQ4o0qbz/bPWRRU7kzbfdARPYwAFDi1ZV3oO0esijUzoxVq9eUbPdBRHYwAFCirVq9ZkFdua+z3UcWaSAAcLntPojIDgYASrobALi2m8iw61atXlOx3QQRxY8BgBJr1eo1RwE413YfGTcDwPW2myCi+DEAUCKtWr1mIYB/A+/+43DDqtVr3m27CSKKFwMAJc6q1WsOBfAdtO5OKR5rV61ec4ntJogoPkJrbbsHIgDAqtVregFcB+C9AHYe/jPbr+GM8kPG63u+h2IpMF4nKf5zeCZ+vK368r/9DQAfvOWm639hoSUiihEDAFm3avWaeQDOA3ANgFeMSAwAZuwmAACAAvA5ALfectP1P4y3KyKKCwMAWbFq9ZqZAN4C4K0ATgIgdvfvMgCYsYcA8FK/BXAXgLtuuen6X5nviojiwgBAsVm1ek0VwJsAnA1gKca5wY8BwIxxBoCX+glaYeBLt9x0/eNmuiKiuDAAkFGrVq/pBvAGtO70TwXgT/QaDABmtBEAdtAAfoBWGPjyLTdd/1xHGyOiWDAAUMdtP172DLQG/dMBFCdzPQYAMyYRAF4qAnAPWmHgX2656fptk26MiGLBAEAdsWr1mgDAaWgN+isBdHXq2gwAZnQoALxUHcA3AXwRwN233HR9o5MXJ6LOYgCgtq1avcYDsBytNf0hAH0m6sz0RnFmxfz+M+sBwPUheuZAFLoBsds9kZOnIoiwhh+90IeHaj1GSjhCjJSKxe/MnjF1/eLXHnt/4PvKSCGi9oQANlar1S22G7GJAYAmZNXqNQ6Ak9G6038LgGmma0716nhTxfxj6TYCgLP/icDsoyGLVSiDP4pBECAIAvi+D8fh+V9E29UA3AvgawD+qVqt5mo/CwMAjcuq1WtOQGvQPwvAnDhr97kNnNX1oPE6cQYA0TUDOPYdiJxJbY/YK8/z0NXVBdflicpEe7EJwJXVavVLthuJi2e7AUquVavXHIPWoP8nAPa31cdWma11eeeQQUSzXw3T4btcLqNUKhmtQZQhUwHctXnz5jcDuLxarT5vuyHTGADoj2x/Cc/ZaA38B1luBwCgIFpr4hmYrXJOei9Cv9vo70UIgZ6eHngef7yJ2vAWAIs2b958RrVazfRJmPyEIKxavWZ/AOcAeBuAw+12s2saAgLpDgDu4W9C0+82XqdSqXDwJ5qcGQC+sHnz5qOr1eqY7WZM4adETq1avWYaWlP75wA4EXs4ijcJIuHB102jNUz+AYgp+yKcfpjxWYwgCFAoFIzWIMqJgwCsQevlZJnEAJAjq1avqaB1Kt85AAaQov/+m2QZs4TZAGBwUh448hzja/6O46BSqRitQZQzqzZv3vy1arX6XduNmJCaAYDas/1Z/VPRGvTfCCCVI8RjYS9mBcO222iLu/AMNIX5H7VyucxH/Ig6SwD4JBKyH6rTGAAyatXqNSeiNej/CYDpltuZtF/Xp+C1wWO222iLmnZwLHWCIFtPSxAlxIHb9wL8xHYjncYAkCHbd/Cfs/3XfMvtdFRDuxgVJZS1yf04BqbovQKkWzK+9u95HoTJ0wOJ8u0MtN6GmSkMACm3avWaeWg9svd2AEdbbseoB+qzcFLhUdttTIjonWd87R8AD/ohMusQ2w2YwACQQqtWr5kC4M1oDfqLkfAd/J3yy3oV/aUn4KjIyPW1gbN4RdeMjl9zV7j2T2RUrKefxoUBICVWrV5TROste+eg9YrdXC74/rI5A4d7G41c28Sduih07KWIe8QAQGTUFNsNmMAAkGCrVq9xASxDa9B/EwAzr25LkXtrs3HwlOfhq84/Emhipl7nY3KGKOsy+YPMAJBAq1avOR6tQf+tAGZZbidx7qnNx2Dp1x2/Ll+MRUR5wgCQEKtWrzkQrUH/7QAOtNxOoj3Z7MIfilXMFZs7fm0pFVyX0+lElH0MABZdcPXqYwF9TblUWug6zlG2+0mTu7fOx9v66ujSox29rowkAwAR5QIDQMze8f4bDgFwo5TydAC9vd1dwuUGrrZ8+YWDcW7fLzq6HyCKJIKC37HrERElFQNADN7+ng/s67jODUqqoUjKaQBQCAL0dFV4eMskRNrBl184FGf1/qpjIUBJBa01/7sQUeYxABhyznuun+s67rVKqbMiKWdDyp3/rKtcRrlUtNhddtSUhy8MH4azeh9CV4dOCZSRgufzYB0iyjYGgA664OrVB2mlro+kfL2UaoaU6o/+uRACvd1dCHxOMXdSpB3cNbwQZ/Q8gtliy6SvJyPJAEBEmccAMEkXX/tnfUqpj4VRNBSG0W4PixBCoK+nG77HP3JTvrn1AOxX2Ipl5d/DU2Hb14miCIH2uQxARJnG0ahN5773g/0Q+EQUyeO11nsdKXq6Khz8Y/BYowefaRyJJV1PYoH3PISWe/+il9EaCJsRNwMSUaZxRJqgC69ZfVgUyTvDKBr3Y3s9XRUU+KrWWP3HyDz8B+bhmPKzOKLwLAqqMaGvZwAgoqxjABinyz74lweO1RufazSbJ0zkxLiuchnFQsFgZ7QnD4zOwAOjM9DrNnBk6Tns621FGfW9nvurtUbYjOAH/BEhomzip9tevPP6m9wwir7QaDTPlkpNaFG4VCxwt39CvCAL+P7IPACtQ70PLm7BwYXNmOqMwN3N2wWbjSZcz4XjcC8AEWUPA8AenPe+D71RKXVHJOWEX8LjuS66ymUTbdEkaQAP1afgoXprz2YgJPYPtmJesA3T3FF0iSY8HUFrjUa9iVKZMzhElD0MALtw9hXXCt/3vhyG0ZvbvQYP+UmPpnbxcGMKHm68+BCHADDdG8VcfwThmI+KJ9HthehxQ3S5EXyh4DsKvlDwBF8iRETpwwDwMpded9O0wPfvb4bh/HavUSmX4HHHf6ppAM9GZTwb7X0WRwDwHYVAtM59iLSA1AKRdnDyrKk4eo7ZXomI2sFR6iXe9YG/OG20Xv+XKIraXrj3PQ+VUqmTbVHCaQBN5aAJvtOBiNKDn1jbXXLtn52/baR292QGfwDo7qp0qiUiIiJjOAMA4IKrbryy3mz+3/Ec6LMnpUIBnssjZImIKPlyPwNw7vs+uHqs0bhlsoO/EEC5zKl/IiJKh1wHgHe8/4bzwzD6805cq1QownVy/cdJREQpktsR6+I//bP+MApv78S1hBA88IeIiFIllwHg3R/6yPxGs/ldpXRHfv+FIIDDu38iIkqR3I1aq1avEbWx+n+FUdSx492KBb7oh4iI0iV3AWCkNvrJeqPRsaNZHEcg8PnWOCIiSpdcPQb4jvffcHIzDC/p5DULAc+JJyKi9MlNADj7imtLjuN8c7KP+70cp/+JiCiNcrMEEPj+x5VSE36r3564jgOfZ/4TEVEK5SIAvPP6m3ojKS/u9HULvPsnIqKUykUACKPoLqVUx2/VufmPiIjSKvMB4Mobb96v0QxPM3FtnvtPRERplfkAMFqvf1xK2dGNfwDgOA4P/yEiotTK9Ai2avWaQqPRXGni2rz7JyKiNMt0AKiNjn0kktLINn3PYwAgIqL0ynQAaIThu0xd23P5+B8REaVXZgPARdd8+PVRFHWZuj5nAIiIKM0yGwAiKTt65O9LCXAPABERpVtmA4CU8nWmru3y7p+IiFIukwvZZ19x7VQA00xdn+v/RESUdpmcAfB97w0mr8/1fyIiSrtMBgABcabJ63P9n4iI0i6TAUBp9WqT1+cSABERpV3mRrKzr7hWCCFmm7p+6wjgjp8sTEREFKvMzQAUC0G/1trY74vT/0RElAWZCwCAeJvJq3MDIBERZUHmAoDSarHJ63P9n4iIsiB7AUCqA0xenzMARESUBZkKABdcfWNXJGXF1PWF4B4AIiLKhkwFAEAMmby6y+l/IiLKiEwFAK3VgMnr8+6fiIiyIlMBQCl9nMnrc/2fiIiyIlNz2lKpfU1enzMARLSDlBLNZhNKKQRBsP2QMAdC8KAwSofMBIDzr7qhIqUsm6zheZn54yKiCQrDEJs3b8bY2BiiKIKUEgDQ1dWFYrG4899zHAdBECAIAvi+b6tdor3KzIgmhGP0BUCO48BhsifKnVqttnPg11r/0T8TQqBQKPzR31NKoV6vo16vQwiBUqmEYrHImQFKnMwEAK31aSavz/V/onwJwxAbN25EvV7f7b9TKBT2OLBrrTE6Oop6vb4zCBAlRWYCgFJ8AyARdUatVsNTTz21c5p/d8Y7oCulUKvVEEURKpUKZwMoETIzqiml9jN5fc4AEOXDpk2bsGnTpldM97+c67oT3hfUaDQgpUR3dzccJ1MPYVEKZeI78IKrbixLgycAAnwCgCgPtmzZgueff36vgz+AtgfwKIqwdevWcdUgMikTAQBCnGnyR0kIwQBAlHFjY2N47rnnxv3vu5P4TJBSYmRkpO2vJ+qETAQA0xsAJ/ODTkTJp5TCxo0bJ3RXPtkp/GazibGxsUldg2gyMhEATG8A9BkAiDLtqaeeQhRFE/qaTqzhj42NQSk16esQtSMrAWB/k9fnBkCi7Go0Gm1Nx3diDX/HY4JENqQ+AFx49eqSyVcAA3wEkCjLNm3a1NbX7e0RwfHa8WQAUdxSHwA0cIbpGpwBIMqmHc/nt/u1ndJsNjt2LaLxSn8A0HrQ5PVdvtyDKLOGh4fbHsg7edfOAEA2pD4AKKWON3l93v0TZddk1t+llB17lj+KIm4GpNhlIQDsb/L6XP8nyq4wDCf19Xt6T8BETfQpBKLJSnUAOP+qG4tSyS6TNTgDQJRdk53G7+Rz/JwBoLilOgAIIc4wfZomTwAkyiat9aQDgFKqY+v3PBqY4pbqAGB6A6AQgqcAEmVUpzbxdWoWgDMAFLdUBwDjGwA5+BNl1kTf5Lc7YRh25DAfPm1EcUt7AJhv8vpc/yfKtk7N8I2Ojk56QyFfD0xxS+133AVXry5IpcxuAOQMAFGmdXKJb9u2bZOaxmcAoLil+Tvu9aY3zfARQKJs69QyANBaw9+6dWvbewu434jiltoAYHoDIMAlAKKs6+rq7CRiFEUYHh6e8JMBrusyAFDsUhsAlFavMXl9HgFMlH29vb0dn3rXWmPr1q0T2hgYBEFHeyAaj/QGAGl6AyCn/4myznEclMtlI9ceHR3Fli1bMDY2ttdn/BkAyIZUBoB3vP+GQCrVbbIGNwAS5cO0adOMXVtKiVqths2bN6NWqyGKoleEgSAIeMNBVqTyu851nNONbwDk+j9RLhQKBZRKpY4e6/tyWmuMjY3trOE4zs51/7lz5xqrS7QnqZwBUFqfbroGZwCI8mPOnDmxbsJTSiEMQ5RKJd79kzUpDQBmNwDyCGCifPE8D7Nnz45142+pVMKMGTNiq0f0cukMAFIdYPL6vPsnyp9KpYJqtRpLLc/zOPVP1qUuAFxw9Y2+8Q2AXP8nyqVp06ahp6fHaA3P8zBv3jzOMpJ1qVt8EhCDPAGQiEyZPXs2SqUSnnvuuY6/oa9cLmPu3Lk89pcSIXUjndL69aZrcAaAKN/6+vpQKpWwcePGCZ/qtytCCFSrVaOPHBJNVAoDgNkNgAD3ABBR6/HA+fPnY/PmzXjhhRfaCgKO46CrqwvTpk2D7/sGuiRqX/oCgDK7AdB1eQQwEb2oWq2iWq1ibGwMw8PDqNVqe3zhj+M4CIIAPT09Ro4aJuqUVAWAi675sCel6RMAU/VHQkQxKZVKKJVKAFoH+zSbTTSbTYRhCNd1EQQBgiDg5j5KjVSNdlrrAa210dtzrv8T0d4IIVAoFFAoFGy3QtS2VM1NKa3PMF2D6/9ERJQHqQoAWqvXmq7BJQAiIsqDVAUAaXgDYOsI4FT9kRAREbUlNaPdO95/gyulMnpEF6f/iYgoL1Iz3+06TuY3AGoNRDKCAPiGMCIiMio1o0w8GwDt/HGMNRoYqzcQRdHOvydEq59yqYhCEFjpi4iIsis1ASCWDYAxzwAopbC1VkOzGb7in2kNhFGEF7aNoFgI0F2p8IAiIiLqmNTsAZBKvcp0jTj3AGgNDG/dtsvB/+XqjSaGt22LoSsiIsqLVASAODYAuq4b6x12bWwU0R6OE325MIwwWq8b7IiIiPIkFQHAdZ0VxjcAxnj3L6XE6NjEB/Pa6BiU4VchExFRPqQiAGilV5quEef6f/iSzX4TobX+o42CRERE7UpFAFBan2C6RpwzAO0GgMl+LRER0Q6pCACxbACM8bn7iaz9v+Jro/a/loiIaIfEB4CLrvmwI6XsNVlDCAE3znd2cxmfiIgsS3wA0NDLs34CIBERUdySHwDi2ADINwASEVHOJD4AKK37TdfgS4CIiChvEh8ApFILTNfgEgAREeVNogNAHBsAAc4AEBFR/iQ6AGjoZaY3AMZ9BDAREVESJDsAxLIBkHf/RESUP4kOALGcAMj1fyIiyqFkBwClDjRdg48AEhFRHiV29Dv7imuFEKLPdB3OABARUR4ldgagXCouMb0BMPYjgImIiBIisaOf1vpM0zV4909ERHmV2ACgVBwnACZ2BYSIiMioBAcA8xsAfc4AEBFRTiU2AERSTjFdg2cAEBFRXiVyDvzS625YWnCk8eP5Cp4DIbTpMq/AcweJiMi2RAaAM6pP/+/53gtGaziuQLnynNEau3PraBVPRL6V2kREREBClwD63ObBpms4gtP/RESUX4kMABUnqpiu4biciCciovxKZAAIEBkfnR03kb91IiKiWCRuFLzzo5dfAW1+Y57DEwCJiCjHEjcK9rjRBcaLCMBxuARARET5lcAA0DC/AZB3/0RElHOJGwkrTthlugbv/omIKO8SFwACmD8AiDMARESUd4kaCb+45vLLuAGQiIjIvESNhF0ivDCOOi7PACAiopxLVADoccNDTdcQAhCcASAiopxL1EjY5TRj2ADII4CJiIgSFQDi2AAoOP1PRESUnABw15rLL+EGQCIiongkZjTsEuElcdThGQBEREQJCgDdMWwABDgDQEREBCQpAMRwAqDgOwCIiIgAJCgA+IiM98K7fyIiopZEjIh33XzZxbFsAHQT8dslIiKyLhEjYpcTxbQBMBG/XSIiShfzd6gWJGJE7HbDhXHU4QwAxW10rB5LHR3DDBpRjr1guwETEjEidsWwARAAXG4ApJhtGo7nc0MpFUsdopzaaLsBExIRAAoxbAAUQrQeAyCK0dPPbY6ljpQyljpEOfVb2w2YYD0A/OOad10Qx/Qlp//JhrFGA2FkfnAOw5DLAETmfNN2AyZYHxXLQl4aRx0+/0+2/P4PT8dSp9lsxlKHKGceB/BD202YYD0AdLvh4XHU4QwA2fJv/3U/VAx356Ojo5wFIOq8K6rVaiZ/sKyPinFtAOQMANkilcLd//nfAMx+DyqlUKvVjNYgypnPVKvVTE7/AwkIAHFsAAQAl2cAkEWPPLERTzz9nPE6jUaDSwFEnfEkgPfbbsIkq6PiV26+7NxYNgA6fAKA7Pv6t7+PZgwbAmu1Gh8LJJqcGoDzq9VqJp//38FqAAic6LI46vAEQEoCpRQ+edfX8NjGZ1uPpRqsMzw8jHo9nkOIiDLmewCOrFar37HdiGlWR8YuJzwsjjqCGwApITRaMwFf+/Z/QSpzs19aa9RqNWzdupWzAUTjM4bWlP+SarX6iO1m4mB1ZCw6sjuOOpwBoKR57A9P4+/u+hp+8bvHUG+GxmYEwjDE8PAwarUawjA0UoMo5R4E8JcAjqhWq5/I6o7/XfFsFi8I6cbxigUeAUyTMaW7gtnTp2BqTxcqpWJn9/LrCE88/jgAoFgsolgswnOdju5ZEQCUbs0+aKURKQWlFB8ZpHHr7ir/NvC8zDxiorXWURQ1wzBsKqUkgJO3/+pYCQCPoXV+wA8B/LS/v7/Rwet3hLD1IXDRNR8O3jf7Vw3TL1kSACrdZdNPYE3IrQ9X8cSo39bXFoIAvd2xPDmZe4fsNwevmjsTaX4RWLFYRBAERvccENFeNQHcCeD9/f39idlYaG1ufEFl5Mw4PliFIxI1+FOvS73tAAAFDUlEQVTylQo+Vhx/BF41dwbSOvi7rouuri4UCgUO/kT2BQAuBPDgvffeO2C7mR2sBYBZfv2sOOrwBECaiBlTerHs1Yej4Lu2W2mb7/uoVCpw3fT+Hogyah6Ab9177703224EsBgAetzwmDjq8ARAGi/HEXj1ofOBFK+NO46DUqnEu36iZLs+CTMB1gJAtxvOiqOOw7sgGqfXHnZgqleLhBAol8sc/InS4bZ7772312YD1gJAxYlKcdThI4A0HnOnVzG1p2K7jUkJgoDT/kTpMQ/Ax202YG10DISK5TaFN0M0Hgv2mZX6x+KCILDdAhFNzNvvvfdeaz+41gKAgojleLKUf6ZTTEqF9h7LTAohBKf+idInAHCEreLWAoAE4jmflAmAxsFL+VKR67oMAETpdJytwvZmALQw/1o0IPXTumTetL7u1H+fcO2fKLXyFwAi7cRzMDlvimgvSoWC7RYmjXf/RKk1zVZhawFgRPuPxlFHyXTf2ZF522qjtluYNL7xjyi1nrJV2FoAGJXeujjqSH4w0l68wABARPbkLwBs9b2PxzFpqSJ+MNKeaY3UPy+a9j0MRDm20VZhawHg0mvWbomEZ/xTq/XaU9NVKO3CKJY9qcbw9b5EqXWvrcJWn316VpaejKOOTPmHO5n39ObEvKGzLVprRFFkuw0impiH+/v7H7JV3GoAeKZZfF8cE69hyA9G2rPfPP607RYmLQzjebCGiDrm6zaLWw0A7/jQrV9twDd+ey4jyU1StEdjjQYile4p9CiKuAxAlC5fslnc+vFnL+ji9XHUaTZ4d0R79uDvnkj18/RaazSbTdttENH4fKW/v//HNhuwHgCWX3P7XzdEYcR0nSiS0Cm/wyOz/vDcZtRTvlxUr9c5C0CUfBGAD9huwnoAAADXc082/hiWBsbGGvxwpD368UOxnE9lVL1et90CEe3Zrf39/b+x3UQiAsCx77njJz+szfgIhNl2lFRo1LkUQLu3eesIHnt6k+02JqXZbHJDIFFy/TeAa203ASQkAADAxTeuveH+sRlfNT0TEIURms10T/OSWQ8+8gS2jjZstzEpo6OjkJKPvxIlzJMAhvr7+xPxAZOYAAAAl3zoljf/Luz7vOk6zXoTjUYTXAyg3fmvn/4KjZSfH1Gr1fj0C1FyPAvgzP7+/sQ8c5yoAAAAQ9d96h1P6e5PaGH29aZhI0K91gCPCaRd0Rq45/6fY/O20dQ+GaC1xsjICA8IIrLvJwCO7+/vf8B2Iy+VuAAAAAPX3P7+Lz9/wKFPyp4tJj97pZQYrdV5UiDt1r0/fxi/efKZVIeA0dFRNBqJmHEkyqO7AJzU39//uO1GXk4kfVf85z+y6rQFxeGvdqFeMtmp4wr4fgDfdwHDn/W3PlzFE6N+W19bCAL0dnd1uCPam2Lg4/iFr0JvpZTaJ0kcx0GxWITvt/e9R0QTch+Aa/v7+79nu5HdSXwA2OFv//w9J80pjt0+2x99VUU3XVNdO0LADTx4rgPHdYzc+TEApFdfVxlHHbQ/ukuF1AYBz/MQBAE8z0vtzAZRQjUAfAfAp/v7+79iu5m9SU0AeKlv3HzZTOnIvysK+douJ6yWHBl4kI4AIKABaHRqh5/jOnB3hAEICEdAAK0PToG2PkAZALJhzvQpmD97BirFAlzXgeuIVIUCIQRc14XneXAcZ+cvhgKicdmC1q7+PwB4HMA9AL7V39+/zWpXE/D/AYVy+duNM+9eAAAAAElFTkSuQmCC'%20height='512'%20width='512'%20/%3e%3c/svg%3e";
-function handleQuickButtonClicked(e) {
-  console.log("Selected " + e);
-  addResponseMessage(e);
-  setTimeout(() => showNotification("You are now being connected to agent", { severity: "info" }), 1e3);
-  setQuickButtons([]);
-}
-async function handleSubmit({ text: text2, files }) {
-  if (text2 == "" && (!files || files.length <= 0)) {
-    return new Error("Uh oh, please write a bit more.");
-  }
-  if (text2 == "agent") {
-    showNotification("You are now being connected to agent", { severity: "info" });
-    setResponseUser({
-      avatar: [
-        hacker,
-        programmer
-      ],
-      name: "Escalate",
-      message: "2 people are online"
-    });
-    setResponseUser({
-      avatar: hacker,
-      name: "Support/HelpDesk",
-      message: "Online",
-      online: true
-    });
-    return;
-  }
-}
-function generateRandomString() {
-  return Math.random().toString(36).substring(2, 15);
-}
-function generateRandomGuestJid(host) {
-  const randomString = "guest-" + generateRandomString();
-  return `${randomString}@${host}`;
-}
-function generateRandomRoomJid(conference) {
-  const randomString = "room-" + generateRandomString();
-  return `${randomString}@${conference}`;
-}
-function startProcessingMsg(connection, roomJID, botUrl) {
-  joinMucRoom(connection, roomJID, "Customer");
-  joinBot(botUrl, roomJID, "Bot");
-  connection.addHandler(onMessage, "", "message", "");
-}
-function joinBot(apiUrl, jid, nickName) {
-  const finalUrl = `${apiUrl}?jid=${encodeURIComponent(jid)}&nickname=${encodeURIComponent(nickName)}`;
-  fetch(finalUrl, {
-    method: "GET",
-    mode: "no-cors"
-    // Use no-cors mode for bypassing CORS
-  }).then((response) => {
-    console.log("Request sent, but response cannot be read due to no-cors mode.", response);
-  }).catch((error2) => {
-    console.error("Error during API call:", error2);
-  });
-}
-function joinMucRoom(connection, roomJid, nickname) {
-  if (nickname.trim() === "") {
-    console.error("Nickname is required to join the room.");
-    return;
-  }
-  const fullRoomJid = `${roomJid}/${nickname}`;
-  const presenceStanza = $build("presence", { to: fullRoomJid }).c("x", { xmlns: "http://jabber.org/protocol/muc" });
-  connection.send(presenceStanza);
-  console.log(`Joined room: ${roomJid} as ${nickname}`);
-}
-function onMessage(message2) {
-  var _a2, _b, _c, _d;
-  const fromJid = message2.getAttribute("from");
-  const type = message2.getAttribute("type");
-  const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
-  if (fromJid && fromJid.split("/")[1] == "Customer") {
-    console.debug(`Ignoring message from self: ${fromJid}`);
-    return true;
-  }
-  if (type == "groupchat" && body && body.length > 0) {
-    toggleMsgLoader();
-    const apiResponse = decodeHtmlEntities(body);
-    const obj = JSON.parse(apiResponse);
-    console.log("api response", obj);
-    if ((obj == null ? void 0 : obj.type) == "text") {
-      addResponseMessage((_a2 = obj == null ? void 0 : obj.data) == null ? void 0 : _a2.summary);
-    } else if ((obj == null ? void 0 : obj.type) == "carousel") {
-      console.log(obj);
-      const productArray = (_c = (_b = obj.data) == null ? void 0 : _b.products) == null ? void 0 : _c.map((product) => ({
-        link: product.url,
-        image: product.image_url,
-        title: truncateText(product.title, 30),
-        price: product["Variant Price"],
-        category: product.category,
-        color: product.Color,
-        description: truncateText(product.description, 30)
-      }));
-      addCarouselMessage(productArray, (_d = obj == null ? void 0 : obj.data) == null ? void 0 : _d.summary);
-    }
-    return true;
-  } else if (type == "error") {
-    toggleMsgLoader();
-    addResponseMessage("Something Went Wrong");
-    return true;
-  } else {
-    console.debug("onMessage -> to ", message2.getAttribute("to"));
-    console.debug("onMessage -> from ", fromJid);
-    console.debug("onMessage -> type ", type);
-    console.debug("onMessage -> body ", body);
-  }
-  return true;
-}
-function decodeHtmlEntities(str) {
-  return str.replace(/&quot;/g, '"');
-}
-const truncateText = (text2, maxLength) => {
-  return text2.length > maxLength ? text2.slice(0, maxLength) + "..." : text2;
-};
-function sendMessage(connection, message2, roomJid) {
-  if (connection) {
-    const messageStanza = $build("message", {
-      type: "groupchat",
-      // Use 'groupchat' for MUC rooms
-      to: roomJid
-      // Room JID
-    }).c("body").t(message2);
-    connection.send(messageStanza);
-    console.log(`Sent message to room: ${message2} for room ${roomJid}`);
-  } else {
-    console.error("Connection is not established.");
-  }
-}
-function initializeWebSocket(userJID, roomJID, wsUrl, botAPIUrl) {
-  const connection = new Strophe.Connection(wsUrl);
-  connection.connect(userJID, "", function(status) {
-    onConnect(status, connection, roomJID, botAPIUrl);
-  });
-  return connection;
-}
-function onConnect(status, connection, roomJid, botAPIUrl) {
-  switch (status) {
-    case Strophe.Status.CONNECTING:
-      console.log("Connecting...");
-      toggleInputDisabled();
-      break;
-    case Strophe.Status.CONNFAIL:
-      console.log("Connection failed!");
-      toggleInputDisabled();
-      break;
-    case Strophe.Status.DISCONNECTING:
-      console.log("Disconnecting...");
-      toggleInputDisabled();
-      break;
-    case Strophe.Status.CONNECTED:
-      console.log("Connected to the server");
-      toggleInputDisabled();
-      startProcessingMsg(connection, roomJid, botAPIUrl);
-      break;
-    case Strophe.Status.DISCONNECTED:
-      console.log("Disconnected from the server");
-      toggleInputDisabled();
-      break;
-    case Strophe.Status.AUTHFAIL:
-      console.log("Authentication failed!");
-      toggleInputDisabled();
-      break;
-  }
-}
-function onResize(w2, h) {
-  console.log("@@@Resize", w2, h);
-}
-function handleToggle(isPopup) {
-  if (!isPopup) return void 0;
-  return async (isOpened) => {
-    console.log("@@@handleToggle", isOpened);
-    if (isOpened) {
-      await new Promise((done) => setTimeout(done, 0));
-    }
-    return true;
-  };
-}
 function Root({
   wsUrl,
   botAPIUrl,
@@ -52641,49 +52693,11 @@ function Root({
     if (files && files.length > 0) {
       console.log("This is a file with props as", files);
     }
+    if (text2 == "agent") {
+      return;
+    }
     if (text2 == "sample") {
-      addCarouselMessage([
-        {
-          "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-1.jpg",
-          "link": "https://beatsmate.in/products/wired-headphones-3-5mm-sport-earbuds-with-bass-phone-earphones-stereo-headset-with-mic-volume-control-music-earphones",
-          "text": "Audio-Technica ATH-M50x Professional Studio Monitor Headphones"
-        },
-        {
-          "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-3.jpg",
-          "link": "https://beatsmate.in/products/wired-earphones-with-microphone-3-5mm-earphones-plug-in-ear-headphones-music-earplugs-ergonomic-headphones-for-smartphones",
-          "text": "Vintage cameras and accessories for the modern photographer"
-        },
-        {
-          "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-3.jpg",
-          "link": "https://beatsmate.in/products/wired-earphones-with-microphone-3-5mm-earphones-plug-in-ear-headphones-music-earplugs-ergonomic-headphones-for-smartphones",
-          "text": "Vintage cameras and accessories for the modern photographer"
-        },
-        {
-          "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-3.jpg",
-          "link": "https://beatsmate.in/products/wired-earphones-with-microphone-3-5mm-earphones-plug-in-ear-headphones-music-earplugs-ergonomic-headphones-for-smartphones",
-          "text": "Vintage cameras and accessories for the modern photographer"
-        },
-        {
-          "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-3.jpg",
-          "link": "https://beatsmate.in/products/wired-earphones-with-microphone-3-5mm-earphones-plug-in-ear-headphones-music-earplugs-ergonomic-headphones-for-smartphones",
-          "text": "Vintage cameras and accessories for the modern photographer"
-        }
-      ], "We have a range of orange and black earbuds available. These models come with features like Environmental Noise Cancellation (ENC) and low-latency modes, perfect for both casual listening and gaming experiences. Please check our website for specific models and their details!");
-      setQuickButtons([{ label: "Connect To Agent", value: "connect to agent" }, {
-        label: "Quote Of the Day",
-        value: "Quote Of the Day"
-      }]);
-      const bottom = {
-        "T&C": () => {
-          toggleMsgLoader();
-          addResponseMessage("T&C");
-          sendMessage(connection, "T&C", roomJID);
-        },
-        "About SysMog": () => addResponseMessage("About SysMog")
-      };
-      showSuggestions({}, bottom);
-      addLinkSnippet({ link: "https://sysmog.com", title: "SysMog Link Snippet" });
-      addResponseMessage("![SysMog Image Snippet](https://reactnative.dev/img/header_logo.svg)");
+      showSamples(connection, roomJID);
     } else {
       toggleMsgLoader();
       setTimeout(() => setMessageStatus(id, "sent", {}), 500);
@@ -52691,6 +52705,31 @@ function Root({
       setTimeout(() => sendMessage(connection, text2, roomJID ?? ""), 2e3);
     }
   };
+  async function handleSubmit({ text: text2, files }) {
+    connectionRef.current;
+    roomJIDRef.current;
+    if (text2 == "" && (!files || files.length <= 0)) {
+      return new Error("Uh oh, please write a bit more.");
+    }
+    if (text2 == "agent") {
+      showNotification("You are now being connected to agent", { severity: "info" });
+      setResponseUser({
+        avatar: [
+          hacker,
+          programmer
+        ],
+        name: "Escalate",
+        message: "2 people are online"
+      });
+      setResponseUser({
+        avatar: hacker,
+        name: "Support/HelpDesk",
+        message: "Online",
+        online: true
+      });
+      return;
+    }
+  }
   useEffect(() => {
     setStatusLocale("en");
     setVoiceLocale("en");
