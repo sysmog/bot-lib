@@ -10,7 +10,7 @@ var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot
 var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 var _nodeTree, _node, _name, _attrs, _string, _strings, _values;
 import * as React from "https://esm.sh/react";
-import React__default, { useMemo, useRef, useSyncExternalStore, useCallback, useLayoutEffect, useEffect, useDebugValue, forwardRef, useState, useImperativeHandle, useContext, isValidElement, cloneElement, Children, createContext, createElement, memo, Fragment, Suspense, createRef, Component as Component$1, useReducer } from "https://esm.sh/react";
+import React__default, { useState, useCallback, useMemo, useRef, useSyncExternalStore, useLayoutEffect, useEffect, useDebugValue, forwardRef, useImperativeHandle, useContext, isValidElement, cloneElement, Children, createContext, createElement, memo, Fragment, Suspense, createRef, Component as Component$1, useReducer } from "https://esm.sh/react";
 import * as ReactDOM from "https://esm.sh/react-dom";
 import ReactDOM__default from "https://esm.sh/react-dom";
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
@@ -67,6 +67,30 @@ function requireJsxRuntime() {
   return jsxRuntime.exports;
 }
 var jsxRuntimeExports = requireJsxRuntime();
+const ROOM_STORAGE_KEY = "room_jid";
+const GUEST_STORAGE_KEY = "guest_jid";
+function useChatStorage() {
+  const [roomJID, setRoomJID] = useState(() => localStorage.getItem(ROOM_STORAGE_KEY));
+  const [guestJID, setGuestJID] = useState(() => localStorage.getItem(GUEST_STORAGE_KEY));
+  const saveRoomJID = useCallback((jid) => {
+    localStorage.setItem(ROOM_STORAGE_KEY, jid);
+    setRoomJID(jid);
+  }, []);
+  const saveGuestJID = useCallback((jid) => {
+    localStorage.setItem(GUEST_STORAGE_KEY, jid);
+    setGuestJID(jid);
+  }, []);
+  const getRoomJID = useCallback(() => roomJID, [roomJID]);
+  const getGuestJID = useCallback(() => guestJID, [guestJID]);
+  return {
+    roomJID,
+    saveRoomJID,
+    getRoomJID,
+    guestJID,
+    saveGuestJID,
+    getGuestJID
+  };
+}
 const TRACK_MEMO_SYMBOL = Symbol();
 const GET_ORIGINAL_SYMBOL = Symbol();
 const AFFECTED_PROPERTY = "a";
@@ -44087,6 +44111,16 @@ const MESSAGES_TYPES = {
   CUSTOM_COMPONENT: "component",
   CAROUSEL: "carousel"
 };
+const CHAT_TYPES = {
+  GROUPCHAT: "groupchat",
+  CHAT: "chat",
+  ERROR: "error"
+};
+const LOCAL_STORAGE = {
+  CHAT_HISTORY: "chatHistory",
+  SENT: "sent",
+  RECEIVED: "received"
+};
 const MESSAGE_BOX_SCROLL_DURATION = 400;
 const ref = (v2) => ref$1(v2);
 function createNewMessage(text2, sender, id, status, props, overrides) {
@@ -44201,6 +44235,40 @@ function addCarouselMessage(items, summary, id, props) {
     createCarouselMessage(items, summary, id, props)
     // Ensure correct parameter order
   ];
+}
+const byteToHex = [];
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 256).toString(16).slice(1));
+}
+function unsafeStringify(arr, offset = 0) {
+  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+}
+let getRandomValues;
+const rnds8 = new Uint8Array(16);
+function rng() {
+  if (!getRandomValues) {
+    if (typeof crypto === "undefined" || !crypto.getRandomValues) {
+      throw new Error("crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported");
+    }
+    getRandomValues = crypto.getRandomValues.bind(crypto);
+  }
+  return getRandomValues(rnds8);
+}
+const randomUUID = typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID.bind(crypto);
+const native = { randomUUID };
+function v4(options, buf, offset) {
+  var _a2;
+  if (native.randomUUID && true && !options) {
+    return native.randomUUID();
+  }
+  options = options || {};
+  const rnds = options.random ?? ((_a2 = options.rng) == null ? void 0 : _a2.call(options)) ?? rng();
+  if (rnds.length < 16) {
+    throw new Error("Random bytes length must be >= 16");
+  }
+  rnds[6] = rnds[6] & 15 | 64;
+  rnds[8] = rnds[8] & 63 | 128;
+  return unsafeStringify(rnds);
 }
 function getWebSocketImplementation() {
   if (typeof globalThis.WebSocket === "undefined") {
@@ -48754,17 +48822,18 @@ globalThis.Strophe = Strophe;
 globalThis.stx = stx;
 Stanza.toElement;
 globalThis.toStanza = Stanza.toElement;
-function joinMucRoom(connection, roomJid, nickname) {
+function addGuestToRoom(connection, roomJid, nickname) {
   if (nickname.trim() === "") {
     console.error("Nickname is required to join the room.");
     return;
   }
-  const fullRoomJid = `${roomJid}/${nickname}`;
+  const uniqueResource = Math.random().toString(36).substring(2, 8);
+  const fullRoomJid = `${roomJid}/${nickname}-${uniqueResource}`;
   const presenceStanza = $build("presence", { to: fullRoomJid }).c("x", { xmlns: "http://jabber.org/protocol/muc" });
   connection.send(presenceStanza);
-  console.log(`Joined room: ${roomJid} as ${nickname}`);
+  console.log(`Joined room: ${roomJid} as ${nickname}-${uniqueResource}`);
 }
-function joinBot(apiUrl, jid, nickName) {
+function addBotToRoom(apiUrl, jid, nickName) {
   const finalUrl = `${apiUrl}?jid=${encodeURIComponent(jid)}&nickname=${encodeURIComponent(nickName)}`;
   fetch(finalUrl, {
     method: "GET",
@@ -48782,7 +48851,12 @@ function decodeHtmlEntities(str) {
 const truncateText = (text2, maxLength) => {
   return text2.length > maxLength ? text2.slice(0, maxLength) + "..." : text2;
 };
+function isCustomerJid(fromJid, prefix2 = "Customer") {
+  const resource = fromJid == null ? void 0 : fromJid.split("/")[1];
+  return resource ? new RegExp(`^${prefix2}.*`).test(resource) : false;
+}
 function sendMessage(connection, message2, roomJid) {
+  console.log(`Sending message: ${message2} to room ${roomJid}`);
   if (connection) {
     const messageStanza = $build("message", {
       type: "groupchat",
@@ -48832,6 +48906,58 @@ function onConnect(status, connection, roomJid, botAPIUrl) {
       break;
   }
 }
+function onMessage(message2, connection) {
+  const fromJid = message2.getAttribute("from");
+  const msgType = message2.getAttribute("type");
+  const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
+  message2.getAttribute("to");
+  if (isCustomerJid(fromJid, "Customer")) {
+    console.debug(`Ignoring message from self: ${fromJid}`);
+    const id = v4();
+    toggleMsgLoader();
+    setTimeout(() => setMessageStatus(id, "sent", {}), 100);
+    setTimeout(() => setMessageStatus(id, "read"), 150);
+    addUserMessage(body, { id, status: "sent" });
+    return true;
+  }
+  handleChatMessage(msgType, body);
+  return true;
+}
+function handleChatMessage(msgType, body) {
+  var _a2, _b, _c, _d;
+  if (msgType == CHAT_TYPES.CHAT && body && body.length > 0) {
+    const agentJID = body.split(":")[1];
+    console.log("onMessage -AgentJID>", agentJID);
+    showNotification("Request To Join", { severity: "info" });
+    return;
+  } else if (msgType == CHAT_TYPES.GROUPCHAT && body && body.length > 0) {
+    toggleMsgLoader();
+    const apiResponse = decodeHtmlEntities(body);
+    const msgObj = JSON.parse(apiResponse);
+    if ((msgObj == null ? void 0 : msgObj.type) == MESSAGES_TYPES.TEXT) {
+      addResponseMessage((_a2 = msgObj == null ? void 0 : msgObj.data) == null ? void 0 : _a2.summary);
+    } else if ((msgObj == null ? void 0 : msgObj.type) == MESSAGES_TYPES.CAROUSEL) {
+      const productArray = (_c = (_b = msgObj.data) == null ? void 0 : _b.products) == null ? void 0 : _c.map((product) => ({
+        link: product.url,
+        image: product.image_url,
+        title: truncateText(product.title, 30),
+        price: product["Variant Price"],
+        category: product.category,
+        color: product.Color,
+        description: truncateText(product.description, 30)
+      }));
+      addCarouselMessage(productArray, (_d = msgObj == null ? void 0 : msgObj.data) == null ? void 0 : _d.summary);
+      return;
+    }
+  } else if (msgType == CHAT_TYPES.ERROR) {
+    console.debug("onMessage -> error ", body);
+    return;
+  } else {
+    console.debug("onMessage -> type ", msgType);
+    console.debug("onMessage -> body ", body);
+    return;
+  }
+}
 function onResize(w2, h) {
   console.log("@@@Resize", w2, h);
 }
@@ -48845,54 +48971,6 @@ function handleToggle(isPopup) {
     return true;
   };
 }
-function onMessage(message2) {
-  var _a2, _b, _c, _d;
-  const fromJid = message2.getAttribute("from");
-  const type = message2.getAttribute("type");
-  const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
-  if (fromJid && fromJid.split("/")[1] == "Customer") {
-    console.debug(`Ignoring message from self: ${fromJid}`);
-    return true;
-  }
-  if (type == "groupchat" && body && body.length > 0) {
-    toggleMsgLoader();
-    const apiResponse = decodeHtmlEntities(body);
-    const obj = JSON.parse(apiResponse);
-    console.log("api response", obj);
-    if ((obj == null ? void 0 : obj.type) == "text") {
-      addResponseMessage((_a2 = obj == null ? void 0 : obj.data) == null ? void 0 : _a2.summary);
-    } else if ((obj == null ? void 0 : obj.type) == "carousel") {
-      console.log(obj);
-      const productArray = (_c = (_b = obj.data) == null ? void 0 : _b.products) == null ? void 0 : _c.map((product) => ({
-        link: product.url,
-        image: product.image_url,
-        title: truncateText(product.title, 30),
-        price: product["Variant Price"],
-        category: product.category,
-        color: product.Color,
-        description: truncateText(product.description, 30)
-      }));
-      addCarouselMessage(productArray, (_d = obj == null ? void 0 : obj.data) == null ? void 0 : _d.summary);
-    }
-    return true;
-  } else if (type == "error") {
-    toggleMsgLoader();
-    addResponseMessage("Something Went Wrong");
-    return true;
-  } else {
-    console.debug("onMessage -> to ", message2.getAttribute("to"));
-    console.debug("onMessage -> from ", fromJid);
-    console.debug("onMessage -> type ", type);
-    console.debug("onMessage -> body ", body);
-  }
-  return true;
-}
-function handleQuickButtonClicked(e) {
-  console.log("Selected " + e);
-  addResponseMessage(e);
-  setTimeout(() => showNotification("You are now being connected to agent", { severity: "info" }), 1e3);
-  setQuickButtons([]);
-}
 function generateRandomString() {
   return Math.random().toString(36).substring(2, 15);
 }
@@ -48905,40 +48983,9 @@ function generateRandomRoomJid(conference) {
   return `${randomString}@${conference}`;
 }
 function startProcessingMsg(connection, roomJID, botUrl) {
-  joinMucRoom(connection, roomJID, "Customer");
-  joinBot(botUrl, roomJID, "Bot");
-  connection.addHandler(onMessage, "", "message", "");
-  fetchMUCChatHistory(connection, "guest-djiwnpm1qni@dev.sysmog.com", function(err, response) {
-    if (err) {
-      console.error("Error fetching history:", err);
-    } else {
-      console.log("Chat History Response:", response);
-    }
-  });
-}
-function fetchMUCChatHistory(connection, withJid, callback) {
-  const iqId = connection.getUniqueId("mam");
-  const iq = $iq({
-    type: "set",
-    id: iqId
-  }).c("query", {
-    xmlns: "urn:xmpp:mam:2"
-  }).c("x", {
-    xmlns: "jabber:x:data",
-    type: "submit"
-  }).c("field", {
-    var: "FORM_TYPE",
-    type: "hidden"
-  }).c("value").t("urn:xmpp:mam:2").up().up().c("field", {
-    var: "with"
-  }).c("value").t(withJid).up().up();
-  connection.sendIQ(iq, function(response) {
-    console.log("MAM history received:", response);
-    callback(null, response);
-  }, function(error2) {
-    console.error("Error fetching MAM history:", error2);
-    callback(error2, null);
-  });
+  addBotToRoom(botUrl, roomJID, "Bot");
+  addGuestToRoom(connection, roomJID, "Customer");
+  connection.addHandler((msg) => onMessage(msg), "", "message", "");
 }
 function showSamples(connection, roomJID) {
   addCarouselMessage([
@@ -52531,44 +52578,10 @@ const mergeProps = (...items) => {
   }
   return w2;
 };
-const byteToHex = [];
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 256).toString(16).slice(1));
-}
-function unsafeStringify(arr, offset = 0) {
-  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
-}
-let getRandomValues;
-const rnds8 = new Uint8Array(16);
-function rng() {
-  if (!getRandomValues) {
-    if (typeof crypto === "undefined" || !crypto.getRandomValues) {
-      throw new Error("crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported");
-    }
-    getRandomValues = crypto.getRandomValues.bind(crypto);
-  }
-  return getRandomValues(rnds8);
-}
-const randomUUID = typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID.bind(crypto);
-const native = { randomUUID };
-function v4(options, buf, offset) {
-  var _a2;
-  if (native.randomUUID && true && !options) {
-    return native.randomUUID();
-  }
-  options = options || {};
-  const rnds = options.random ?? ((_a2 = options.rng) == null ? void 0 : _a2.call(options)) ?? rng();
-  if (rnds.length < 16) {
-    throw new Error("Random bytes length must be >= 16");
-  }
-  rnds[6] = rnds[6] & 15 | 64;
-  rnds[8] = rnds[8] & 63 | 128;
-  return unsafeStringify(rnds);
-}
 function Widget({
   layoutProps,
   handleNewUserMessage,
-  handleQuickButtonClicked: handleQuickButtonClicked2,
+  handleQuickButtonClicked,
   handleTextInputChange,
   disableRichTextInput,
   handleToggle: handleToggle2,
@@ -52617,12 +52630,11 @@ function Widget({
         return;
       }
     }
-    addUserMessage(msgText, { id, status: "prepare", props: { files, replyMessage } });
     return handleNewUserMessage == null ? void 0 : handleNewUserMessage({ id, text: text2, files, replyMessage });
   };
   const onQuickButtonClicked = (event, value) => {
     event.preventDefault();
-    handleQuickButtonClicked2 == null ? void 0 : handleQuickButtonClicked2(value);
+    handleQuickButtonClicked == null ? void 0 : handleQuickButtonClicked(value);
   };
   function defaultTextInputHandler(event) {
     const target = event.target;
@@ -52670,6 +52682,7 @@ function Root({
 }) {
   const connectionRef = useRef(null);
   const roomJIDRef = useRef("");
+  const { saveGuestJID, saveRoomJID, getGuestJID, getRoomJID } = useChatStorage();
   useEffect(() => {
     const r2 = document.querySelector(":root");
     primaryColor && r2.style.setProperty("--primary-color", primaryColor);
@@ -52682,6 +52695,33 @@ function Root({
     anchorBottom && r2.style.setProperty("--anchor-bottom", typeof anchorBottom === "number" ? `${anchorBottom}px` : anchorBottom);
     anchorRight && r2.style.setProperty("--anchor-right", typeof anchorRight === "number" ? `${anchorRight}px` : anchorRight);
   }, [primaryColor, messageClientColor, messageClientTextColor, messageResponseColor, messageResponseTextColor, headerPaddingTop, headerPaddingBottom, anchorBottom, anchorRight]);
+  useEffect(() => {
+    setStatusLocale("en");
+    setVoiceLocale("en");
+    addResponseMessage(startMsg);
+    setQuickButtons([{ label: "Connect To Agent", value: "connect to agent" }]);
+    if (getGuestJID() != null && getGuestJID() != null) {
+      const roomJID = getRoomJID();
+      const guestJID = getGuestJID();
+      if (roomJID && guestJID) {
+        console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
+        roomJIDRef.current = roomJID;
+        connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl);
+      }
+    } else {
+      if (isPopup) {
+        addToggleChatListener((state2) => console.log("@@@ addToggleChatListener", state2));
+        setPopupMessage(["Hey".repeat(1), "Looks like You are Lost".repeat(1), "Can I help ?".repeat(1)]);
+      }
+      const roomJID = generateRandomRoomJid(`conference.${host}`);
+      const guestJID = generateRandomGuestJid(host);
+      saveGuestJID(guestJID);
+      saveRoomJID(roomJID);
+      roomJIDRef.current = roomJID;
+      console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
+      connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl);
+    }
+  }, []);
   const handleNewUserMessage = ({ id, text: text2, files, replyMessage }) => {
     const connection = connectionRef.current;
     const roomJID = roomJIDRef.current;
@@ -52699,10 +52739,8 @@ function Root({
     if (text2 == "sample") {
       showSamples(connection, roomJID);
     } else {
-      toggleMsgLoader();
-      setTimeout(() => setMessageStatus(id, "sent", {}), 500);
-      setTimeout(() => setMessageStatus(id, "read"), 1500);
-      setTimeout(() => sendMessage(connection, text2, roomJID ?? ""), 2e3);
+      setTimeout(() => sendMessage(connection, text2, roomJID ?? ""), 10);
+      return;
     }
   };
   async function handleSubmit({ text: text2, files }) {
@@ -52730,18 +52768,14 @@ function Root({
       return;
     }
   }
-  useEffect(() => {
-    setStatusLocale("en");
-    setVoiceLocale("en");
-    if (isPopup) {
-      addToggleChatListener((state2) => console.log("@@@ addToggleChatListener", state2));
-      setPopupMessage(["Hey".repeat(1), "Looks like You are Lost".repeat(1), "Can I help ?".repeat(1)]);
-    }
-    const roomJID = generateRandomRoomJid(`conference.${host}`);
-    roomJIDRef.current = roomJID;
-    connectionRef.current = initializeWebSocket(generateRandomGuestJid(host), roomJID, wsUrl, botAPIUrl);
-    addResponseMessage(startMsg);
-  }, [wsUrl, isPopup, host, botAPIUrl, startMsg]);
+  function handleQuickButtonClicked(e) {
+    const connection = connectionRef.current;
+    const roomJID = roomJIDRef.current;
+    addResponseMessage(e);
+    setTimeout(() => showNotification("You are now being connected to agent", { severity: "info" }), 1e3);
+    setQuickButtons([]);
+    sendMessage(connection, e, roomJID);
+  }
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
     Widget,
     {
@@ -52811,7 +52845,9 @@ function Root({
   );
 }
 export {
+  CHAT_TYPES,
   Component,
+  LOCAL_STORAGE,
   MESSAGES_TYPES,
   MESSAGE_BOX_SCROLL_DURATION,
   MESSAGE_SENDER,
