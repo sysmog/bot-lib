@@ -48846,7 +48846,7 @@ function decodeHtmlEntities(str) {
 const truncateText = (text2, maxLength) => {
   return text2.length > maxLength ? text2.slice(0, maxLength) + "..." : text2;
 };
-function isSelfUserJid(fromJid, prefix2 = "Customer") {
+function isSelfUserJid(fromJid, prefix2 = "customer") {
   const resource = fromJid == null ? void 0 : fromJid.split("/")[1];
   return resource ? new RegExp(`^${prefix2}.*`).test(resource) : false;
 }
@@ -48914,39 +48914,46 @@ function onMessage(message2, connection, userType) {
   const msgType = message2.getAttribute("type");
   const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
   message2.getAttribute("to");
-  if (isSelfUserJid(fromJid, userType)) {
-    console.debug(`Ignoring message from self: ${fromJid}`);
+  if (body && body.length > 0) {
     const parsedObj = JSON.parse(decodeHtmlEntities(body));
-    toggleMsgLoader();
-    setTimeout(() => setMessageStatus(parsedObj.id, "sent", {}), 100);
-    setTimeout(() => setMessageStatus(parsedObj.id, "read"), 150);
-    addUserMessage(parsedObj.msg, { id: parsedObj.id, status: "sent" });
-    return true;
-  }
-  if (msgType == CHAT_TYPES.CHAT && body && body.length > 0) {
-    const apiResponse = decodeHtmlEntities(body);
-    const msgObj = JSON.parse(apiResponse);
-    if (msgObj.type == CHAT_TYPES.CONNECT_TO_AGENT) {
-      const roomJID = trimResourceSuffix(msgObj == null ? void 0 : msgObj.data.custom_props.roomJID, USER_TYPE.GUEST);
-      localStorage.setItem(ROOM_STORAGE_KEY, roomJID);
-      addUserToRoom(connection, roomJID, USER_TYPE.AGENT);
-      showNotification("Customer Joined", { severity: "info" });
+    console.log(`Received message from ${fromJid}: with msg type as ${msgType} having msg as ${decodeHtmlEntities(body)}`);
+    if (isSelfUserJid(fromJid, userType)) {
+      console.debug(`Ignoring message from self: ${fromJid}`);
+      toggleMsgLoader();
+      setTimeout(() => setMessageStatus(parsedObj.id, "sent", {}), 100);
+      setTimeout(() => setMessageStatus(parsedObj.id, "read"), 150);
+      addUserMessage(parsedObj.msg.toString(), { id: parsedObj.id, status: "sent" });
+      return true;
+    }
+    if (msgType == CHAT_TYPES.CHAT && body && body.length > 0) {
+      if (parsedObj.type == CHAT_TYPES.CONNECT_TO_AGENT) {
+        const roomJID = trimResourceSuffix(parsedObj.msg.data.custom_props.roomJID, USER_TYPE.GUEST);
+        localStorage.setItem(ROOM_STORAGE_KEY, roomJID);
+        addUserToRoom(connection, roomJID, USER_TYPE.AGENT);
+        showNotification("Customer Joined", { severity: "info" });
+      }
+      return true;
+    }
+    switch (parsedObj.type) {
+      case "received":
+        handleChatMessage(connection, msgType, parsedObj.msg);
+        break;
+      case "sent":
+        addUserMessage(parsedObj.msg.data.summary);
+        break;
     }
     return true;
   }
-  handleChatMessage(connection, msgType, body);
   return true;
 }
 function handleChatMessage(connection, msgType, body) {
   var _a2, _b, _c, _d;
-  if (msgType == CHAT_TYPES.GROUPCHAT && body && body.length > 0) {
+  if (msgType == CHAT_TYPES.GROUPCHAT) {
     toggleMsgLoader();
-    const apiResponse = decodeHtmlEntities(body);
-    const msgObj = JSON.parse(apiResponse);
-    if ((msgObj == null ? void 0 : msgObj.msg.type) == MESSAGES_TYPES.TEXT) {
-      addResponseMessage((_a2 = msgObj == null ? void 0 : msgObj.msg.data) == null ? void 0 : _a2.summary);
-    } else if ((msgObj == null ? void 0 : msgObj.msg.type) == MESSAGES_TYPES.CAROUSEL) {
-      const productArray = (_c = (_b = msgObj.msg.data) == null ? void 0 : _b.products) == null ? void 0 : _c.map((product) => ({
+    if (body.type == MESSAGES_TYPES.TEXT) {
+      addResponseMessage((_a2 = body.data) == null ? void 0 : _a2.summary);
+    } else if (body.type == MESSAGES_TYPES.CAROUSEL) {
+      const productArray = (_c = (_b = body.data) == null ? void 0 : _b.products) == null ? void 0 : _c.map((product) => ({
         link: product.url,
         image: product.image_url,
         title: truncateText(product.title, 30),
@@ -48955,7 +48962,7 @@ function handleChatMessage(connection, msgType, body) {
         color: product.Color,
         description: truncateText(product.description, 30)
       }));
-      addCarouselMessage(productArray, (_d = msgObj == null ? void 0 : msgObj.msg.data) == null ? void 0 : _d.summary);
+      addCarouselMessage(productArray, (_d = body.data) == null ? void 0 : _d.summary);
       return;
     }
   } else if (msgType == CHAT_TYPES.ERROR) {
