@@ -48877,9 +48877,6 @@ function addBotToRoom(apiUrl, jid, nickName) {
 function decodeHtmlEntities(str) {
   return str.replace(/&quot;/g, '"');
 }
-const truncateText = (text2, maxLength) => {
-  return text2.length > maxLength ? text2.slice(0, maxLength) + "..." : text2;
-};
 function isSelfUserJid(fromJid, prefix2 = "Customer") {
   const resource = fromJid == null ? void 0 : fromJid.split("/")[1];
   return resource ? new RegExp(`^${prefix2}.*`).test(resource) : false;
@@ -48941,7 +48938,6 @@ function startProcessingMsg(connection, roomJID, botUrl, userType) {
     setTimeout(() => {
       addBotToRoom(botUrl, roomJID, USER_TYPE.BOT);
     }, 1e3);
-    console.log("Guest is Waiting to be added");
   } else {
     console.log("Agent is Waiting to be added");
   }
@@ -48952,6 +48948,7 @@ function onMessage(message2, connection, userType) {
   const msgType = message2.getAttribute("type");
   const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
   message2.getAttribute("to");
+  console.log("onMessage -> ", message2);
   if (isSelfUserJid(fromJid, userType)) {
     console.debug(`Ignoring message from self: ${fromJid}`);
     const id = v4();
@@ -48961,45 +48958,19 @@ function onMessage(message2, connection, userType) {
     addUserMessage(body, { id, status: "sent" });
     return true;
   }
-  handleChatMessage(connection, msgType, body);
-  return true;
-}
-function handleChatMessage(connection, msgType, body) {
-  var _a2, _b, _c, _d;
   if (msgType == CHAT_TYPES.CHAT && body && body.length > 0) {
-    const roomJID = body.split(":")[1].split("/")[0].trim();
-    console.log("onMessage - Agent is Joining Into RoomJID ->", roomJID);
-    showNotification("Request To Join", { severity: "info" });
-    localStorage.setItem(ROOM_STORAGE_KEY, roomJID);
-    addUserToRoom(connection, roomJID, USER_TYPE.AGENT);
-    return;
-  } else if (msgType == CHAT_TYPES.GROUPCHAT && body && body.length > 0) {
-    toggleMsgLoader();
     const apiResponse = decodeHtmlEntities(body);
     const msgObj = JSON.parse(apiResponse);
-    if ((msgObj == null ? void 0 : msgObj.type) == MESSAGES_TYPES.TEXT) {
-      addResponseMessage((_a2 = msgObj == null ? void 0 : msgObj.data) == null ? void 0 : _a2.summary);
-    } else if ((msgObj == null ? void 0 : msgObj.type) == MESSAGES_TYPES.CAROUSEL) {
-      const productArray = (_c = (_b = msgObj.data) == null ? void 0 : _b.products) == null ? void 0 : _c.map((product) => ({
-        link: product.url,
-        image: product.image_url,
-        title: truncateText(product.title, 30),
-        price: product["Variant Price"],
-        category: product.category,
-        color: product.Color,
-        description: truncateText(product.description, 30)
-      }));
-      addCarouselMessage(productArray, (_d = msgObj == null ? void 0 : msgObj.data) == null ? void 0 : _d.summary);
-      return;
+    if (msgObj.type == "cta") {
+      console.log("onMessage -> cta ", body);
+      console.log("onMessage -> cta from ", fromJid);
     }
-  } else if (msgType == CHAT_TYPES.ERROR) {
-    console.debug("onMessage -> error ", body);
-    return;
-  } else {
-    console.debug("onMessage -> type ", msgType);
-    console.debug("onMessage -> body ", body);
-    return;
+    console.log("onMessage - Agent is Joining Into RoomJID ->", body);
+    showNotification("Request To Join", { severity: "info" });
+    return true;
   }
+  console.log("onMessage handler ->  ", message2);
+  return true;
 }
 function onResize(w2, h) {
   console.log("@@@Resize", w2, h);
@@ -52747,9 +52718,6 @@ function Root({
     setStatusLocale("en");
     setVoiceLocale("en");
     addResponseMessage(startMsg);
-    if (userType == USER_TYPE.GUEST) {
-      setQuickButtons([{ label: "Connect To Agent", value: "connect to agent" }]);
-    }
     saveUserType(userType);
     const storedTimestamp = getTimestamp();
     if (storedTimestamp) {
@@ -52777,6 +52745,7 @@ function Root({
       }
       if (userType == USER_TYPE.AGENT) {
         const guestJID = generateRandomJid(host, USER_TYPE.AGENT);
+        console.log("Initializing Web Socket with user", guestJID);
         connectionRef.current = initializeWebSocket(guestJID, "", wsUrl, botAPIUrl, userType);
       } else {
         const guestJID = generateRandomJid(host, USER_TYPE.GUEST);
@@ -52787,6 +52756,9 @@ function Root({
         roomJIDRef.current = roomJID;
         console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
         connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl, userType);
+        if (userType == USER_TYPE.GUEST) {
+          setQuickButtons([{ label: "Connect To Agent", value: "connect to agent" }]);
+        }
       }
     }
   }, []);
