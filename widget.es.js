@@ -124,7 +124,7 @@ function useChatStorage() {
     localStorage.setItem(TIMESTAMP_STORAGE_KEY, timeStamp2);
     setTimestamp(timeStamp2);
   }, []);
-  const clearTimestamp = useCallback(() => {
+  const clearStorage = useCallback(() => {
     localStorage.clear();
   }, []);
   const getRoomJID = useCallback(() => roomJID, [roomJID]);
@@ -140,7 +140,7 @@ function useChatStorage() {
     getGuestJID,
     getTimestamp,
     saveTimestamp,
-    clearTimestamp,
+    clearStorage,
     getUserType,
     saveUserType
   };
@@ -43952,7 +43952,7 @@ function ContextReaction() {
     return;
   }
   const handleReactionClick = (e) => {
-    console.log("handleReactionClick", e);
+    console.debug("handleReactionClick", e);
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { width: "fit-content" }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
     EmojiPicker$1,
@@ -48826,16 +48826,40 @@ function addUserToRoom(connection, roomJid, nickname) {
   const fullRoomJid = `${roomJid}/${nickname}-${uniqueResource}`;
   const presenceStanza = $build("presence", { to: fullRoomJid }).c("x", { xmlns: "http://jabber.org/protocol/muc" });
   connection.send(presenceStanza);
-  console.log(`Joined room: ${roomJid} as ${nickname}-${uniqueResource}`);
+  console.debug(`Joined room: ${roomJid} as ${nickname}-${uniqueResource}`);
 }
-function addBotToRoom(apiUrl, jid, nickName) {
-  const finalUrl = `${apiUrl}?jid=${encodeURIComponent(jid)}&nickname=${encodeURIComponent(nickName)}`;
-  fetch(finalUrl, {
+function addUsersToRoomV1(connection, roomJID, userNick, apiUrl, botNick) {
+  return new Promise((resolve, reject) => {
+    addUserToRoom(connection, roomJID, userNick);
+    connection.addHandler(
+      (stanza) => {
+        const from2 = stanza.getAttribute("from");
+        if (from2 && from2.startsWith(roomJID)) {
+          console.debug("User joined successfully:");
+          addBotToRoom(apiUrl, roomJID, botNick).then(() => {
+            console.debug("Bot added successfully.");
+          });
+          resolve();
+        }
+        return false;
+      },
+      "",
+      "presence",
+      "",
+      "",
+      ""
+    );
+    setTimeout(() => reject(new Error("Presence confirmation timeout")), 5e3);
+  });
+}
+function addBotToRoom(apiUrl, roomJID, nickName) {
+  const finalUrl = `${apiUrl}?jid=${encodeURIComponent(roomJID)}&nickname=${encodeURIComponent(nickName)}`;
+  return fetch(finalUrl, {
     method: "GET",
     mode: "no-cors"
     // Use no-cors mode for bypassing CORS
   }).then((response) => {
-    console.log("Request sent, but response cannot be read due to no-cors mode.", response);
+    console.debug("Request sent, but response cannot be read due to no-cors mode.", response);
   }).catch((error2) => {
     console.error("Error during API call:", error2);
   });
@@ -48851,7 +48875,7 @@ function isSelfUserJid(fromJid, prefix2 = "customer") {
   return resource ? new RegExp(`^${prefix2}.*`).test(resource) : false;
 }
 function sendMessage(connection, message2, roomJid) {
-  console.log(`Sending message: ${message2} to room ${roomJid}`);
+  console.debug(`Sending message: ${message2} to room ${roomJid}`);
   if (connection) {
     const messageStanza = $build("message", {
       type: "groupchat",
@@ -48871,45 +48895,44 @@ function initializeWebSocket(userJID, roomJID, wsUrl, botAPIUrl, userType) {
   });
   return connection;
 }
-function onConnect(status, connection, roomJid, botAPIUrl, userType) {
+function onConnect(status, connection, roomJID, botAPIUrl, userType) {
   switch (status) {
     case Strophe.Status.CONNECTING:
-      console.log("Connecting...");
+      console.debug("Connecting...");
       toggleInputDisabled();
       break;
     case Strophe.Status.CONNFAIL:
-      console.log("Connection failed!");
+      console.debug("Connection failed!");
       toggleInputDisabled();
       break;
     case Strophe.Status.DISCONNECTING:
-      console.log("Disconnecting...");
+      console.debug("Disconnecting...");
       toggleInputDisabled();
       break;
     case Strophe.Status.CONNECTED:
-      console.log("Connected to the server");
+      console.debug("Connected to the server");
       toggleInputDisabled();
-      startProcessingMsg(connection, roomJid, botAPIUrl, userType);
+      startProcessingMsg(connection, roomJID, botAPIUrl, userType);
       break;
     case Strophe.Status.DISCONNECTED:
-      console.log("Disconnected from the server");
+      console.debug("Disconnected from the server");
       toggleInputDisabled();
       break;
     case Strophe.Status.AUTHFAIL:
-      console.log("Authentication failed!");
+      console.debug("Authentication failed!");
       toggleInputDisabled();
       break;
   }
 }
 function startProcessingMsg(connection, roomJID, botUrl, userType) {
   if (userType == USER_TYPE.GUEST) {
-    addBotToRoom(botUrl, roomJID, USER_TYPE.BOT);
-    addUserToRoom(connection, roomJID, USER_TYPE.GUEST);
+    addUsersToRoomV1(connection, roomJID, USER_TYPE.GUEST, botUrl, USER_TYPE.BOT).then(() => console.log("Let the party begin"));
   } else {
-    console.log("Agent is Waiting to be added");
+    console.debug("Agent is Waiting to be added");
   }
-  connection.addHandler((msg) => onMessage(msg, connection, userType), "", "message", "");
+  connection.addHandler((msg) => onMessage(msg, connection, userType, roomJID), "", "message", "");
 }
-function onMessage(message2, connection, userType) {
+function onMessage(message2, connection, userType, roomJID) {
   const fromJid = message2.getAttribute("from");
   const msgType = message2.getAttribute("type");
   const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
@@ -48927,29 +48950,30 @@ function onMessage(message2, connection, userType) {
       }
       switch (parsedObj.type) {
         case "received":
-          handleChatMessage(connection, msgType, parsedObj.msg);
+          handleChatMessage(connection, msgType, parsedObj.msg, roomJID);
           break;
         case "sent":
-          console.log("onMessage -> parsedObj.msg ", parsedObj.msg);
           addUserMessage(parsedObj.msg.toString());
           break;
       }
       return true;
     } catch (err) {
-      console.log("onMessage -> err msg ", message2);
+      console.debug("onMessage -> err msg ", message2);
       return true;
     }
   }
   return true;
 }
-function handleChatMessage(connection, msgType, body) {
+function handleChatMessage(connection, msgType, body, roomJID) {
   var _a2, _b, _c, _d;
   if (msgType == CHAT_TYPES.CHAT && body) {
     if (body.type == CHAT_TYPES.CONNECT_TO_AGENT) {
-      const roomJID = trimResourceSuffix(body.data.custom_props.roomJID, USER_TYPE.GUEST);
-      localStorage.setItem(ROOM_STORAGE_KEY, roomJID);
-      addUserToRoom(connection, roomJID, USER_TYPE.AGENT);
+      const receivedRoomJID = trimResourceSuffix(body.data.custom_props.roomJID, USER_TYPE.GUEST);
+      roomJID.current = receivedRoomJID;
+      localStorage.setItem(ROOM_STORAGE_KEY, receivedRoomJID);
+      addUserToRoom(connection, receivedRoomJID, USER_TYPE.AGENT);
       showNotification("Customer Joined", { severity: "info" });
+      setTimeout(() => closeNotification(""), 2e3);
     }
     return true;
   } else if (msgType == CHAT_TYPES.GROUPCHAT) {
@@ -48979,12 +49003,12 @@ function handleChatMessage(connection, msgType, body) {
   }
 }
 function onResize(w2, h) {
-  console.log("@@@Resize", w2, h);
+  console.debug("@@@Resize", w2, h);
 }
 function handleToggle(isPopup) {
   if (!isPopup) return void 0;
   return async (isOpened) => {
-    console.log("@@@handleToggle", isOpened);
+    console.debug("@@@handleToggle", isOpened);
     if (isOpened) {
       await new Promise((done) => setTimeout(done, 0));
     }
@@ -52179,7 +52203,7 @@ function Conversation({
     }
   };
   const stopResize = (e) => {
-    console.log(e);
+    console.debug(e);
     window.removeEventListener("mousemove", boundResizeRef.current, false);
     window.removeEventListener("mouseup", stopResize, false);
   };
@@ -52743,7 +52767,7 @@ function Root({
     getRoomJID,
     saveTimestamp,
     getTimestamp,
-    clearTimestamp,
+    clearStorage,
     saveUserType
   } = useChatStorage();
   useEffect(() => {
@@ -52770,27 +52794,27 @@ function Root({
       const differenceMs = currentTime - previousTime;
       const differenceMinutes = differenceMs / 6e4;
       console.debug(`Difference: ${differenceMinutes} minutes`);
-      if (differenceMinutes > 2) {
-        clearTimestamp();
+      if (differenceMinutes > 20) {
+        clearStorage();
       }
     }
     if (getGuestJID() != null && getGuestJID() != null) {
       const roomJID = getRoomJID();
       const guestJID = getGuestJID();
       if (roomJID && guestJID) {
-        console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
+        console.debug("Initializing Web Socket with room", roomJID, " and user", guestJID);
         roomJIDRef.current = roomJID;
         connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl, userType);
       }
     } else {
       if (isPopup) {
-        addToggleChatListener((state2) => console.log("@@@ addToggleChatListener", state2));
+        addToggleChatListener((state2) => console.debug("@@@ addToggleChatListener", state2));
         setPopupMessage(["Hey".repeat(1), "Looks like You are Lost".repeat(1), "Can I help ?".repeat(1)]);
       }
       if (userType == USER_TYPE.AGENT) {
         const guestJID = generateRandomJid(host, USER_TYPE.AGENT);
-        console.log("Initializing Web Socket with user", guestJID);
-        connectionRef.current = initializeWebSocket(guestJID, "", wsUrl, botAPIUrl, userType);
+        console.debug("Initializing Web Socket with user", guestJID);
+        connectionRef.current = initializeWebSocket(guestJID, roomJIDRef, wsUrl, botAPIUrl, userType);
       } else {
         const guestJID = generateRandomJid(host, USER_TYPE.GUEST);
         const roomJID = generateRandomRoomJid(`conference.${host}`);
@@ -52798,7 +52822,7 @@ function Root({
         saveRoomJID(roomJID);
         saveTimestamp();
         roomJIDRef.current = roomJID;
-        console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
+        console.debug("Initializing Web Socket with room", roomJID, " and user", guestJID);
         connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl, userType);
         if (userType == USER_TYPE.GUEST) {
           setQuickButtons([{ label: "Connect To Agent", value: JSON.stringify({ "type": "sent", msg: "Connect To Agent", id: "1234" }) }]);
@@ -52807,16 +52831,14 @@ function Root({
     }
   }, []);
   const handleNewUserMessage = ({ id, text: text2, files, replyMessage }) => {
-    var _a2;
     const connection = connectionRef.current;
-    let roomJID = roomJIDRef.current;
-    console.log("msgId", id);
+    const roomJID = roomJIDRef.current;
     if (replyMessage) {
       addResponseMessage(text2, { props: { files, replyMessage } });
       return;
     }
     if (files && files.length > 0) {
-      console.log("This is a file with props as", files);
+      console.debug("This is a file with props as", files);
     }
     if (text2 == "agent") {
       return;
@@ -52824,9 +52846,6 @@ function Root({
     if (text2 == "sample") {
       showSamples(connection, roomJID);
     } else {
-      if (!roomJID) {
-        roomJID = ((_a2 = localStorage.getItem(ROOM_STORAGE_KEY)) == null ? void 0 : _a2.toString()) || "";
-      }
       const formattedText = JSON.stringify({ "type": "sent", msg: text2, "id": id });
       setTimeout(() => sendMessage(connection, formattedText, roomJID ?? ""), 10);
       return;
@@ -52860,8 +52879,8 @@ function Root({
   function handleQuickButtonClicked(e) {
     const connection = connectionRef.current;
     const roomJID = roomJIDRef.current;
-    addResponseMessage(e);
-    setTimeout(() => showNotification("You are now being connected to agent", { severity: "info" }), 1e3);
+    const notificationKey = showNotification("You are now being connected to agent", { severity: "info" });
+    setTimeout(() => closeNotification(notificationKey), 5e3);
     setQuickButtons([]);
     sendMessage(connection, e, roomJID);
   }
@@ -52916,7 +52935,7 @@ function Root({
           openImg: logo_light,
           popupProps: {
             onResize: (w2, h) => {
-              console.log("@@@popup resize", [w2, h]);
+              console.debug("@@@popup resize", [w2, h]);
             }
           }
         },
