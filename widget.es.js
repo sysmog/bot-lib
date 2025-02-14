@@ -67,11 +67,45 @@ function requireJsxRuntime() {
   return jsxRuntime.exports;
 }
 var jsxRuntimeExports = requireJsxRuntime();
+const MESSAGE_SENDER = {
+  CLIENT: "client",
+  RESPONSE: "response",
+  SYSTEM: "system"
+};
+const USER_TYPE = {
+  AGENT: "agent",
+  GUEST: "customer",
+  BOT: "Bot"
+};
+const MESSAGES_TYPES = {
+  TEXT: "text",
+  FILES: "files",
+  SNIPPET: {
+    LINK: "snippet"
+  },
+  CUSTOM_COMPONENT: "component",
+  CAROUSEL: "carousel"
+};
+const CHAT_TYPES = {
+  GROUPCHAT: "groupchat",
+  CHAT: "chat",
+  ERROR: "error"
+};
+const LOCAL_STORAGE = {
+  CHAT_HISTORY: "chatHistory",
+  SENT: "sent",
+  RECEIVED: "received"
+};
+const MESSAGE_BOX_SCROLL_DURATION = 400;
+const TIMESTAMP_STORAGE_KEY = "timestamp";
 const ROOM_STORAGE_KEY = "room_jid";
 const GUEST_STORAGE_KEY = "guest_jid";
+const USER_TYPE_KEY = "type";
 function useChatStorage() {
   const [roomJID, setRoomJID] = useState(() => localStorage.getItem(ROOM_STORAGE_KEY));
   const [guestJID, setGuestJID] = useState(() => localStorage.getItem(GUEST_STORAGE_KEY));
+  const [userType, setUserType] = useState(() => localStorage.getItem(USER_TYPE_KEY));
+  const [timeStamp, setTimestamp] = useState(() => localStorage.getItem(TIMESTAMP_STORAGE_KEY));
   const saveRoomJID = useCallback((jid) => {
     localStorage.setItem(ROOM_STORAGE_KEY, jid);
     setRoomJID(jid);
@@ -80,15 +114,34 @@ function useChatStorage() {
     localStorage.setItem(GUEST_STORAGE_KEY, jid);
     setGuestJID(jid);
   }, []);
+  const saveUserType = useCallback((type) => {
+    localStorage.setItem(USER_TYPE_KEY, type);
+    setUserType(type);
+  }, []);
+  const saveTimestamp = useCallback(() => {
+    const timeStamp2 = (/* @__PURE__ */ new Date()).getTime().toString();
+    localStorage.setItem(TIMESTAMP_STORAGE_KEY, timeStamp2);
+    setTimestamp(timeStamp2);
+  }, []);
+  const clearTimestamp = useCallback(() => {
+    localStorage.clear();
+  }, []);
   const getRoomJID = useCallback(() => roomJID, [roomJID]);
   const getGuestJID = useCallback(() => guestJID, [guestJID]);
+  const getTimestamp = useCallback(() => timeStamp, [timeStamp]);
+  const getUserType = useCallback(() => userType, [userType]);
   return {
     roomJID,
     saveRoomJID,
     getRoomJID,
     guestJID,
     saveGuestJID,
-    getGuestJID
+    getGuestJID,
+    getTimestamp,
+    saveTimestamp,
+    clearTimestamp,
+    getUserType,
+    saveUserType
   };
 }
 const TRACK_MEMO_SYMBOL = Symbol();
@@ -44097,31 +44150,6 @@ function Message({ message: message2, showTimeStamp, reply, reaction, className,
 function QuickButton({ button, onQuickButtonClicked }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "quick-button", onClick: (event) => onQuickButtonClicked(event, button.value), children: button.label });
 }
-const MESSAGE_SENDER = {
-  CLIENT: "client",
-  RESPONSE: "response",
-  SYSTEM: "system"
-};
-const MESSAGES_TYPES = {
-  TEXT: "text",
-  FILES: "files",
-  SNIPPET: {
-    LINK: "snippet"
-  },
-  CUSTOM_COMPONENT: "component",
-  CAROUSEL: "carousel"
-};
-const CHAT_TYPES = {
-  GROUPCHAT: "groupchat",
-  CHAT: "chat",
-  ERROR: "error"
-};
-const LOCAL_STORAGE = {
-  CHAT_HISTORY: "chatHistory",
-  SENT: "sent",
-  RECEIVED: "received"
-};
-const MESSAGE_BOX_SCROLL_DURATION = 400;
 const ref = (v2) => ref$1(v2);
 function createNewMessage(text2, sender, id, status, props, overrides) {
   return {
@@ -48822,14 +48850,15 @@ globalThis.Strophe = Strophe;
 globalThis.stx = stx;
 Stanza.toElement;
 globalThis.toStanza = Stanza.toElement;
-function addGuestToRoom(connection, roomJid, nickname) {
-  if (nickname.trim() === "") {
+function addUserToRoom(connection, roomJid, nickname) {
+  if (!nickname || nickname.trim() === "") {
     console.error("Nickname is required to join the room.");
     return;
   }
   const uniqueResource = Math.random().toString(36).substring(2, 8);
   const fullRoomJid = `${roomJid}/${nickname}-${uniqueResource}`;
   const presenceStanza = $build("presence", { to: fullRoomJid }).c("x", { xmlns: "http://jabber.org/protocol/muc" });
+  console.log("presenceStanza", presenceStanza);
   connection.send(presenceStanza);
   console.log(`Joined room: ${roomJid} as ${nickname}-${uniqueResource}`);
 }
@@ -48851,7 +48880,7 @@ function decodeHtmlEntities(str) {
 const truncateText = (text2, maxLength) => {
   return text2.length > maxLength ? text2.slice(0, maxLength) + "..." : text2;
 };
-function isCustomerJid(fromJid, prefix2 = "Customer") {
+function isSelfUserJid(fromJid, prefix2 = "Customer") {
   const resource = fromJid == null ? void 0 : fromJid.split("/")[1];
   return resource ? new RegExp(`^${prefix2}.*`).test(resource) : false;
 }
@@ -48870,14 +48899,14 @@ function sendMessage(connection, message2, roomJid) {
     console.error("Connection is not established.");
   }
 }
-function initializeWebSocket(userJID, roomJID, wsUrl, botAPIUrl) {
+function initializeWebSocket(userJID, roomJID, wsUrl, botAPIUrl, userType) {
   const connection = new Strophe.Connection(wsUrl);
   connection.connect(userJID, "", function(status) {
-    onConnect(status, connection, roomJID, botAPIUrl);
+    onConnect(status, connection, roomJID, botAPIUrl, userType);
   });
   return connection;
 }
-function onConnect(status, connection, roomJid, botAPIUrl) {
+function onConnect(status, connection, roomJid, botAPIUrl, userType) {
   switch (status) {
     case Strophe.Status.CONNECTING:
       console.log("Connecting...");
@@ -48894,7 +48923,7 @@ function onConnect(status, connection, roomJid, botAPIUrl) {
     case Strophe.Status.CONNECTED:
       console.log("Connected to the server");
       toggleInputDisabled();
-      startProcessingMsg(connection, roomJid, botAPIUrl);
+      startProcessingMsg(connection, roomJid, botAPIUrl, userType);
       break;
     case Strophe.Status.DISCONNECTED:
       console.log("Disconnected from the server");
@@ -48906,12 +48935,24 @@ function onConnect(status, connection, roomJid, botAPIUrl) {
       break;
   }
 }
-function onMessage(message2, connection) {
+function startProcessingMsg(connection, roomJID, botUrl, userType) {
+  if (userType == USER_TYPE.GUEST) {
+    addUserToRoom(connection, roomJID, USER_TYPE.GUEST);
+    setTimeout(() => {
+      addBotToRoom(botUrl, roomJID, USER_TYPE.BOT);
+    }, 1e3);
+    console.log("Guest is Waiting to be added");
+  } else {
+    console.log("Agent is Waiting to be added");
+  }
+  connection.addHandler((msg) => onMessage(msg, connection, userType), "", "message", "");
+}
+function onMessage(message2, connection, userType) {
   const fromJid = message2.getAttribute("from");
   const msgType = message2.getAttribute("type");
   const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
   message2.getAttribute("to");
-  if (isCustomerJid(fromJid, "Customer")) {
+  if (isSelfUserJid(fromJid, userType)) {
     console.debug(`Ignoring message from self: ${fromJid}`);
     const id = v4();
     toggleMsgLoader();
@@ -48920,15 +48961,17 @@ function onMessage(message2, connection) {
     addUserMessage(body, { id, status: "sent" });
     return true;
   }
-  handleChatMessage(msgType, body);
+  handleChatMessage(connection, msgType, body);
   return true;
 }
-function handleChatMessage(msgType, body) {
+function handleChatMessage(connection, msgType, body) {
   var _a2, _b, _c, _d;
   if (msgType == CHAT_TYPES.CHAT && body && body.length > 0) {
-    const agentJID = body.split(":")[1];
-    console.log("onMessage -AgentJID>", agentJID);
+    const roomJID = body.split(":")[1].split("/")[0].trim();
+    console.log("onMessage - Agent is Joining Into RoomJID ->", roomJID);
     showNotification("Request To Join", { severity: "info" });
+    localStorage.setItem(ROOM_STORAGE_KEY, roomJID);
+    addUserToRoom(connection, roomJID, USER_TYPE.AGENT);
     return;
   } else if (msgType == CHAT_TYPES.GROUPCHAT && body && body.length > 0) {
     toggleMsgLoader();
@@ -48974,18 +49017,13 @@ function handleToggle(isPopup) {
 function generateRandomString() {
   return Math.random().toString(36).substring(2, 15);
 }
-function generateRandomGuestJid(host) {
-  const randomString = "guest-" + generateRandomString();
+function generateRandomJid(host, type = "guest") {
+  const randomString = `${type}-` + generateRandomString();
   return `${randomString}@${host}`;
 }
 function generateRandomRoomJid(conference) {
   const randomString = "room-" + generateRandomString();
   return `${randomString}@${conference}`;
-}
-function startProcessingMsg(connection, roomJID, botUrl) {
-  addBotToRoom(botUrl, roomJID, "Bot");
-  addGuestToRoom(connection, roomJID, "Customer");
-  connection.addHandler((msg) => onMessage(msg), "", "message", "");
 }
 function showSamples(connection, roomJID) {
   addCarouselMessage([
@@ -52669,6 +52707,7 @@ function Root({
   title,
   subtitle,
   startMsg,
+  userType = "customer",
   // widgetProps,
   primaryColor = "#201657",
   messageClientColor = "#007FFF",
@@ -52682,7 +52721,16 @@ function Root({
 }) {
   const connectionRef = useRef(null);
   const roomJIDRef = useRef("");
-  const { saveGuestJID, saveRoomJID, getGuestJID, getRoomJID } = useChatStorage();
+  const {
+    saveGuestJID,
+    saveRoomJID,
+    getGuestJID,
+    getRoomJID,
+    saveTimestamp,
+    getTimestamp,
+    clearTimestamp,
+    saveUserType
+  } = useChatStorage();
   useEffect(() => {
     const r2 = document.querySelector(":root");
     primaryColor && r2.style.setProperty("--primary-color", primaryColor);
@@ -52699,32 +52747,53 @@ function Root({
     setStatusLocale("en");
     setVoiceLocale("en");
     addResponseMessage(startMsg);
-    setQuickButtons([{ label: "Connect To Agent", value: "connect to agent" }]);
+    if (userType == USER_TYPE.GUEST) {
+      setQuickButtons([{ label: "Connect To Agent", value: "connect to agent" }]);
+    }
+    saveUserType(userType);
+    const storedTimestamp = getTimestamp();
+    if (storedTimestamp) {
+      const previousTime = Number(storedTimestamp);
+      const currentTime = Date.now();
+      const differenceMs = currentTime - previousTime;
+      const differenceMinutes = differenceMs / 6e4;
+      console.debug(`Difference: ${differenceMinutes} minutes`);
+      if (differenceMinutes > 2) {
+        clearTimestamp();
+      }
+    }
     if (getGuestJID() != null && getGuestJID() != null) {
       const roomJID = getRoomJID();
       const guestJID = getGuestJID();
       if (roomJID && guestJID) {
         console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
         roomJIDRef.current = roomJID;
-        connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl);
+        connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl, userType);
       }
     } else {
       if (isPopup) {
         addToggleChatListener((state2) => console.log("@@@ addToggleChatListener", state2));
         setPopupMessage(["Hey".repeat(1), "Looks like You are Lost".repeat(1), "Can I help ?".repeat(1)]);
       }
-      const roomJID = generateRandomRoomJid(`conference.${host}`);
-      const guestJID = generateRandomGuestJid(host);
-      saveGuestJID(guestJID);
-      saveRoomJID(roomJID);
-      roomJIDRef.current = roomJID;
-      console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
-      connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl);
+      if (userType == USER_TYPE.AGENT) {
+        const guestJID = generateRandomJid(host, USER_TYPE.AGENT);
+        connectionRef.current = initializeWebSocket(guestJID, "", wsUrl, botAPIUrl, userType);
+      } else {
+        const guestJID = generateRandomJid(host, USER_TYPE.GUEST);
+        const roomJID = generateRandomRoomJid(`conference.${host}`);
+        saveGuestJID(guestJID);
+        saveRoomJID(roomJID);
+        saveTimestamp();
+        roomJIDRef.current = roomJID;
+        console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
+        connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl, userType);
+      }
     }
   }, []);
   const handleNewUserMessage = ({ id, text: text2, files, replyMessage }) => {
+    var _a2;
     const connection = connectionRef.current;
-    const roomJID = roomJIDRef.current;
+    let roomJID = roomJIDRef.current;
     console.log("msgId", id);
     if (replyMessage) {
       addResponseMessage(text2, { props: { files, replyMessage } });
@@ -52739,6 +52808,9 @@ function Root({
     if (text2 == "sample") {
       showSamples(connection, roomJID);
     } else {
+      if (!roomJID) {
+        roomJID = ((_a2 = localStorage.getItem(ROOM_STORAGE_KEY)) == null ? void 0 : _a2.toString()) || "";
+      }
       setTimeout(() => sendMessage(connection, text2, roomJID ?? ""), 10);
       return;
     }
@@ -52847,10 +52919,15 @@ function Root({
 export {
   CHAT_TYPES,
   Component,
+  GUEST_STORAGE_KEY,
   LOCAL_STORAGE,
   MESSAGES_TYPES,
   MESSAGE_BOX_SCROLL_DURATION,
   MESSAGE_SENDER,
+  ROOM_STORAGE_KEY,
+  TIMESTAMP_STORAGE_KEY,
+  USER_TYPE,
+  USER_TYPE_KEY,
   addCarouselMessage,
   addLinkSnippet,
   addResponseMessage,
