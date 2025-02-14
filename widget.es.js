@@ -48915,40 +48915,44 @@ function onMessage(message2, connection, userType) {
   const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
   message2.getAttribute("to");
   if (body && body.length > 0) {
-    const parsedObj = JSON.parse(decodeHtmlEntities(body));
-    console.log(`Received message from ${fromJid}: with msg type as ${msgType} having msg as ${decodeHtmlEntities(body)}`);
-    if (isSelfUserJid(fromJid, userType)) {
-      console.debug(`Ignoring message from self: ${fromJid}`);
-      toggleMsgLoader();
-      setTimeout(() => setMessageStatus(parsedObj.id, "sent", {}), 100);
-      setTimeout(() => setMessageStatus(parsedObj.id, "read"), 150);
-      addUserMessage(parsedObj.msg.toString(), { id: parsedObj.id, status: "sent" });
-      return true;
-    }
-    if (msgType == CHAT_TYPES.CHAT && body && body.length > 0) {
-      if (parsedObj.type == CHAT_TYPES.CONNECT_TO_AGENT) {
-        const roomJID = trimResourceSuffix(parsedObj.msg.data.custom_props.roomJID, USER_TYPE.GUEST);
-        localStorage.setItem(ROOM_STORAGE_KEY, roomJID);
-        addUserToRoom(connection, roomJID, USER_TYPE.AGENT);
-        showNotification("Customer Joined", { severity: "info" });
+    try {
+      const parsedObj = JSON.parse(decodeHtmlEntities(body));
+      if (isSelfUserJid(fromJid, userType)) {
+        console.debug(`Ignoring message from self: ${fromJid}`);
+        toggleMsgLoader();
+        setTimeout(() => setMessageStatus(parsedObj.id, "sent", {}), 100);
+        setTimeout(() => setMessageStatus(parsedObj.id, "read"), 150);
+        addUserMessage(parsedObj.msg.toString(), { id: parsedObj.id, status: "sent" });
+        return true;
+      }
+      switch (parsedObj.type) {
+        case "received":
+          handleChatMessage(connection, msgType, parsedObj.msg);
+          break;
+        case "sent":
+          console.log("onMessage -> parsedObj.msg ", parsedObj.msg);
+          addUserMessage(parsedObj.msg.toString());
+          break;
       }
       return true;
+    } catch (err) {
+      console.log("onMessage -> err msg ", message2);
+      return true;
     }
-    switch (parsedObj.type) {
-      case "received":
-        handleChatMessage(connection, msgType, parsedObj.msg);
-        break;
-      case "sent":
-        addUserMessage(parsedObj.msg.data.summary);
-        break;
-    }
-    return true;
   }
   return true;
 }
 function handleChatMessage(connection, msgType, body) {
   var _a2, _b, _c, _d;
-  if (msgType == CHAT_TYPES.GROUPCHAT) {
+  if (msgType == CHAT_TYPES.CHAT && body) {
+    if (body.type == CHAT_TYPES.CONNECT_TO_AGENT) {
+      const roomJID = trimResourceSuffix(body.data.custom_props.roomJID, USER_TYPE.GUEST);
+      localStorage.setItem(ROOM_STORAGE_KEY, roomJID);
+      addUserToRoom(connection, roomJID, USER_TYPE.AGENT);
+      showNotification("Customer Joined", { severity: "info" });
+    }
+    return true;
+  } else if (msgType == CHAT_TYPES.GROUPCHAT) {
     toggleMsgLoader();
     if (body.type == MESSAGES_TYPES.TEXT) {
       addResponseMessage((_a2 = body.data) == null ? void 0 : _a2.summary);
@@ -52797,7 +52801,7 @@ function Root({
         console.log("Initializing Web Socket with room", roomJID, " and user", guestJID);
         connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl, userType);
         if (userType == USER_TYPE.GUEST) {
-          setQuickButtons([{ label: "Connect To Agent", value: "connect to agent" }]);
+          setQuickButtons([{ label: "Connect To Agent", value: JSON.stringify({ "type": "sent", msg: "Connect To Agent", id: "1234" }) }]);
         }
       }
     }
