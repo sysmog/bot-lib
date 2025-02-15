@@ -1169,24 +1169,21 @@ function CarouselMessage(props) {
   const actualProps = props && props.value ? props.value : props;
   const { message: message2 } = actualProps;
   const items = message2 && message2.items ? message2.items : [];
-  const summary = message2.summary;
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { children: [
-    summary.length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rcw-response rcw-system", children: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "rcw-message-text", children: summary }) }),
-    (items == null ? void 0 : items.length) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "carousel-container", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Carousel, { autoplay: true, autoplayInterval: 3e3, showArrows: true, children: items.map((item, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "carousel-slide", children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "carousel-price", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "₹" }),
-          item.price
-        ] }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: item.image, alt: `Carousel Item ${index}` })
+  message2.summary;
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { children: (items == null ? void 0 : items.length) > 0 && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "carousel-container", children: /* @__PURE__ */ jsxRuntimeExports.jsx(Carousel, { autoplay: true, autoplayInterval: 3e3, showArrows: true, children: items.map((item, index) => /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "carousel-slide", children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "absolute", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "carousel-price", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: "₹" }),
+        item.price
       ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "carousel-content", children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "carousel-title", children: item.category }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "carousel-description", children: item.title }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: item.link, className: "carousel-button", target: "_blank", rel: "noreferrer", children: "Buy Now" })
-      ] })
-    ] }, index)) }) })
-  ] });
+      /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: item.image, alt: `Carousel Item ${index}` })
+    ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "carousel-content", children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "carousel-title", children: item.category }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "carousel-description", children: item.title }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx("a", { href: item.link, className: "carousel-button", target: "_blank", rel: "noreferrer", children: "Buy Now" })
+    ] })
+  ] }, index)) }) }) });
 }
 const decodeCache = {};
 function getDecodeCache(exclude) {
@@ -44196,6 +44193,20 @@ function createCarouselMessage(items, summary, id, props) {
     summary
   };
 }
+function createCarouselMessageForAgent(items, summary, id, props) {
+  return {
+    type: MESSAGES_TYPES.CAROUSEL,
+    component: ref(CarouselMessage),
+    props: props ? ref(props) : void 0,
+    timestamp: /* @__PURE__ */ new Date(),
+    showAvatar: true,
+    customId: id,
+    sender: MESSAGE_SENDER.CLIENT,
+    unread: true,
+    items,
+    summary
+  };
+}
 function createComponentMessage(component, props, showAvatar, id) {
   return {
     type: MESSAGES_TYPES.CUSTOM_COMPONENT,
@@ -44262,6 +44273,13 @@ function addCarouselMessage(items, summary, id, props) {
   state$6.messages = [
     ...state$6.messages,
     createCarouselMessage(items, summary, id, props)
+    // Ensure correct parameter order
+  ];
+}
+function addCarouselMessageForAgent(items, summary, id, props) {
+  state$6.messages = [
+    ...state$6.messages,
+    createCarouselMessageForAgent(items, summary, id, props)
     // Ensure correct parameter order
   ];
 }
@@ -48936,10 +48954,14 @@ function onMessage(message2, connection, userType, roomJID) {
   const fromJid = message2.getAttribute("from");
   const msgType = message2.getAttribute("type");
   const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
-  message2.getAttribute("to");
+  const toJid = message2.getAttribute("to");
   if (body && body.length > 0) {
     try {
       const parsedObj = JSON.parse(decodeHtmlEntities(body));
+      console.log("msg from mam = body=> ", parsedObj);
+      console.log("msg from mam msgType =>  ", msgType);
+      console.log("msg from mam toJID => ", toJid);
+      console.log("msg from mam fromJID =>", fromJid);
       if (isSelfUserJid(fromJid, userType)) {
         console.debug(`Ignoring message from self: ${fromJid}`);
         toggleMsgLoader();
@@ -48948,15 +48970,27 @@ function onMessage(message2, connection, userType, roomJID) {
         addUserMessage(parsedObj.msg.toString(), { id: parsedObj.id, status: "sent" });
         return true;
       }
+      const isMsgFromAgent = fromJid.split("/")[1].startsWith("agent");
       switch (parsedObj.type) {
         case "received":
-          handleChatMessage(connection, msgType, parsedObj.msg, roomJID);
+          if (userType == USER_TYPE.GUEST) {
+            handleChatMessage(connection, msgType, parsedObj.msg, roomJID);
+          } else {
+            console.log("received message from user", parsedObj);
+            handleChatMessageForAgent(connection, msgType, parsedObj.msg, roomJID);
+          }
           break;
         case "sent":
-          addUserMessage(parsedObj.msg.toString());
+          if (userType == USER_TYPE.GUEST && isMsgFromAgent) {
+            addResponseMessage(parsedObj.msg.toString());
+          } else if (userType == USER_TYPE.GUEST && !isMsgFromAgent) {
+            addUserMessage(parsedObj.msg.toString());
+          } else {
+            addResponseMessage(parsedObj.msg.toString());
+            console.log("sent message from user", parsedObj);
+          }
           break;
       }
-      return true;
     } catch (err) {
       console.debug("onMessage -> err msg ", message2);
       return true;
@@ -48965,7 +48999,7 @@ function onMessage(message2, connection, userType, roomJID) {
   return true;
 }
 function handleChatMessage(connection, msgType, body, roomJID) {
-  var _a2, _b, _c, _d;
+  var _a2, _b, _c, _d, _e;
   if (msgType == CHAT_TYPES.CHAT && body) {
     if (body.type == CHAT_TYPES.CONNECT_TO_AGENT) {
       const receivedRoomJID = trimResourceSuffix(body.data.custom_props.roomJID, USER_TYPE.GUEST);
@@ -48990,7 +49024,47 @@ function handleChatMessage(connection, msgType, body, roomJID) {
         color: product.Color,
         description: truncateText(product.description, 30)
       }));
-      addCarouselMessage(productArray, (_d = body.data) == null ? void 0 : _d.summary);
+      addResponseMessage((_d = body.data) == null ? void 0 : _d.summary);
+      addCarouselMessage(productArray, (_e = body.data) == null ? void 0 : _e.summary);
+      return;
+    }
+  } else if (msgType == CHAT_TYPES.ERROR) {
+    console.debug("onMessage -> error ", body);
+    return;
+  } else {
+    console.debug("onMessage -> type ", msgType);
+    console.debug("onMessage -> body ", body);
+    return;
+  }
+}
+function handleChatMessageForAgent(connection, msgType, body, roomJID) {
+  var _a2, _b, _c, _d, _e;
+  if (msgType == CHAT_TYPES.CHAT && body) {
+    if (body.type == CHAT_TYPES.CONNECT_TO_AGENT) {
+      const receivedRoomJID = trimResourceSuffix(body.data.custom_props.roomJID, USER_TYPE.GUEST);
+      roomJID.current = receivedRoomJID;
+      localStorage.setItem(ROOM_STORAGE_KEY, receivedRoomJID);
+      addUserToRoom(connection, receivedRoomJID, USER_TYPE.AGENT);
+      showNotification("Customer Joined", { severity: "info" });
+      setTimeout(() => closeNotification(""), 2e3);
+    }
+    return true;
+  } else if (msgType == CHAT_TYPES.GROUPCHAT) {
+    toggleMsgLoader();
+    if (body.type == MESSAGES_TYPES.TEXT) {
+      addUserMessage((_a2 = body.data) == null ? void 0 : _a2.summary);
+    } else if (body.type == MESSAGES_TYPES.CAROUSEL) {
+      const productArray = (_c = (_b = body.data) == null ? void 0 : _b.products) == null ? void 0 : _c.map((product) => ({
+        link: product.url,
+        image: product.image_url,
+        title: truncateText(product.title, 30),
+        price: product["Variant Price"],
+        category: product.category,
+        color: product.Color,
+        description: truncateText(product.description, 30)
+      }));
+      addUserMessage((_d = body.data) == null ? void 0 : _d.summary);
+      addCarouselMessageForAgent(productArray, (_e = body.data) == null ? void 0 : _e.summary);
       return;
     }
   } else if (msgType == CHAT_TYPES.ERROR) {
@@ -49027,7 +49101,7 @@ function generateRandomRoomJid(conference) {
   return `${randomString}@${conference}`;
 }
 function showSamples(connection, roomJID) {
-  addCarouselMessage([
+  addCarouselMessageForAgent([
     {
       "image": "https://commerce.nearform.com/open-source/nuka-carousel/img/product-1.jpg",
       "link": "https://beatsmate.in/products/wired-headphones-3-5mm-sport-earbuds-with-bass-phone-earphones-stereo-headset-with-mic-volume-control-music-earphones",
@@ -52973,6 +53047,7 @@ export {
   closeFullscreenPreview,
   closeNotification,
   createCarouselMessage,
+  createCarouselMessageForAgent,
   createComponentMessage,
   createLinkSnippet,
   createNewMessage,
