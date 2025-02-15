@@ -541,7 +541,6 @@ function proxy(baseObject = {}) {
 function subscribe(proxyObject, callback, notifyInSync) {
   const proxyState = proxyStateMap.get(proxyObject);
   if ((__vite_import_meta_env__$1 ? "production" : void 0) !== "production" && !proxyState) {
-    console.warn("Please use proxy object");
   }
   let promise;
   const ops = [];
@@ -568,7 +567,6 @@ function subscribe(proxyObject, callback, notifyInSync) {
 function snapshot(proxyObject) {
   const proxyState = proxyStateMap.get(proxyObject);
   if ((__vite_import_meta_env__$1 ? "production" : void 0) !== "production" && !proxyState) {
-    console.warn("Please use proxy object");
   }
   const [target, ensureVersion] = proxyState;
   return createSnapshot(target, ensureVersion());
@@ -8495,7 +8493,6 @@ function isProtectedWeekYearToken(token2) {
 }
 function warnOrThrowProtectedError(token2, format2, input) {
   const _message = message(token2, format2, input);
-  console.warn(_message);
   if (throwTokens.includes(token2)) throw new RangeError(_message);
 }
 function message(token2, format2, input) {
@@ -43922,7 +43919,6 @@ var ErrorBoundary = /* @__PURE__ */ function(_React$Component) {
   };
   var _proto = ErrorBoundary2.prototype;
   _proto.componentDidCatch = function componentDidCatch(error2, errorInfo) {
-    console.error("Emoji Picker React failed to render:", error2, errorInfo);
   };
   _proto.render = function render() {
     if (this.state.hasError) {
@@ -43949,7 +43945,6 @@ function ContextReaction() {
     return;
   }
   const handleReactionClick = (e) => {
-    console.debug("handleReactionClick", e);
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { style: { width: "fit-content" }, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
     EmojiPicker$1,
@@ -44474,13 +44469,9 @@ const log = {
       return;
     }
     if (level >= LOG_LEVELS.ERROR) {
-      console == null ? void 0 : console.error(msg);
     } else if (level === LOG_LEVELS.INFO) {
-      console == null ? void 0 : console.info(msg);
     } else if (level === LOG_LEVELS.WARN) {
-      console == null ? void 0 : console.warn(msg);
     } else if (level === LOG_LEVELS.DEBUG) {
-      console == null ? void 0 : console.debug(msg);
     }
   },
   /**
@@ -47015,7 +47006,6 @@ class WorkerWebsocket extends Websocket {
     this._conn = connection;
     this.worker = new SharedWorker(this._conn.options.worker, "Strophe XMPP Connection");
     this.worker.onerror = (e) => {
-      console == null ? void 0 : console.error(e);
       log.error(`Shared Worker Error: ${e}`);
     };
   }
@@ -48837,14 +48827,12 @@ Stanza.toElement;
 globalThis.toStanza = Stanza.toElement;
 function addUserToRoom(connection, roomJid, nickname) {
   if (!nickname || nickname.trim() === "") {
-    console.error("Nickname is required to join the room.");
     return;
   }
   const uniqueResource = Math.random().toString(36).substring(2, 8);
   const fullRoomJid = `${roomJid}/${nickname}-${uniqueResource}`;
   const presenceStanza = $build("presence", { to: fullRoomJid }).c("x", { xmlns: "http://jabber.org/protocol/muc" });
   connection.send(presenceStanza);
-  console.debug(`Joined room: ${roomJid} as ${nickname}-${uniqueResource}`);
 }
 function addUsersToRoomV1(connection, roomJID, userNick, apiUrl, botNick) {
   return new Promise((resolve, reject) => {
@@ -48853,9 +48841,7 @@ function addUsersToRoomV1(connection, roomJID, userNick, apiUrl, botNick) {
       (stanza) => {
         const from2 = stanza.getAttribute("from");
         if (from2 && from2.startsWith(roomJID)) {
-          console.debug("User joined successfully:");
           addBotToRoom(apiUrl, roomJID, botNick).then(() => {
-            console.debug("Bot added successfully.");
           });
           resolve();
         }
@@ -48877,9 +48863,7 @@ function addBotToRoom(apiUrl, roomJID, nickName) {
     mode: "no-cors"
     // Use no-cors mode for bypassing CORS
   }).then((response) => {
-    console.debug("Request sent, but response cannot be read due to no-cors mode.", response);
   }).catch((error2) => {
-    console.error("Error during API call:", error2);
   });
 }
 function decodeHtmlEntities(str) {
@@ -48893,7 +48877,6 @@ function isSelfUserJid(fromJid, prefix2 = "customer") {
   return resource ? new RegExp(`^${prefix2}.*`).test(resource) : false;
 }
 function sendMessage(connection, message2, roomJid) {
-  console.debug(`Sending message: ${message2} to room ${roomJid}`);
   if (connection) {
     const messageStanza = $build("message", {
       type: "groupchat",
@@ -48902,8 +48885,6 @@ function sendMessage(connection, message2, roomJid) {
       // Room JID
     }).c("body").t(message2);
     connection.send(messageStanza);
-  } else {
-    console.error("Connection is not established.");
   }
 }
 function initializeWebSocket(userJID, roomJID, wsUrl, botAPIUrl, userType) {
@@ -48916,37 +48897,29 @@ function initializeWebSocket(userJID, roomJID, wsUrl, botAPIUrl, userType) {
 function onConnect(status, connection, roomJID, botAPIUrl, userType) {
   switch (status) {
     case Strophe.Status.CONNECTING:
-      console.debug("Connecting...");
       toggleInputDisabled();
       break;
     case Strophe.Status.CONNFAIL:
-      console.debug("Connection failed!");
       toggleInputDisabled();
       break;
     case Strophe.Status.DISCONNECTING:
-      console.debug("Disconnecting...");
       toggleInputDisabled();
       break;
     case Strophe.Status.CONNECTED:
-      console.debug("Connected to the server");
       toggleInputDisabled();
       startProcessingMsg(connection, roomJID, botAPIUrl, userType);
       break;
     case Strophe.Status.DISCONNECTED:
-      console.debug("Disconnected from the server");
       toggleInputDisabled();
       break;
     case Strophe.Status.AUTHFAIL:
-      console.debug("Authentication failed!");
       toggleInputDisabled();
       break;
   }
 }
 function startProcessingMsg(connection, roomJID, botUrl, userType) {
   if (userType == USER_TYPE.GUEST) {
-    addUsersToRoomV1(connection, roomJID, USER_TYPE.GUEST, botUrl, USER_TYPE.BOT).then(() => console.log("Let the party begin"));
-  } else {
-    console.debug("Agent is Waiting to be added");
+    addUsersToRoomV1(connection, roomJID, USER_TYPE.GUEST, botUrl, USER_TYPE.BOT).then(() => void 0);
   }
   connection.addHandler((msg) => onMessage(msg, connection, userType, roomJID), "", "message", "");
 }
@@ -48954,16 +48927,11 @@ function onMessage(message2, connection, userType, roomJID) {
   const fromJid = message2.getAttribute("from");
   const msgType = message2.getAttribute("type");
   const body = Strophe.getText(message2.getElementsByTagName("body")[0]);
-  const toJid = message2.getAttribute("to");
+  message2.getAttribute("to");
   if (body && body.length > 0) {
     try {
       const parsedObj = JSON.parse(decodeHtmlEntities(body));
-      console.log("msg from mam = body=> ", parsedObj);
-      console.log("msg from mam msgType =>  ", msgType);
-      console.log("msg from mam toJID => ", toJid);
-      console.log("msg from mam fromJID =>", fromJid);
       if (isSelfUserJid(fromJid, userType)) {
-        console.debug(`Ignoring message from self: ${fromJid}`);
         toggleMsgLoader();
         setTimeout(() => setMessageStatus(parsedObj.id, "sent", {}), 100);
         setTimeout(() => setMessageStatus(parsedObj.id, "read"), 150);
@@ -48976,7 +48944,6 @@ function onMessage(message2, connection, userType, roomJID) {
           if (userType == USER_TYPE.GUEST) {
             handleChatMessage(connection, msgType, parsedObj.msg, roomJID);
           } else {
-            console.log("received message from user", parsedObj);
             handleChatMessageForAgent(connection, msgType, parsedObj.msg, roomJID);
           }
           break;
@@ -48987,12 +48954,10 @@ function onMessage(message2, connection, userType, roomJID) {
             addUserMessage(parsedObj.msg.toString());
           } else {
             addResponseMessage(parsedObj.msg.toString());
-            console.log("sent message from user", parsedObj);
           }
           break;
       }
     } catch (err) {
-      console.debug("onMessage -> err msg ", message2);
       return true;
     }
   }
@@ -49029,11 +48994,8 @@ function handleChatMessage(connection, msgType, body, roomJID) {
       return;
     }
   } else if (msgType == CHAT_TYPES.ERROR) {
-    console.debug("onMessage -> error ", body);
     return;
   } else {
-    console.debug("onMessage -> type ", msgType);
-    console.debug("onMessage -> body ", body);
     return;
   }
 }
@@ -49068,21 +49030,16 @@ function handleChatMessageForAgent(connection, msgType, body, roomJID) {
       return;
     }
   } else if (msgType == CHAT_TYPES.ERROR) {
-    console.debug("onMessage -> error ", body);
     return;
   } else {
-    console.debug("onMessage -> type ", msgType);
-    console.debug("onMessage -> body ", body);
     return;
   }
 }
 function onResize(w2, h) {
-  console.debug("@@@Resize", w2, h);
 }
 function handleToggle(isPopup) {
   if (!isPopup) return void 0;
   return async (isOpened) => {
-    console.debug("@@@handleToggle", isOpened);
     if (isOpened) {
       await new Promise((done) => setTimeout(done, 0));
     }
@@ -49387,16 +49344,13 @@ const useVoiceToText = () => {
           setListening(false);
         });
         r2.addEventListener("error", (error2) => {
-          console.error("Speech recognition error:", error2);
           setListening(false);
         });
         recognition.current = r2;
         setIsSupported(true);
       } else {
-        console.error("SpeechRecognition is not supported in this browser.");
       }
     } catch (e) {
-      console.error("Speech recognition error:", e);
     }
     return () => {
       const r2 = recognition.current;
@@ -52277,7 +52231,6 @@ function Conversation({
     }
   };
   const stopResize = (e) => {
-    console.debug(e);
     window.removeEventListener("mousemove", boundResizeRef.current, false);
     window.removeEventListener("mouseup", stopResize, false);
   };
@@ -52867,7 +52820,6 @@ function Root({
       const currentTime = Date.now();
       const differenceMs = currentTime - previousTime;
       const differenceMinutes = differenceMs / 6e4;
-      console.debug(`Difference: ${differenceMinutes} minutes`);
       if (differenceMinutes > 20) {
         clearStorage();
       }
@@ -52876,18 +52828,16 @@ function Root({
       const roomJID = getRoomJID();
       const guestJID = getGuestJID();
       if (roomJID && guestJID) {
-        console.debug("Initializing Web Socket with room", roomJID, " and user", guestJID);
         roomJIDRef.current = roomJID;
         connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl, userType);
       }
     } else {
       if (isPopup) {
-        addToggleChatListener((state2) => console.debug("@@@ addToggleChatListener", state2));
+        addToggleChatListener((state2) => void 0);
         setPopupMessage(["Hey".repeat(1), "Looks like You are Lost".repeat(1), "Can I help ?".repeat(1)]);
       }
       if (userType == USER_TYPE.AGENT) {
         const guestJID = generateRandomJid(host, USER_TYPE.AGENT);
-        console.debug("Initializing Web Socket with user", guestJID);
         connectionRef.current = initializeWebSocket(guestJID, roomJIDRef, wsUrl, botAPIUrl, userType);
       } else {
         const guestJID = generateRandomJid(host, USER_TYPE.GUEST);
@@ -52896,7 +52846,6 @@ function Root({
         saveRoomJID(roomJID);
         saveTimestamp();
         roomJIDRef.current = roomJID;
-        console.debug("Initializing Web Socket with room", roomJID, " and user", guestJID);
         connectionRef.current = initializeWebSocket(guestJID, roomJID, wsUrl, botAPIUrl, userType);
         if (userType == USER_TYPE.GUEST) {
           setQuickButtons([{ label: "Connect To Agent", value: JSON.stringify({ "type": "sent", msg: "Connect To Agent", id: "1234" }) }]);
@@ -52911,9 +52860,7 @@ function Root({
       addResponseMessage(text2, { props: { files, replyMessage } });
       return;
     }
-    if (files && files.length > 0) {
-      console.debug("This is a file with props as", files);
-    }
+    if (files && files.length > 0) ;
     if (text2 == "agent") {
       return;
     }
@@ -53009,7 +52956,6 @@ function Root({
           openImg: logo_light,
           popupProps: {
             onResize: (w2, h) => {
-              console.debug("@@@popup resize", [w2, h]);
             }
           }
         },
