@@ -54153,25 +54153,6 @@ function handleChatMessageForAgent(connection, msgType, body, roomJID) {
 function onResize(w2, h) {
   console.debug("@@@Resize", w2, h);
 }
-function handleToggle(isPopup) {
-  if (!isPopup) return void 0;
-  return async (isOpened) => {
-    console.debug("@@@handleToggle", isOpened);
-    const iframe = document.getElementById("widget-iframe");
-    console.log("iframe", iframe);
-    if (iframe && iframe.contentWindow) {
-      console.log("iframe contentWindow", iframe.contentWindow);
-      iframe.contentWindow.postMessage(
-        { type: "widgetToggle", isOpened },
-        "*"
-      );
-    }
-    if (isOpened) {
-      await new Promise((done) => setTimeout(done, 0));
-    }
-    return true;
-  };
-}
 function generateRandomString() {
   return Math.random().toString(36).substring(2, 15);
 }
@@ -55749,7 +55730,7 @@ function Widget({
   handleQuickButtonClicked,
   handleTextInputChange,
   disableRichTextInput,
-  handleToggle: handleToggle2,
+  handleToggle,
   handleSubmit,
   onResize: onResize2
   // connectionRef,
@@ -55775,8 +55756,8 @@ function Widget({
     s.observe(el);
   }, [rootRef, onResize2]);
   const toggleConversation = async () => {
-    if (handleToggle2) {
-      if (!await handleToggle2(!isWidgetOpened())) {
+    if (handleToggle) {
+      if (!await handleToggle(!isWidgetOpened())) {
         return;
       }
     }
@@ -55835,6 +55816,7 @@ function Root({
   subtitle,
   startMsg,
   userType = "customer",
+  handleToggleCallback,
   // widgetProps,
   primaryColor = "#201657",
   messageClientColor = "#007FFF",
@@ -55871,6 +55853,9 @@ function Root({
     anchorRight && r2.style.setProperty("--anchor-right", typeof anchorRight === "number" ? `${anchorRight}px` : anchorRight);
   }, [primaryColor, messageClientColor, messageClientTextColor, messageResponseColor, messageResponseTextColor, headerPaddingTop, headerPaddingBottom, anchorBottom, anchorRight]);
   useEffect(() => {
+    addToggleChatListener((state2) => {
+      console.debug("@@@ addToggleChatListener", state2);
+    });
     setStatusLocale("en");
     setVoiceLocale("en");
     addResponseMessage(startMsg);
@@ -55896,7 +55881,6 @@ function Root({
       }
     } else {
       if (isPopup) {
-        addToggleChatListener((state2) => console.debug("@@@ addToggleChatListener", state2));
         setPopupMessage(["Hey".repeat(1), "Looks like You are Lost".repeat(1), "Can I help ?".repeat(1)]);
       }
       if (userType == USER_TYPE.AGENT) {
@@ -55994,7 +55978,7 @@ function Root({
           headerProps: {
             title,
             subtitle,
-            showCloseButton: isPopup,
+            showCloseButton: false,
             showMenuButton: false,
             menus: [
               {
@@ -56049,7 +56033,7 @@ function Root({
       handleQuickButtonClicked,
       handleSubmit,
       onResize,
-      handleToggle: handleToggle(isPopup),
+      handleToggle: handleToggleCallback,
       disableRichTextInput: true
     }
   ) }) });
