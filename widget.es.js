@@ -54084,7 +54084,6 @@ function handleChatMessage(connection, msgType, body, roomJID) {
       localStorage.setItem(ROOM_STORAGE_KEY, receivedRoomJID);
       addUserToRoom(connection, receivedRoomJID, USER_TYPE.AGENT);
       showNotification("Customer Joined", { severity: "info" });
-      toggleInputDisabled();
       setTimeout(() => closeNotification(""), 2e3);
     }
     return true;
@@ -55895,7 +55894,6 @@ function Root({
           timestamp: (/* @__PURE__ */ new Date()).getTime().toString()
         }));
         console.log("Updated State:", store.getState().userSlice);
-        toggleInputDisabled();
       } else {
         const guestJID = generateRandomJid(host, USER_TYPE.GUEST);
         const roomJID = generateRandomRoomJid(`conference.${host}`);
