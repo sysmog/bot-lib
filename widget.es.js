@@ -54157,16 +54157,16 @@ function handleToggle(isPopup) {
   if (!isPopup) return void 0;
   return async (isOpened) => {
     console.debug("@@@handleToggle", isOpened);
+    const iframe = document.getElementById("widget-iframe");
+    console.log("iframe", iframe);
+    if (iframe && iframe.contentWindow) {
+      console.log("iframe contentWindow", iframe.contentWindow);
+      iframe.contentWindow.postMessage(
+        { type: "widgetToggle", isOpened },
+        "*"
+      );
+    }
     if (isOpened) {
-      const iframe = document.getElementById("widget-iframe");
-      console.log("iframe", iframe);
-      if (iframe && iframe.contentWindow) {
-        console.log("iframe contentWindow", iframe.contentWindow);
-        iframe.contentWindow.postMessage(
-          { type: "widgetToggle", isOpened },
-          "*"
-        );
-      }
       await new Promise((done) => setTimeout(done, 0));
     }
     return true;
