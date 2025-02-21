@@ -54160,6 +54160,13 @@ function handleToggle(isPopup) {
     if (isOpened) {
       await new Promise((done) => setTimeout(done, 0));
     }
+    const iframe = document.getElementById("widget-iframe");
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        { type: "widgetToggle", isOpened },
+        "*"
+      );
+    }
     return true;
   };
 }
