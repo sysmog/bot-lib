@@ -54161,7 +54161,9 @@ function handleToggle(isPopup) {
       await new Promise((done) => setTimeout(done, 0));
     }
     const iframe = document.getElementById("widget-iframe");
+    console.log("iframe", iframe);
     if (iframe && iframe.contentWindow) {
+      console.log("iframe contentWindow", iframe.contentWindow);
       iframe.contentWindow.postMessage(
         { type: "widgetToggle", isOpened },
         "*"
