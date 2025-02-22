@@ -54150,9 +54150,6 @@ function handleChatMessageForAgent(connection, msgType, body, roomJID) {
     return;
   }
 }
-function onResize(w2, h) {
-  console.debug("@@@Resize", w2, h);
-}
 function generateRandomString() {
   return Math.random().toString(36).substring(2, 15);
 }
@@ -55192,7 +55189,7 @@ function Conversation({
     widthOffset: 35
   },
   defaultSize = minSize,
-  onResize: onResize2,
+  onResize,
   emojis: emojis2,
   files,
   reply,
@@ -55227,12 +55224,12 @@ function Conversation({
           Math.max(newHeight, minSize.height),
           Math.round((resizableProps == null ? void 0 : resizableProps.heightOffset) ? window.innerHeight - resizableProps.heightOffset : window.innerHeight - 105)
         );
-        onResize2 == null ? void 0 : onResize2(width2, height2);
+        onResize == null ? void 0 : onResize(width2, height2);
         containerDivRef.current.style.width = width2 + "px";
         containerDivRef.current.style.height = height2 + "px";
       }
     },
-    [containerDivRef, resizableProps, onResize2]
+    [containerDivRef, resizableProps, onResize]
     // Dependencies
   );
   useEffect(() => {
@@ -55356,12 +55353,12 @@ function Conversation({
 function Badge({ badge }) {
   return badge > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "rcw-badge", children: badge }) : null;
 }
-function Popup({ text: text2, onResize: onResize2 }) {
+function Popup({ text: text2, onResize }) {
   const [isClosed, setIsClosed] = useState(false);
   useEffect(() => {
     const el = document.querySelector(".rcw-popup");
-    onResize2 == null ? void 0 : onResize2((el == null ? void 0 : el.clientWidth) ?? 0, (el == null ? void 0 : el.clientHeight) ?? 0);
-  }, [text2, isClosed, onResize2]);
+    onResize == null ? void 0 : onResize((el == null ? void 0 : el.clientWidth) ?? 0, (el == null ? void 0 : el.clientHeight) ?? 0);
+  }, [text2, isClosed, onResize]);
   if (isClosed) {
     return null;
   }
@@ -55732,12 +55729,12 @@ function Widget({
   disableRichTextInput,
   handleToggle,
   handleSubmit,
-  onResize: onResize2
+  onResize
   // connectionRef,
 }) {
   const rootRef = useRef(null);
   useEffect(() => {
-    if (!rootRef.current || !onResize2) {
+    if (!rootRef.current || !onResize) {
       return;
     }
     const el = rootRef.current;
@@ -55751,10 +55748,10 @@ function Widget({
           height2 = launcher.clientHeight;
         }
       }
-      onResize2(width2, height2);
+      onResize(width2, height2);
     });
     s.observe(el);
-  }, [rootRef, onResize2]);
+  }, [rootRef, onResize]);
   const toggleConversation = async () => {
     if (handleToggle) {
       if (!await handleToggle(!isWidgetOpened())) {
@@ -55817,6 +55814,7 @@ function Root({
   startMsg,
   userType = "customer",
   handleToggleCallback,
+  handleResizeCallback,
   // widgetProps,
   primaryColor = "#201657",
   messageClientColor = "#007FFF",
@@ -56031,7 +56029,7 @@ function Root({
       handleNewUserMessage,
       handleQuickButtonClicked,
       handleSubmit,
-      onResize,
+      onResize: handleResizeCallback,
       handleToggle: handleToggleCallback,
       disableRichTextInput: true
     }
