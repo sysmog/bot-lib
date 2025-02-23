@@ -45433,31 +45433,31 @@ var EmojiProperties;
 })(EmojiProperties || (EmojiProperties = {}));
 var alphaNumericEmojiIndex = {};
 setTimeout(function() {
-  allEmojis.reduce(function(searchIndex, emoji) {
-    indexEmoji(emoji);
+  allEmojis.reduce(function(searchIndex, emoji2) {
+    indexEmoji(emoji2);
     return searchIndex;
   }, alphaNumericEmojiIndex);
 });
-function indexEmoji(emoji) {
-  var joinedNameString = emojiNames(emoji).flat().join("").toLowerCase().replace(/[^a-zA-Z\d]/g, "").split("");
+function indexEmoji(emoji2) {
+  var joinedNameString = emojiNames(emoji2).flat().join("").toLowerCase().replace(/[^a-zA-Z\d]/g, "").split("");
   joinedNameString.forEach(function(_char) {
     var _alphaNumericEmojiInd;
     alphaNumericEmojiIndex[_char] = (_alphaNumericEmojiInd = alphaNumericEmojiIndex[_char]) != null ? _alphaNumericEmojiInd : {};
-    alphaNumericEmojiIndex[_char][emojiUnified(emoji)] = emoji;
+    alphaNumericEmojiIndex[_char][emojiUnified(emoji2)] = emoji2;
   });
 }
-function emojiNames(emoji) {
+function emojiNames(emoji2) {
   var _emoji$EmojiPropertie;
-  return (_emoji$EmojiPropertie = emoji[EmojiProperties.name]) != null ? _emoji$EmojiPropertie : [];
+  return (_emoji$EmojiPropertie = emoji2[EmojiProperties.name]) != null ? _emoji$EmojiPropertie : [];
 }
-function addedIn(emoji) {
-  return parseFloat(emoji[EmojiProperties.added_in]);
+function addedIn(emoji2) {
+  return parseFloat(emoji2[EmojiProperties.added_in]);
 }
-function emojiName(emoji) {
-  if (!emoji) {
+function emojiName(emoji2) {
+  if (!emoji2) {
     return "";
   }
-  return emojiNames(emoji)[0];
+  return emojiNames(emoji2)[0];
 }
 function unifiedWithoutSkinTone(unified) {
   var splat = unified.split("-");
@@ -45467,13 +45467,13 @@ function unifiedWithoutSkinTone(unified) {
   }
   return unified;
 }
-function emojiUnified(emoji, skinTone) {
+function emojiUnified(emoji2, skinTone) {
   var _emojiVariationUnifie;
-  var unified = emoji[EmojiProperties.unified];
-  if (!skinTone || !emojiHasVariations(emoji)) {
+  var unified = emoji2[EmojiProperties.unified];
+  if (!skinTone || !emojiHasVariations(emoji2)) {
     return unified;
   }
-  return (_emojiVariationUnifie = emojiVariationUnified(emoji, skinTone)) != null ? _emojiVariationUnifie : unified;
+  return (_emojiVariationUnifie = emojiVariationUnified(emoji2, skinTone)) != null ? _emojiVariationUnifie : unified;
 }
 function emojisByCategory(category) {
   var _emojis$category;
@@ -45482,17 +45482,17 @@ function emojisByCategory(category) {
 function emojiUrlByUnified(unified, emojiStyle) {
   return "" + cdnUrl(emojiStyle) + unified + ".png";
 }
-function emojiVariations(emoji) {
+function emojiVariations(emoji2) {
   var _emoji$EmojiPropertie2;
-  return (_emoji$EmojiPropertie2 = emoji[EmojiProperties.variations]) != null ? _emoji$EmojiPropertie2 : [];
+  return (_emoji$EmojiPropertie2 = emoji2[EmojiProperties.variations]) != null ? _emoji$EmojiPropertie2 : [];
 }
-function emojiHasVariations(emoji) {
-  return emojiVariations(emoji).length > 0;
+function emojiHasVariations(emoji2) {
+  return emojiVariations(emoji2).length > 0;
 }
-function emojiVariationUnified(emoji, skinTone) {
-  return skinTone ? emojiVariations(emoji).find(function(variation) {
+function emojiVariationUnified(emoji2, skinTone) {
+  return skinTone ? emojiVariations(emoji2).find(function(variation) {
     return variation.includes(skinTone);
-  }) : emojiUnified(emoji);
+  }) : emojiUnified(emoji2);
 }
 function emojiByUnified(unified) {
   if (!unified) {
@@ -45507,8 +45507,8 @@ function emojiByUnified(unified) {
 var allEmojis = /* @__PURE__ */ Object.values(emojis).flat();
 function setCustomEmojis(customEmojis) {
   emojis[Categories.CUSTOM].length = 0;
-  customEmojis.forEach(function(emoji) {
-    var emojiData = customToRegularEmoji(emoji);
+  customEmojis.forEach(function(emoji2) {
+    var emojiData = customToRegularEmoji(emoji2);
     emojis[Categories.CUSTOM].push(emojiData);
     if (allEmojisByUnified[emojiData[EmojiProperties.unified]]) {
       return;
@@ -45518,11 +45518,11 @@ function setCustomEmojis(customEmojis) {
     indexEmoji(emojiData);
   });
 }
-function customToRegularEmoji(emoji) {
+function customToRegularEmoji(emoji2) {
   var _ref;
-  return _ref = {}, _ref[EmojiProperties.name] = emoji.names.map(function(name) {
+  return _ref = {}, _ref[EmojiProperties.name] = emoji2.names.map(function(name) {
     return name.toLowerCase();
-  }), _ref[EmojiProperties.unified] = emoji.id.toLowerCase(), _ref[EmojiProperties.added_in] = "0", _ref[EmojiProperties.imgUrl] = emoji.imgUrl, _ref;
+  }), _ref[EmojiProperties.unified] = emoji2.id.toLowerCase(), _ref[EmojiProperties.added_in] = "0", _ref[EmojiProperties.imgUrl] = emoji2.imgUrl, _ref;
 }
 var allEmojisByUnified = {};
 setTimeout(function() {
@@ -45557,8 +45557,8 @@ function mergeConfig(userConfig) {
   var categories = mergeCategoriesConfig(userConfig.categories, {
     suggestionMode: config2.suggestedEmojisMode
   });
-  config2.hiddenEmojis.forEach(function(emoji) {
-    config2.unicodeToHide.add(emoji);
+  config2.hiddenEmojis.forEach(function(emoji2) {
+    config2.unicodeToHide.add(emoji2);
   });
   setCustomEmojis((_config$customEmojis = config2.customEmojis) != null ? _config$customEmojis : []);
   var skinTonePickerLocation = config2.searchDisabled ? SkinTonePickerLocation.PREVIEW : config2.skinTonePickerLocation;
@@ -45806,9 +45806,9 @@ function useDisallowedEmojis() {
     if (!emojiVersionConfig || Number.isNaN(emojiVersion)) {
       return DisallowedEmojisRef.current;
     }
-    return allEmojis.reduce(function(disallowedEmojis, emoji) {
-      if (addedInNewerVersion(emoji, emojiVersion)) {
-        disallowedEmojis[emojiUnified(emoji)] = true;
+    return allEmojis.reduce(function(disallowedEmojis, emoji2) {
+      if (addedInNewerVersion(emoji2, emojiVersion)) {
+        disallowedEmojis[emojiUnified(emoji2)] = true;
       }
       return disallowedEmojis;
     }, DisallowedEmojisRef.current);
@@ -45817,13 +45817,13 @@ function useDisallowedEmojis() {
 function useIsEmojiDisallowed() {
   var disallowedEmojis = useDisallowedEmojis();
   var isUnicodeHidden = useIsUnicodeHidden();
-  return function isEmojiDisallowed(emoji) {
-    var unified = unifiedWithoutSkinTone(emojiUnified(emoji));
+  return function isEmojiDisallowed(emoji2) {
+    var unified = unifiedWithoutSkinTone(emojiUnified(emoji2));
     return Boolean(disallowedEmojis[unified] || isUnicodeHidden(unified));
   };
 }
-function addedInNewerVersion(emoji, supportedLevel) {
-  return addedIn(emoji) > supportedLevel;
+function addedInNewerVersion(emoji2, supportedLevel) {
+  return addedIn(emoji2) > supportedLevel;
 }
 function useMarkInitialLoad(dispatch) {
   useEffect(function() {
@@ -46078,21 +46078,21 @@ function useScrollTo() {
     });
   }, [BodyRef]);
 }
-function scrollEmojiAboveLabel(emoji) {
-  if (!emoji || !isEmojiBehindLabel(emoji)) {
+function scrollEmojiAboveLabel(emoji2) {
+  if (!emoji2 || !isEmojiBehindLabel(emoji2)) {
     return;
   }
-  if (emoji.closest(asSelectors(ClassNames.variationPicker))) {
+  if (emoji2.closest(asSelectors(ClassNames.variationPicker))) {
     return;
   }
-  var scrollBody = closestScrollBody(emoji);
-  var by = emojiDistanceFromScrollTop(emoji);
-  scrollBy(scrollBody, -(categoryLabelHeight(closestCategory(emoji)) - by));
+  var scrollBody = closestScrollBody(emoji2);
+  var by = emojiDistanceFromScrollTop(emoji2);
+  scrollBy(scrollBody, -(categoryLabelHeight(closestCategory(emoji2)) - by));
 }
 function focusFirstVisibleEmoji(parent) {
-  var emoji = firstVisibleEmoji(parent);
-  focusElement(emoji);
-  scrollEmojiAboveLabel(emoji);
+  var emoji2 = firstVisibleEmoji(parent);
+  focusElement(emoji2);
+  scrollEmojiAboveLabel(emoji2);
 }
 function focusAndClickFirstVisibleEmoji(parent) {
   var firstEmoji = firstVisibleEmoji(parent);
@@ -46343,15 +46343,15 @@ function useApplySearch() {
 function filterEmojiObjectByKeyword(emojis2, keyword) {
   var filtered = {};
   for (var unified in emojis2) {
-    var emoji = emojis2[unified];
-    if (hasMatch(emoji, keyword)) {
-      filtered[unified] = emoji;
+    var emoji2 = emojis2[unified];
+    if (hasMatch(emoji2, keyword)) {
+      filtered[unified] = emoji2;
     }
   }
   return filtered;
 }
-function hasMatch(emoji, keyword) {
-  return emojiNames(emoji).some(function(name) {
+function hasMatch(emoji2, keyword) {
+  return emojiNames(emoji2).some(function(name) {
     return name.includes(keyword);
   });
 }
@@ -46402,10 +46402,10 @@ function useSetVariationPicker() {
   var setAnchoredEmojiRef = useSetAnchoredEmojiRef();
   var _useEmojiVariationPic = useEmojiVariationPickerState(), setEmojiVariationPicker = _useEmojiVariationPic[1];
   return function setVariationPicker(element) {
-    var _emojiFromElement = emojiFromElement(element), emoji = _emojiFromElement[0];
-    if (emoji) {
+    var _emojiFromElement = emojiFromElement(element), emoji2 = _emojiFromElement[0];
+    if (emoji2) {
       setAnchoredEmojiRef(element);
-      setEmojiVariationPicker(emoji);
+      setEmojiVariationPicker(emoji2);
     }
   };
 }
@@ -46755,18 +46755,18 @@ function hasModifier(event) {
   var metaKey = event.metaKey, ctrlKey = event.ctrlKey, altKey = event.altKey;
   return metaKey || ctrlKey || altKey;
 }
-function preloadEmoji(getEmojiUrl, emoji, emojiStyle) {
-  if (!emoji) {
+function preloadEmoji(getEmojiUrl, emoji2, emojiStyle) {
+  if (!emoji2) {
     return;
   }
   if (emojiStyle === EmojiStyle.NATIVE) {
     return;
   }
-  var unified = emojiUnified(emoji);
+  var unified = emojiUnified(emoji2);
   if (preloadedEmojs.has(unified)) {
     return;
   }
-  emojiVariations(emoji).forEach(function(variation) {
+  emojiVariations(emoji2).forEach(function(variation) {
     var emojiUrl = getEmojiUrl(variation, emojiStyle);
     preloadImage(emojiUrl);
   });
@@ -46795,12 +46795,12 @@ function useOnFocus() {
       if (!button) {
         return;
       }
-      var _emojiFromElement = emojiFromElement(button), emoji = _emojiFromElement[0];
-      if (!emoji) {
+      var _emojiFromElement = emojiFromElement(button), emoji2 = _emojiFromElement[0];
+      if (!emoji2) {
         return;
       }
-      if (emojiHasVariations(emoji)) {
-        preloadEmoji(getEmojiUrl, emoji, emojiStyle);
+      if (emojiHasVariations(emoji2)) {
+        preloadEmoji(getEmojiUrl, emoji2, emojiStyle);
       }
     }
   }, [BodyRef, emojiStyle, getEmojiUrl]);
@@ -47078,11 +47078,11 @@ function emojiFromElement(element) {
   if (!originalUnified) {
     return [];
   }
-  var emoji = emojiByUnified(unified != null ? unified : originalUnified);
-  if (!emoji) {
+  var emoji2 = emojiByUnified(unified != null ? unified : originalUnified);
+  if (!emoji2) {
     return [];
   }
-  return [emoji, unified];
+  return [emoji2, unified];
 }
 function isEmojiElement(element) {
   var _element$parentElemen;
@@ -47109,22 +47109,22 @@ function categoryLabelHeight(category) {
   var categoryWithoutLabel = category.querySelector(asSelectors(ClassNames.categoryContent));
   return ((_category$clientHeigh = category == null ? void 0 : category.clientHeight) != null ? _category$clientHeigh : 0) - ((_categoryWithoutLabel = categoryWithoutLabel == null ? void 0 : categoryWithoutLabel.clientHeight) != null ? _categoryWithoutLabel : 0);
 }
-function isEmojiBehindLabel(emoji) {
-  if (!emoji) {
+function isEmojiBehindLabel(emoji2) {
+  if (!emoji2) {
     return false;
   }
-  return emojiDistanceFromScrollTop(emoji) < categoryLabelHeight(closestCategory(emoji));
+  return emojiDistanceFromScrollTop(emoji2) < categoryLabelHeight(closestCategory(emoji2));
 }
 function queryScrollBody(root) {
   if (!root) return null;
   return root.matches(asSelectors(ClassNames.scrollBody)) ? root : root.querySelector(asSelectors(ClassNames.scrollBody));
 }
-function emojiDistanceFromScrollTop(emoji) {
+function emojiDistanceFromScrollTop(emoji2) {
   var _closestScrollBody$sc, _closestScrollBody;
-  if (!emoji) {
+  if (!emoji2) {
     return 0;
   }
-  return emojiTrueOffsetTop(emoji) - ((_closestScrollBody$sc = (_closestScrollBody = closestScrollBody(emoji)) == null ? void 0 : _closestScrollBody.scrollTop) != null ? _closestScrollBody$sc : 0);
+  return emojiTrueOffsetTop(emoji2) - ((_closestScrollBody$sc = (_closestScrollBody = closestScrollBody(emoji2)) == null ? void 0 : _closestScrollBody.scrollTop) != null ? _closestScrollBody$sc : 0);
 }
 function closestScrollBody(element) {
   var _element$closest;
@@ -47146,27 +47146,27 @@ function elementOffsetLeft(element) {
   var _element$offsetLeft;
   return (_element$offsetLeft = element == null ? void 0 : element.offsetLeft) != null ? _element$offsetLeft : 0;
 }
-function unifiedFromEmojiElement(emoji) {
+function unifiedFromEmojiElement(emoji2) {
   var _elementDataSetKey;
-  return (_elementDataSetKey = elementDataSetKey(buttonFromTarget(emoji), "unified")) != null ? _elementDataSetKey : null;
+  return (_elementDataSetKey = elementDataSetKey(buttonFromTarget(emoji2), "unified")) != null ? _elementDataSetKey : null;
 }
-function originalUnifiedFromEmojiElement(emoji) {
-  var unified = unifiedFromEmojiElement(emoji);
+function originalUnifiedFromEmojiElement(emoji2) {
+  var unified = unifiedFromEmojiElement(emoji2);
   if (unified) {
     return unifiedWithoutSkinTone(unified);
   }
   return null;
 }
-function allUnifiedFromEmojiElement(emoji) {
-  if (!emoji) {
+function allUnifiedFromEmojiElement(emoji2) {
+  if (!emoji2) {
     return {
       unified: null,
       originalUnified: null
     };
   }
   return {
-    unified: unifiedFromEmojiElement(emoji),
-    originalUnified: originalUnifiedFromEmojiElement(emoji)
+    unified: unifiedFromEmojiElement(emoji2),
+    originalUnified: originalUnifiedFromEmojiElement(emoji2)
   };
 }
 function elementDataSetKey(element, key) {
@@ -47292,10 +47292,10 @@ function getSuggested(mode) {
     return [];
   }
 }
-function setSuggested(emoji, skinTone) {
+function setSuggested(emoji2, skinTone) {
   var recent = getSuggested();
-  var unified = emojiUnified(emoji, skinTone);
-  var originalUnified = emojiUnified(emoji);
+  var unified = emojiUnified(emoji2, skinTone);
+  var originalUnified = emojiUnified(emoji2);
   var existing = recent.find(function(_ref) {
     var u2 = _ref.unified;
     return u2 === unified;
@@ -47324,8 +47324,8 @@ function setSuggested(emoji, skinTone) {
 function isCustomCategory(category) {
   return category.category === Categories.CUSTOM;
 }
-function isCustomEmoji(emoji) {
-  return emoji.imgUrl !== void 0;
+function isCustomEmoji(emoji2) {
+  return emoji2.imgUrl !== void 0;
 }
 function useMouseDownHandlers(ContainerRef, mouseEventSource) {
   var mouseDownTimerRef = useRef();
@@ -47343,22 +47343,22 @@ function useMouseDownHandlers(ContainerRef, mouseEventSource) {
       return;
     }
     closeAllOpenToggles();
-    var _emojiFromEvent = emojiFromEvent(event), emoji = _emojiFromEvent[0], unified = _emojiFromEvent[1];
-    if (!emoji || !unified) {
+    var _emojiFromEvent = emojiFromEvent(event), emoji2 = _emojiFromEvent[0], unified = _emojiFromEvent[1];
+    if (!emoji2 || !unified) {
       return;
     }
     var skinToneToUse = activeVariationFromUnified(unified) || activeSkinTone;
     updateSuggested();
-    setSuggested(emoji, skinToneToUse);
-    onEmojiClick(emojiClickOutput(emoji, skinToneToUse, activeEmojiStyle, getEmojiUrl), event);
+    setSuggested(emoji2, skinToneToUse);
+    onEmojiClick(emojiClickOutput(emoji2, skinToneToUse, activeEmojiStyle, getEmojiUrl), event);
   }, [activeSkinTone, closeAllOpenToggles, disallowClickRef, onEmojiClick, updateSuggested, getEmojiUrl, activeEmojiStyle]);
   var onMouseDown = useCallback(function onMouseDown2(event) {
     var _window;
     if (mouseDownTimerRef.current) {
       clearTimeout(mouseDownTimerRef.current);
     }
-    var _emojiFromEvent2 = emojiFromEvent(event), emoji = _emojiFromEvent2[0];
-    if (!emoji || !emojiHasVariations(emoji)) {
+    var _emojiFromEvent2 = emojiFromEvent(event), emoji2 = _emojiFromEvent2[0];
+    if (!emoji2 || !emojiHasVariations(emoji2)) {
       return;
     }
     mouseDownTimerRef.current = (_window = window) == null ? void 0 : _window.setTimeout(function() {
@@ -47366,7 +47366,7 @@ function useMouseDownHandlers(ContainerRef, mouseEventSource) {
       mouseDownTimerRef.current = void 0;
       closeAllOpenToggles();
       setVariationPicker(event.target);
-      setEmojiVariationPicker(emoji);
+      setEmojiVariationPicker(emoji2);
     }, 500);
   }, [disallowClickRef, closeAllOpenToggles, setVariationPicker, setEmojiVariationPicker]);
   var onMouseUp = useCallback(function onMouseUp2() {
@@ -47407,24 +47407,24 @@ function emojiFromEvent(event) {
   }
   return emojiFromElement(target);
 }
-function emojiClickOutput(emoji, activeSkinTone, activeEmojiStyle, getEmojiUrl) {
-  var names = emojiNames(emoji);
-  if (isCustomEmoji(emoji)) {
-    var _unified = emojiUnified(emoji);
+function emojiClickOutput(emoji2, activeSkinTone, activeEmojiStyle, getEmojiUrl) {
+  var names = emojiNames(emoji2);
+  if (isCustomEmoji(emoji2)) {
+    var _unified = emojiUnified(emoji2);
     return {
       activeSkinTone,
       emoji: _unified,
       getImageUrl: function getImageUrl() {
-        return emoji.imgUrl;
+        return emoji2.imgUrl;
       },
-      imageUrl: emoji.imgUrl,
+      imageUrl: emoji2.imgUrl,
       isCustom: true,
       names,
       unified: _unified,
       unifiedWithoutSkinTone: _unified
     };
   }
-  var unified = emojiUnified(emoji, activeSkinTone);
+  var unified = emojiUnified(emoji2, activeSkinTone);
   return {
     activeSkinTone,
     emoji: parseNativeEmoji(unified),
@@ -47438,7 +47438,7 @@ function emojiClickOutput(emoji, activeSkinTone, activeEmojiStyle, getEmojiUrl) 
     isCustom: false,
     names,
     unified,
-    unifiedWithoutSkinTone: emojiUnified(emoji)
+    unifiedWithoutSkinTone: emojiUnified(emoji2)
   };
 }
 function Button(props) {
@@ -47580,13 +47580,13 @@ var styles$4 = /* @__PURE__ */ stylesheet.create({
   }
 });
 function ViewOnlyEmoji(_ref) {
-  var emoji = _ref.emoji, unified = _ref.unified, emojiStyle = _ref.emojiStyle, size = _ref.size, lazyLoad = _ref.lazyLoad, _ref$getEmojiUrl = _ref.getEmojiUrl, getEmojiUrl = _ref$getEmojiUrl === void 0 ? emojiUrlByUnified : _ref$getEmojiUrl, className = _ref.className;
+  var emoji2 = _ref.emoji, unified = _ref.unified, emojiStyle = _ref.emojiStyle, size = _ref.size, lazyLoad = _ref.lazyLoad, _ref$getEmojiUrl = _ref.getEmojiUrl, getEmojiUrl = _ref$getEmojiUrl === void 0 ? emojiUrlByUnified : _ref$getEmojiUrl, className = _ref.className;
   var _useEmojisThatFailedT = useEmojisThatFailedToLoadState(), setEmojisThatFailedToLoad = _useEmojisThatFailedT[1];
   var style2 = {};
   if (size) {
     style2.width = style2.height = style2.fontSize = size + "px";
   }
-  var emojiToRender = emoji ? emoji : emojiByUnified(unified);
+  var emojiToRender = emoji2 ? emoji2 : emojiByUnified(unified);
   if (!emojiToRender) {
     return null;
   }
@@ -47621,19 +47621,19 @@ function ViewOnlyEmoji(_ref) {
   }
 }
 function ClickableEmoji(_ref) {
-  var emoji = _ref.emoji, unified = _ref.unified, hidden2 = _ref.hidden, hiddenOnSearch = _ref.hiddenOnSearch, emojiStyle = _ref.emojiStyle, _ref$showVariations = _ref.showVariations, showVariations = _ref$showVariations === void 0 ? true : _ref$showVariations, size = _ref.size, lazyLoad = _ref.lazyLoad, getEmojiUrl = _ref.getEmojiUrl, className = _ref.className, _ref$noBackground = _ref.noBackground, noBackground = _ref$noBackground === void 0 ? false : _ref$noBackground;
-  var hasVariations = emojiHasVariations(emoji);
+  var emoji2 = _ref.emoji, unified = _ref.unified, hidden2 = _ref.hidden, hiddenOnSearch = _ref.hiddenOnSearch, emojiStyle = _ref.emojiStyle, _ref$showVariations = _ref.showVariations, showVariations = _ref$showVariations === void 0 ? true : _ref$showVariations, size = _ref.size, lazyLoad = _ref.lazyLoad, getEmojiUrl = _ref.getEmojiUrl, className = _ref.className, _ref$noBackground = _ref.noBackground, noBackground = _ref$noBackground === void 0 ? false : _ref$noBackground;
+  var hasVariations = emojiHasVariations(emoji2);
   return createElement(ClickableEmojiButton, {
     hasVariations,
     showVariations,
     hidden: hidden2,
     hiddenOnSearch,
-    emojiNames: emojiNames(emoji),
+    emojiNames: emojiNames(emoji2),
     unified,
     noBackground
   }, createElement(ViewOnlyEmoji, {
     unified,
-    emoji,
+    emoji: emoji2,
     size,
     emojiStyle,
     lazyLoad,
@@ -47773,8 +47773,8 @@ function useOnScroll(BodyRef) {
 function useIsEmojiHidden() {
   var _useEmojisThatFailedT = useEmojisThatFailedToLoadState(), emojisThatFailedToLoad = _useEmojisThatFailedT[0];
   var isEmojiFiltered = useIsEmojiFiltered();
-  return function(emoji) {
-    var unified = emojiUnified(emoji);
+  return function(emoji2) {
+    var unified = emojiUnified(emoji2);
     var failedToLoad = emojisThatFailedToLoad.has(unified);
     var filteredOut = isEmojiFiltered(unified);
     return {
@@ -47866,15 +47866,15 @@ function Suggested(_ref) {
     hiddenOnSearch: true,
     hidden: suggested.length === 0
   }, suggested.map(function(suggestedItem) {
-    var emoji = emojiByUnified(suggestedItem.original);
-    if (!emoji) {
+    var emoji2 = emojiByUnified(suggestedItem.original);
+    if (!emoji2) {
       return null;
     }
     return createElement(ClickableEmoji, {
       showVariations: false,
       unified: suggestedItem.unified,
       emojiStyle,
-      emoji,
+      emoji: emoji2,
       key: suggestedItem.unified,
       getEmojiUrl
     });
@@ -47917,10 +47917,10 @@ function RenderCategory(_ref) {
     renderdCategoriesCountRef.current++;
   }
   var hiddenCounter = 0;
-  var emojis2 = emojisToPush.map(function(emoji) {
-    var unified = emojiUnified(emoji, activeSkinTone);
-    var _isEmojiHidden = isEmojiHidden(emoji), failedToLoad = _isEmojiHidden.failedToLoad, filteredOut = _isEmojiHidden.filteredOut, hidden2 = _isEmojiHidden.hidden;
-    var isDisallowed = isEmojiDisallowed(emoji);
+  var emojis2 = emojisToPush.map(function(emoji2) {
+    var unified = emojiUnified(emoji2, activeSkinTone);
+    var _isEmojiHidden = isEmojiHidden(emoji2), failedToLoad = _isEmojiHidden.failedToLoad, filteredOut = _isEmojiHidden.filteredOut, hidden2 = _isEmojiHidden.hidden;
+    var isDisallowed = isEmojiDisallowed(emoji2);
     if (hidden2 || isDisallowed) {
       hiddenCounter++;
     }
@@ -47930,7 +47930,7 @@ function RenderCategory(_ref) {
     return createElement(ClickableEmoji, {
       showVariations,
       key: unified,
-      emoji,
+      emoji: emoji2,
       unified,
       hidden: failedToLoad,
       hiddenOnSearch: filteredOut,
@@ -47963,14 +47963,14 @@ var Direction;
 function EmojiVariationPicker() {
   var AnchoredEmojiRef = useAnchoredEmojiRef();
   var VariationPickerRef = useVariationPickerRef();
-  var _useEmojiVariationPic = useEmojiVariationPickerState(), emoji = _useEmojiVariationPic[0];
+  var _useEmojiVariationPic = useEmojiVariationPickerState(), emoji2 = _useEmojiVariationPic[0];
   var emojiStyle = useEmojiStyleConfig();
   var _useVariationPickerTo = useVariationPickerTop(VariationPickerRef), getTop = _useVariationPickerTo.getTop, getMenuDirection = _useVariationPickerTo.getMenuDirection;
   var setAnchoredEmojiRef = useSetAnchoredEmojiRef();
   var getPointerStyle = usePointerStyle(VariationPickerRef);
   var getEmojiUrl = useGetEmojiUrlConfig();
   var button = buttonFromTarget(AnchoredEmojiRef.current);
-  var visible = Boolean(emoji && button && emojiHasVariations(emoji) && button.classList.contains(ClassNames.emojiHasVariations));
+  var visible = Boolean(emoji2 && button && emojiHasVariations(emoji2) && button.classList.contains(ClassNames.emojiHasVariations));
   useEffect(function() {
     if (!visible) {
       return;
@@ -47990,10 +47990,10 @@ function EmojiVariationPicker() {
     style: {
       top
     }
-  }, visible && emoji ? [emojiUnified(emoji)].concat(emojiVariations(emoji)).slice(0, 6).map(function(unified) {
+  }, visible && emoji2 ? [emojiUnified(emoji2)].concat(emojiVariations(emoji2)).slice(0, 6).map(function(unified) {
     return createElement(ClickableEmoji, {
       key: unified,
-      emoji,
+      emoji: emoji2,
       unified,
       emojiStyle,
       showVariations: false,
@@ -48460,8 +48460,8 @@ function PreviewBody() {
   var _useEmojiVariationPic = useEmojiVariationPickerState(), variationPickerEmoji = _useEmojiVariationPic[0];
   var getEmojiUrl = useGetEmojiUrlConfig();
   useEmojiPreviewEvents(previewConfig.showPreview, setPreviewEmoji);
-  var emoji = emojiByUnified((_previewEmoji$unified = previewEmoji == null ? void 0 : previewEmoji.unified) != null ? _previewEmoji$unified : previewEmoji == null ? void 0 : previewEmoji.originalUnified);
-  var show = emoji != null && previewEmoji != null;
+  var emoji2 = emojiByUnified((_previewEmoji$unified = previewEmoji == null ? void 0 : previewEmoji.unified) != null ? _previewEmoji$unified : previewEmoji == null ? void 0 : previewEmoji.originalUnified);
+  var show = emoji2 != null && previewEmoji != null;
   return createElement(PreviewContent, null);
   function PreviewContent() {
     var defaultEmoji = variationPickerEmoji != null ? variationPickerEmoji : emojiByUnified(previewConfig.defaultEmoji);
@@ -48471,7 +48471,7 @@ function PreviewBody() {
     var defaultText = variationPickerEmoji ? emojiName(variationPickerEmoji) : previewConfig.defaultCaption;
     return createElement(Fragment, null, createElement("div", null, show ? createElement(ViewOnlyEmoji, {
       unified: previewEmoji == null ? void 0 : previewEmoji.unified,
-      emoji,
+      emoji: emoji2,
       emojiStyle,
       size: 45,
       getEmojiUrl,
@@ -48485,7 +48485,7 @@ function PreviewBody() {
       className: cx(styles$e.emoji)
     }) : null), createElement("div", {
       className: cx(styles$e.label)
-    }, show ? emojiName(emoji) : defaultText));
+    }, show ? emojiName(emoji2) : defaultText));
   }
 }
 var styles$e = /* @__PURE__ */ stylesheet.create({
@@ -54562,7 +54562,7 @@ const VoiceButton = ({ onChange }) => {
 };
 const send = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='iso-8859-1'?%3e%3c!--%20Generator:%20Adobe%20Illustrator%2016.0.0,%20SVG%20Export%20Plug-In%20.%20SVG%20Version:%206.00%20Build%200)%20--%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20version='1.1'%20id='Capa_1'%20x='0px'%20y='0px'%20width='24px'%20height='24px'%20viewBox='0%200%2024%2024'%20fill='%23000000a0'%3e%3cpath%20d='M16.6915026,12.4744748%20L3.50612381,13.2599618%20C3.19218622,13.2599618%203.03521743,13.4170592%203.03521743,13.5741566%20L1.15159189,20.0151496%20C0.8376543,20.8006365%200.99,21.89%201.77946707,22.52%20C2.41,22.99%203.50612381,23.1%204.13399899,22.8429026%20L21.714504,14.0454487%20C22.6563168,13.5741566%2023.1272231,12.6315722%2022.9702544,11.6889879%20C22.8132856,11.0605983%2022.3423792,10.4322088%2021.714504,10.118014%20L4.13399899,1.16346272%20C3.34915502,0.9%202.40734225,1.00636533%201.77946707,1.4776575%20C0.994623095,2.10604706%200.8376543,3.0486314%201.15159189,3.99121575%20L3.03521743,10.4322088%20C3.03521743,10.5893061%203.34915502,10.7464035%203.50612381,10.7464035%20L16.6915026,11.5318905%20C16.6915026,11.5318905%2017.1624089,11.5318905%2017.1624089,12.0031827%20C17.1624089,12.4744748%2016.6915026,12.4744748%2016.6915026,12.4744748%20Z'%3e%3c/path%3e%3c/svg%3e";
 const sendActive = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='iso-8859-1'?%3e%3c!--%20Generator:%20Adobe%20Illustrator%2016.0.0,%20SVG%20Export%20Plug-In%20.%20SVG%20Version:%206.00%20Build%200)%20--%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20version='1.1'%20id='Capa_1'%20x='0px'%20y='0px'%20width='24px'%20height='24px'%20viewBox='0%200%2024%2024'%20fill='%230080ff'%3e%3cpath%20d='M16.6915026,12.4744748%20L3.50612381,13.2599618%20C3.19218622,13.2599618%203.03521743,13.4170592%203.03521743,13.5741566%20L1.15159189,20.0151496%20C0.8376543,20.8006365%200.99,21.89%201.77946707,22.52%20C2.41,22.99%203.50612381,23.1%204.13399899,22.8429026%20L21.714504,14.0454487%20C22.6563168,13.5741566%2023.1272231,12.6315722%2022.9702544,11.6889879%20C22.8132856,11.0605983%2022.3423792,10.4322088%2021.714504,10.118014%20L4.13399899,1.16346272%20C3.34915502,0.9%202.40734225,1.00636533%201.77946707,1.4776575%20C0.994623095,2.10604706%200.8376543,3.0486314%201.15159189,3.99121575%20L3.03521743,10.4322088%20C3.03521743,10.5893061%203.34915502,10.7464035%203.50612381,10.7464035%20L16.6915026,11.5318905%20C16.6915026,11.5318905%2017.1624089,11.5318905%2017.1624089,12.0031827%20C17.1624089,12.4744748%2016.6915026,12.4744748%2016.6915026,12.4744748%20Z'%3e%3c/path%3e%3c/svg%3e";
-const smiley = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%3e%3cpath%20d='M464%20256A208%20208%200%201%200%2048%20256a208%20208%200%201%200%20416%200zM0%20256a256%20256%200%201%201%20512%200A256%20256%200%201%201%200%20256zm177.6%2062.1C192.8%20334.5%20218.8%20352%20256%20352s63.2-17.5%2078.4-33.9c9-9.7%2024.2-10.4%2033.9-1.4s10.4%2024.2%201.4%2033.9c-22%2023.8-60%2049.4-113.6%2049.4s-91.7-25.5-113.6-49.4c-9-9.7-8.4-24.9%201.4-33.9s24.9-8.4%2033.9%201.4zM144.4%20208a32%2032%200%201%201%2064%200%2032%2032%200%201%201%20-64%200zm192-32a32%2032%200%201%201%200%2064%2032%2032%200%201%201%200-64z'/%3e%3c/svg%3e";
+const emoji = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%3e%3cpath%20d='M464%20256A208%20208%200%201%200%2048%20256a208%20208%200%201%200%20416%200zM0%20256a256%20256%200%201%201%20512%200A256%20256%200%201%201%200%20256zm177.6%2062.1C192.8%20334.5%20218.8%20352%20256%20352s63.2-17.5%2078.4-33.9c9-9.7%2024.2-10.4%2033.9-1.4s10.4%2024.2%201.4%2033.9c-22%2023.8-60%2049.4-113.6%2049.4s-91.7-25.5-113.6-49.4c-9-9.7-8.4-24.9%201.4-33.9s24.9-8.4%2033.9%201.4zM144.4%20208a32%2032%200%201%201%2064%200%2032%2032%200%201%201%20-64%200zm192-32a32%2032%200%201%201%200%2064%2032%2032%200%201%201%200-64z'/%3e%3c/svg%3e";
 const file = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%3e%3cpath%20d='M448%2080c8.8%200%2016%207.2%2016%2016V415.8l-5-6.5-136-176c-4.5-5.9-11.6-9.3-19-9.3s-14.4%203.4-19%209.3L202%20340.7l-30.5-42.7C167%20291.7%20159.8%20288%20152%20288s-15%203.7-19.5%2010.1l-80%20112L48%20416.3l0-.3V96c0-8.8%207.2-16%2016-16H448zM64%2032C28.7%2032%200%2060.7%200%2096V416c0%2035.3%2028.7%2064%2064%2064H448c35.3%200%2064-28.7%2064-64V96c0-35.3-28.7-64-64-64H64zm80%20192a48%2048%200%201%200%200-96%2048%2048%200%201%200%200%2096z'/%3e%3c/svg%3e";
 const brRegex = /<br>/g;
 function Sender({
@@ -54685,7 +54685,7 @@ function Sender({
   const isSendActive = !disabledInput && isTextReady || allowSend;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { ref: refContainer, className: "rcw-sender", children: [
     onPressFile && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "rcw-picker-btn file-picker-btn", type: "submit", onClick: handlerPressFile, children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: file, className: "rcw-picker-icon", alt: "" }) }),
-    onPressEmoji && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "rcw-picker-btn emoji-picker-btn", type: "submit", onClick: handlerPressEmoji, children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: smiley, className: "rcw-picker-icon", alt: "" }) }),
+    onPressEmoji && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { className: "rcw-picker-btn emoji-picker-btn", type: "submit", onClick: handlerPressEmoji, children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: emoji, className: "rcw-picker-icon", alt: "" }) }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: cn("rcw-new-message", {
       "rcw-message-disable": disabledInput
     }), children: [
@@ -55295,9 +55295,9 @@ function Conversation({
   };
   const senderRef = useRef(null);
   const [pickerStatus, setPickerStatus] = useState(false);
-  const onSelectEmoji = (emoji) => {
+  const onSelectEmoji = (emoji2) => {
     var _a2;
-    (_a2 = senderRef.current) == null ? void 0 : _a2.onSelectEmoji(emoji);
+    (_a2 = senderRef.current) == null ? void 0 : _a2.onSelectEmoji(emoji2);
   };
   const onSelectFile = (files2) => {
     sendMessage2 == null ? void 0 : sendMessage2({ files: files2, replyMessage });
@@ -55874,7 +55874,7 @@ function Root({
     addToggleChatListener((state2) => {
       console.debug("@@@ addToggleChatListener", state2);
       if (handleToggleCallback) {
-        handleToggleCallback(state2).then((r2) => console.log(r2));
+        handleToggleCallback(state2);
       }
     });
     setStatusLocale("en");
@@ -55996,8 +55996,6 @@ function Root({
     {
       layoutProps: {
         conversationProps: {
-          copyright: "&copy; SysMog Tech Private Limited 2025. All rights reserved.",
-          copyrightPosition: "bottom",
           headerProps: {
             title,
             subtitle,
@@ -56005,25 +56003,30 @@ function Root({
             showMenuButton: true,
             menus: [
               {
-                title: "End Chat",
-                icon: smiley,
+                title: "End Conversation",
                 onClick: () => {
-                  connectionRef.current.disconnect("Customer Has ended Chat");
                   toggleChat();
-                }
-                /*selects: [
-                    {
-                        title: 'English',
-                        onClick: () => showPopup(() => <>You have selected
-                            English</>, {top: 20})
-                    },
-                    {
-                        title: 'Hindi',
-                        onClick: () => showPopup(() => <>You have selected
-                            English</>, {top: 20})
-                    }
-                ]*/
+                  connectionRef.current.disconnect("Customer Has Disconnected");
+                  connectionRef.current = null;
+                },
+                icon: ""
               }
+              /*{
+                  title: 'Language',
+                  icon: smiley,
+                  selects: [
+                      {
+                          title: 'English',
+                          onClick: () => showPopup(() => <>You have selected
+                              English</>, {top: 20})
+                      },
+                      {
+                          title: 'Hindi',
+                          onClick: () => showPopup(() => <>You have selected
+                              English</>, {top: 20})
+                      }
+                  ]
+              }*/
             ]
           },
           messagesProps: {
