@@ -55975,7 +55975,7 @@ function Root({
           headerProps: {
             title,
             subtitle,
-            showCloseButton: true,
+            showCloseButton: false,
             showMenuButton: false,
             menus: [
               {
