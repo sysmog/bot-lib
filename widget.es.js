@@ -49096,7 +49096,7 @@ function Message$1({ message: message2, reply, reaction, showTimeStamp, isReplyC
   const locale = useSelector(({ messages }) => messages == null ? void 0 : messages.statusLocale);
   let sanitizedHTML = null;
   if (message2.text) {
-    sanitizedHTML = MarkdownIt({ html: true, breaks: true }).use(markdownItClass, {
+    sanitizedHTML = MarkdownIt({ html: true, breaks: true, linkify: true }).use(markdownItClass, {
       img: ["rcw-message-img"]
     }).use(sup_plugin).use(markdownItSanitizer).use(markdownItLinkAttributes, { attrs: { target: "_blank", rel: "noopener" } }).use(L$1).use(Y).render(message2.text);
   }
@@ -54587,7 +54587,7 @@ function Sender({
   useEffect(() => {
     var _a2;
     if (showChat && autofocus) (_a2 = inputRef.current) == null ? void 0 : _a2.focus();
-  }, [showChat, autofocus]);
+  }, [showChat]);
   useEffect(() => {
     setFirefox(isFirefox());
   }, []);
@@ -54633,6 +54633,11 @@ function Sender({
       el.innerHTML = emoji2.emoji;
     }
     updateCaret(el, start, emoji2.emoji.length);
+    setIsTextReady(el.innerHTML.length > 0);
+  };
+  const handlerOnBlur = (event) => {
+    var _a2, _b;
+    setIsTextReady((((_b = (_a2 = inputRef.current) == null ? void 0 : _a2.textContent) == null ? void 0 : _b.length) ?? 0) > 0);
   };
   const handlerOnKeyPress = (event) => {
     const el = inputRef.current;
@@ -54696,7 +54701,8 @@ function Sender({
           onInput: handlerOnChange,
           onKeyPress: handlerOnKeyPress,
           onKeyUp: handlerOnKeyUp,
-          onKeyDown: handlerOnKeyDown
+          onKeyDown: handlerOnKeyDown,
+          onBlur: handlerOnBlur
         }
       ),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rcw-input-fake", role: "textbox", children: " " })
@@ -55208,7 +55214,8 @@ function Conversation({
   reply,
   reaction,
   disabledInput: propDisabledInput,
-  copyright
+  copyright,
+  copyrightPosition = "bottom"
 }) {
   const containerDivRef = useRef(null);
   const boundResizeRef = useRef(() => {
@@ -55323,7 +55330,7 @@ function Conversation({
         resizable && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { "data-resizer": "top", className: "rcw-conversation-y-resizer", onMouseDown: initResize }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(Header, { ...headerProps }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(Messages, { reply, reaction, ...messagesProps }),
-        copyright && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "copyright", dangerouslySetInnerHTML: { __html: copyright } }),
+        copyright && copyrightPosition === "bottom" && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "copyright bottom", dangerouslySetInnerHTML: { __html: copyright } }),
         /* @__PURE__ */ jsxRuntimeExports.jsx(QuickButtons, { ...quickButtonsProps }),
         emojis2 && pickerStatus && /* @__PURE__ */ jsxRuntimeExports.jsx(
           FilePicker,
@@ -55867,7 +55874,7 @@ function Root({
     addToggleChatListener((state2) => {
       console.debug("@@@ addToggleChatListener", state2);
       if (handleToggleCallback) {
-        handleToggleCallback(state2);
+        handleToggleCallback(state2).then((r2) => console.log(r2));
       }
     });
     setStatusLocale("en");
@@ -55989,25 +55996,33 @@ function Root({
     {
       layoutProps: {
         conversationProps: {
+          copyright: "&copy; SysMog Tech Private Limited 2025. All rights reserved.",
+          copyrightPosition: "bottom",
           headerProps: {
             title,
             subtitle,
             showCloseButton: true,
-            showMenuButton: false,
+            showMenuButton: true,
             menus: [
               {
-                title: "Language",
+                title: "End Chat",
                 icon: smiley,
-                selects: [
-                  {
-                    title: "English",
-                    onClick: () => showPopup(() => /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: "You have selected English" }), { top: 20 })
-                  },
-                  {
-                    title: "Hindi",
-                    onClick: () => showPopup(() => /* @__PURE__ */ jsxRuntimeExports.jsx(jsxRuntimeExports.Fragment, { children: "You have selected English" }), { top: 20 })
-                  }
-                ]
+                onClick: () => {
+                  connectionRef.current.disconnect("Customer Has ended Chat");
+                  toggleChat();
+                }
+                /*selects: [
+                    {
+                        title: 'English',
+                        onClick: () => showPopup(() => <>You have selected
+                            English</>, {top: 20})
+                    },
+                    {
+                        title: 'Hindi',
+                        onClick: () => showPopup(() => <>You have selected
+                            English</>, {top: 20})
+                    }
+                ]*/
               }
             ]
           },
