@@ -54150,6 +54150,19 @@ function handleChatMessageForAgent(connection, msgType, body, roomJID) {
     return;
   }
 }
+function onResize(w2, h) {
+  console.debug("@@@Resize", w2, h);
+}
+function handleToggle(isPopup) {
+  if (!isPopup) return void 0;
+  return async (isOpened) => {
+    console.debug("@@@handleToggle", isOpened);
+    if (isOpened) {
+      await new Promise((done) => setTimeout(done, 0));
+    }
+    return true;
+  };
+}
 function generateRandomString() {
   return Math.random().toString(36).substring(2, 15);
 }
@@ -55189,7 +55202,7 @@ function Conversation({
     widthOffset: 35
   },
   defaultSize = minSize,
-  onResize,
+  onResize: onResize2,
   emojis: emojis2,
   files,
   reply,
@@ -55224,12 +55237,12 @@ function Conversation({
           Math.max(newHeight, minSize.height),
           Math.round((resizableProps == null ? void 0 : resizableProps.heightOffset) ? window.innerHeight - resizableProps.heightOffset : window.innerHeight - 105)
         );
-        onResize == null ? void 0 : onResize(width2, height2);
+        onResize2 == null ? void 0 : onResize2(width2, height2);
         containerDivRef.current.style.width = width2 + "px";
         containerDivRef.current.style.height = height2 + "px";
       }
     },
-    [containerDivRef, resizableProps, onResize]
+    [containerDivRef, resizableProps, onResize2]
     // Dependencies
   );
   useEffect(() => {
@@ -55353,12 +55366,12 @@ function Conversation({
 function Badge({ badge }) {
   return badge > 0 ? /* @__PURE__ */ jsxRuntimeExports.jsx("span", { className: "rcw-badge", children: badge }) : null;
 }
-function Popup({ text: text2, onResize }) {
+function Popup({ text: text2, onResize: onResize2 }) {
   const [isClosed, setIsClosed] = useState(false);
   useEffect(() => {
     const el = document.querySelector(".rcw-popup");
-    onResize == null ? void 0 : onResize((el == null ? void 0 : el.clientWidth) ?? 0, (el == null ? void 0 : el.clientHeight) ?? 0);
-  }, [text2, isClosed, onResize]);
+    onResize2 == null ? void 0 : onResize2((el == null ? void 0 : el.clientWidth) ?? 0, (el == null ? void 0 : el.clientHeight) ?? 0);
+  }, [text2, isClosed, onResize2]);
   if (isClosed) {
     return null;
   }
@@ -55727,14 +55740,14 @@ function Widget({
   handleQuickButtonClicked,
   handleTextInputChange,
   disableRichTextInput,
-  handleToggle,
+  handleToggle: handleToggle2,
   handleSubmit,
-  onResize
+  onResize: onResize2
   // connectionRef,
 }) {
   const rootRef = useRef(null);
   useEffect(() => {
-    if (!rootRef.current || !onResize) {
+    if (!rootRef.current || !onResize2) {
       return;
     }
     const el = rootRef.current;
@@ -55748,13 +55761,13 @@ function Widget({
           height2 = launcher.clientHeight;
         }
       }
-      onResize(width2, height2);
+      onResize2(width2, height2);
     });
     s.observe(el);
-  }, [rootRef, onResize]);
+  }, [rootRef, onResize2]);
   const toggleConversation = async () => {
-    if (handleToggle) {
-      if (!await handleToggle(!isWidgetOpened())) {
+    if (handleToggle2) {
+      if (!await handleToggle2(!isWidgetOpened())) {
         return;
       }
     }
@@ -55853,10 +55866,14 @@ function Root({
   useEffect(() => {
     addToggleChatListener((state2) => {
       console.debug("@@@ addToggleChatListener", state2);
+      if (handleToggleCallback) {
+        handleToggleCallback(state2);
+      }
     });
     setStatusLocale("en");
     setVoiceLocale("en");
     addResponseMessage(startMsg);
+    clearStorage();
     saveUserType(userType);
     const storedTimestamp = getTimestamp();
     if (storedTimestamp) {
@@ -55975,7 +55992,7 @@ function Root({
           headerProps: {
             title,
             subtitle,
-            showCloseButton: false,
+            showCloseButton: true,
             showMenuButton: false,
             menus: [
               {
@@ -56029,8 +56046,8 @@ function Root({
       handleNewUserMessage,
       handleQuickButtonClicked,
       handleSubmit,
-      onResize: handleResizeCallback,
-      handleToggle: handleToggleCallback,
+      onResize,
+      handleToggle: handleToggle(isPopup),
       disableRichTextInput: true
     }
   ) }) });
