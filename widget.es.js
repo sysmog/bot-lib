@@ -52623,6 +52623,142 @@ const insertNodeAtCaret = (el) => {
   el.innerHTML = el.innerHTML.replace(/<br>/g, "");
   updateCaret(el, position2, 1);
 };
+const microphone = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='utf-8'?%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20fill='%23000000'%20height='800px'%20width='800px'%20version='1.1'%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%20enable-background='new%200%200%20512%20512'%3e%3cg%3e%3cg%3e%3cpath%20d='m439.5,236c0-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,70-64,126.9-142.7,126.9-78.7,0-142.7-56.9-142.7-126.9%200-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,86.2%2071.5,157.4%20163.1,166.7v57.5h-23.6c-11.3,0-20.4,9.1-20.4,20.4%200,11.3%209.1,20.4%2020.4,20.4h88c11.3,0%2020.4-9.1%2020.4-20.4%200-11.3-9.1-20.4-20.4-20.4h-23.6v-57.5c91.6-9.3%20163.1-80.5%20163.1-166.7z'/%3e%3cpath%20d='m256,323.5c51,0%2092.3-41.3%2092.3-92.3v-127.9c0-51-41.3-92.3-92.3-92.3s-92.3,41.3-92.3,92.3v127.9c0,51%2041.3,92.3%2092.3,92.3zm-52.3-220.2c0-28.8%2023.5-52.3%2052.3-52.3s52.3,23.5%2052.3,52.3v127.9c0,28.8-23.5,52.3-52.3,52.3s-52.3-23.5-52.3-52.3v-127.9z'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e";
+const microphoneActive = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='utf-8'?%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20fill='%230080ff'%20height='800px'%20width='800px'%20version='1.1'%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%20enable-background='new%200%200%20512%20512'%3e%3cg%3e%3cg%3e%3cpath%20d='m439.5,236c0-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,70-64,126.9-142.7,126.9-78.7,0-142.7-56.9-142.7-126.9%200-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,86.2%2071.5,157.4%20163.1,166.7v57.5h-23.6c-11.3,0-20.4,9.1-20.4,20.4%200,11.3%209.1,20.4%2020.4,20.4h88c11.3,0%2020.4-9.1%2020.4-20.4%200-11.3-9.1-20.4-20.4-20.4h-23.6v-57.5c91.6-9.3%20163.1-80.5%20163.1-166.7z'/%3e%3cpath%20d='m256,323.5c51,0%2092.3-41.3%2092.3-92.3v-127.9c0-51-41.3-92.3-92.3-92.3s-92.3,41.3-92.3,92.3v127.9c0,51%2041.3,92.3%2092.3,92.3zm-52.3-220.2c0-28.8%2023.5-52.3%2052.3-52.3s52.3,23.5%2052.3,52.3v127.9c0,28.8-23.5,52.3-52.3,52.3s-52.3-23.5-52.3-52.3v-127.9z'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e";
+const useVoiceToText = () => {
+  const locale = useSelector$1(({ messages }) => messages == null ? void 0 : messages.voiceLocale);
+  const [listening, setListening] = useState(false);
+  const [text2, setText] = useState("");
+  const [isSupported, setIsSupported] = useState(false);
+  const [isFinal, setIsFinal] = useState(false);
+  const recognition = useRef(null);
+  useEffect(() => {
+    try {
+      if (locale && window.webkitSpeechRecognition) {
+        const r2 = new window.webkitSpeechRecognition();
+        r2.continuous = true;
+        r2.interimResults = true;
+        r2.lang = locale;
+        r2.addEventListener("start", () => {
+          setListening(true);
+        });
+        r2.addEventListener("result", (event) => {
+          let interimTranscript = "";
+          let finalTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript + " ";
+            } else {
+              interimTranscript += transcript;
+            }
+          }
+          setText(finalTranscript || interimTranscript);
+          if (finalTranscript) setIsFinal(true);
+        });
+        r2.addEventListener("end", () => {
+          setListening(false);
+        });
+        r2.addEventListener("error", (error2) => {
+          console.error("Speech recognition error:", error2);
+          setListening(false);
+        });
+        recognition.current = r2;
+        setIsSupported(true);
+      } else {
+        console.error("SpeechRecognition is not supported in this browser.");
+      }
+    } catch (e) {
+      console.error("Speech recognition error:", e);
+    }
+    return () => {
+      const r2 = recognition.current;
+      if (r2) {
+        r2.stop();
+      }
+    };
+  }, [locale]);
+  const start = () => {
+    const r2 = recognition.current;
+    if (r2) {
+      r2.start();
+      setIsFinal(false);
+    }
+  };
+  const stop = () => {
+    const r2 = recognition.current;
+    if (r2) {
+      r2.stop();
+    }
+  };
+  const resetText = () => {
+    setText("");
+  };
+  return { isSupported, listening, start, stop, text: text2, resetText, isFinal };
+};
+const useClickAndHold = (callback = null, duration2 = 500) => {
+  const [isHolding, setIsHolding] = useState(false);
+  const holdTimer = useRef(setTimeout(() => {
+  }, 0));
+  const onMouseDown = () => {
+    holdTimer.current = setTimeout(() => {
+      setIsHolding(true);
+      if (callback) {
+        callback();
+      }
+    }, duration2);
+  };
+  const onMouseUp = () => {
+    clearTimeout(holdTimer.current);
+    if (isHolding) {
+      setIsHolding(false);
+    }
+  };
+  const onMouseLeave = () => {
+    clearTimeout(holdTimer.current);
+    if (isHolding) {
+      setIsHolding(false);
+    }
+  };
+  useEffect(() => {
+    return () => {
+      clearTimeout(holdTimer.current);
+    };
+  }, [isHolding, callback, duration2]);
+  return { isHolding, onMouseDown, onMouseUp, onMouseLeave };
+};
+const VoiceButton = ({ onChange }) => {
+  const {
+    text: text2,
+    isSupported,
+    start: startListening,
+    stop: stopListening,
+    isFinal
+  } = useVoiceToText();
+  useEffect(() => {
+    if (!text2) {
+      return;
+    }
+    onChange(text2, isFinal);
+  }, [text2, isFinal, onChange]);
+  useEffect(() => {
+    return () => {
+      stopListening();
+    };
+  }, [stopListening]);
+  const { isHolding, ...mouseProps } = useClickAndHold();
+  useEffect(() => {
+    if (isHolding) {
+      startListening();
+    } else {
+      stopListening();
+    }
+  }, [isHolding, startListening, stopListening]);
+  if (!isSupported) {
+    return null;
+  }
+  return /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "submit", className: cn("rcw-micro", { active: isHolding }), ...mouseProps, children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: isHolding ? microphoneActive : microphone, className: "rcw-micro-icon" }) });
+};
 const send = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='iso-8859-1'?%3e%3c!--%20Generator:%20Adobe%20Illustrator%2016.0.0,%20SVG%20Export%20Plug-In%20.%20SVG%20Version:%206.00%20Build%200)%20--%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20version='1.1'%20id='Capa_1'%20x='0px'%20y='0px'%20width='24px'%20height='24px'%20viewBox='0%200%2024%2024'%20fill='%23000000a0'%3e%3cpath%20d='M16.6915026,12.4744748%20L3.50612381,13.2599618%20C3.19218622,13.2599618%203.03521743,13.4170592%203.03521743,13.5741566%20L1.15159189,20.0151496%20C0.8376543,20.8006365%200.99,21.89%201.77946707,22.52%20C2.41,22.99%203.50612381,23.1%204.13399899,22.8429026%20L21.714504,14.0454487%20C22.6563168,13.5741566%2023.1272231,12.6315722%2022.9702544,11.6889879%20C22.8132856,11.0605983%2022.3423792,10.4322088%2021.714504,10.118014%20L4.13399899,1.16346272%20C3.34915502,0.9%202.40734225,1.00636533%201.77946707,1.4776575%20C0.994623095,2.10604706%200.8376543,3.0486314%201.15159189,3.99121575%20L3.03521743,10.4322088%20C3.03521743,10.5893061%203.34915502,10.7464035%203.50612381,10.7464035%20L16.6915026,11.5318905%20C16.6915026,11.5318905%2017.1624089,11.5318905%2017.1624089,12.0031827%20C17.1624089,12.4744748%2016.6915026,12.4744748%2016.6915026,12.4744748%20Z'%3e%3c/path%3e%3c/svg%3e";
 const sendActive = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='iso-8859-1'?%3e%3c!--%20Generator:%20Adobe%20Illustrator%2016.0.0,%20SVG%20Export%20Plug-In%20.%20SVG%20Version:%206.00%20Build%200)%20--%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20xmlns='http://www.w3.org/2000/svg'%20version='1.1'%20id='Capa_1'%20x='0px'%20y='0px'%20width='24px'%20height='24px'%20viewBox='0%200%2024%2024'%20fill='%23201658'%3e%3cpath%20d='M16.6915026,12.4744748%20L3.50612381,13.2599618%20C3.19218622,13.2599618%203.03521743,13.4170592%203.03521743,13.5741566%20L1.15159189,20.0151496%20C0.8376543,20.8006365%200.99,21.89%201.77946707,22.52%20C2.41,22.99%203.50612381,23.1%204.13399899,22.8429026%20L21.714504,14.0454487%20C22.6563168,13.5741566%2023.1272231,12.6315722%2022.9702544,11.6889879%20C22.8132856,11.0605983%2022.3423792,10.4322088%2021.714504,10.118014%20L4.13399899,1.16346272%20C3.34915502,0.9%202.40734225,1.00636533%201.77946707,1.4776575%20C0.994623095,2.10604706%200.8376543,3.0486314%201.15159189,3.99121575%20L3.03521743,10.4322088%20C3.03521743,10.5893061%203.34915502,10.7464035%203.50612381,10.7464035%20L16.6915026,11.5318905%20C16.6915026,11.5318905%2017.1624089,11.5318905%2017.1624089,12.0031827%20C17.1624089,12.4744748%2016.6915026,12.4744748%2016.6915026,12.4744748%20Z'%3e%3c/path%3e%3c/svg%3e";
 const emoji = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%3e%3cpath%20d='M464%20256A208%20208%200%201%200%2048%20256a208%20208%200%201%200%20416%200zM0%20256a256%20256%200%201%201%20512%200A256%20256%200%201%201%200%20256zm177.6%2062.1C192.8%20334.5%20218.8%20352%20256%20352s63.2-17.5%2078.4-33.9c9-9.7%2024.2-10.4%2033.9-1.4s10.4%2024.2%201.4%2033.9c-22%2023.8-60%2049.4-113.6%2049.4s-91.7-25.5-113.6-49.4c-9-9.7-8.4-24.9%201.4-33.9s24.9-8.4%2033.9%201.4zM144.4%20208a32%2032%200%201%201%2064%200%2032%2032%200%201%201%20-64%200zm192-32a32%2032%200%201%201%200%2064%2032%2032%200%201%201%200-64z'/%3e%3c/svg%3e";
@@ -52668,6 +52804,14 @@ function Sender({
     var _a2;
     setIsTextReady(((_a2 = inputRef.current) == null ? void 0 : _a2.innerHTML.length) > 0);
     onTextInputChange && onTextInputChange(event);
+  };
+  const handlerOnSpeech = (text2, isFinal) => {
+    if (!inputRef.current) {
+      return;
+    }
+    inputRef.current.innerHTML = text2;
+    setIsTextReady(text2.length > 0);
+    onVoiceInputChange && onVoiceInputChange(text2, isFinal);
   };
   const handlerSendMessage = () => {
     const el = inputRef.current;
@@ -52762,6 +52906,7 @@ function Sender({
       ),
       /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "rcw-input-fake", role: "textbox", children: " " })
     ] }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(VoiceButton, { onChange: handlerOnSpeech }),
     /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "submit", className: cn("rcw-send", { active: isSendActive }), onClick: handlerSendMessage, disabled: !enter && !allowSend, children: /* @__PURE__ */ jsxRuntimeExports.jsx("img", { src: isSendActive ? sendActive : send, className: "rcw-send-icon", alt: buttonAlt }) })
   ] });
 }
