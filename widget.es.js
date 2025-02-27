@@ -10,7 +10,7 @@ var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot
 var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
 var _nodeTree, _node, _name, _attrs, _string, _strings, _values;
 import * as React from "https://esm.sh/react";
-import React__default, { useMemo, useRef, useSyncExternalStore, useCallback, useLayoutEffect, useEffect, useDebugValue, forwardRef, useState, useImperativeHandle, useContext, isValidElement, cloneElement, Children, createContext, createElement, memo, Fragment, Suspense, createRef, Component as Component$1, useReducer } from "https://esm.sh/react";
+import React__default, { useMemo, useRef, useSyncExternalStore, useCallback, useLayoutEffect, useEffect, useDebugValue, forwardRef, useState, useImperativeHandle, useContext, isValidElement, cloneElement, Children, createContext, createElement, memo, Fragment, Suspense, createRef, Component as Component$1, PureComponent, useReducer } from "https://esm.sh/react";
 import * as ReactDOM from "https://esm.sh/react-dom";
 import ReactDOM__default from "https://esm.sh/react-dom";
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
@@ -1477,10 +1477,10 @@ function noop$2() {
 function formatProdErrorMessage(code2) {
   return `Minified Redux Toolkit error #${code2}; visit https://redux-toolkit.js.org/Errors?code=${code2} for the full message or use the non-minified dev environment for full errors. `;
 }
-const initialState$9 = {};
+const initialState$a = {};
 const mucTypingSlice = createSlice({
   name: "mucTyping",
-  initialState: initialState$9,
+  initialState: initialState$a,
   reducers: {
     userTyping: (state2, action) => {
       const { roomJID, userJID } = action.payload;
@@ -1497,7 +1497,7 @@ const mucTypingSlice = createSlice({
 });
 const { userTyping, userStoppedTyping } = mucTypingSlice.actions;
 const mucTypingReducer = mucTypingSlice.reducer;
-const initialState$8 = {
+const initialState$9 = {
   userType: "",
   // default type
   roomID: "",
@@ -1508,7 +1508,7 @@ const initialState$8 = {
 const user = createSlice({
   name: "userSlice",
   // 🔹 This becomes the prefix of action types
-  initialState: initialState$8,
+  initialState: initialState$9,
   reducers: {
     setUserData: (state2, action) => {
       state2.userType = action.payload.userType;
@@ -1517,19 +1517,19 @@ const user = createSlice({
       state2.timestamp = action.payload.timestamp;
       state2.nickName = action.payload.nickName;
     },
-    resetUser: () => initialState$8
+    resetUser: () => initialState$9
   }
 });
 const { setUserData, resetUser } = user.actions;
 const userReducer = user.reducer;
-const initialState$7 = {
+const initialState$8 = {
   isConnected: false,
   isConnecting: false,
   error: null
 };
 const socketSlice = createSlice({
   name: "socketSlice",
-  initialState: initialState$7,
+  initialState: initialState$8,
   reducers: {
     connectWebSocket: (state2, action) => {
       state2.isConnecting = true;
@@ -1552,6 +1552,509 @@ const socketSlice = createSlice({
 });
 const { connectWebSocket, disconnectWebSocket, connectionSuccess, connectionFailed } = socketSlice.actions;
 const socketReducer = socketSlice.reducer;
+var KEY_PREFIX = "persist:";
+var FLUSH = "persist/FLUSH";
+var REHYDRATE = "persist/REHYDRATE";
+var PAUSE = "persist/PAUSE";
+var PERSIST = "persist/PERSIST";
+var PURGE = "persist/PURGE";
+var REGISTER = "persist/REGISTER";
+var DEFAULT_VERSION = -1;
+function _typeof$1(obj) {
+  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+    _typeof$1 = function _typeof2(obj2) {
+      return typeof obj2;
+    };
+  } else {
+    _typeof$1 = function _typeof2(obj2) {
+      return obj2 && typeof Symbol === "function" && obj2.constructor === Symbol && obj2 !== Symbol.prototype ? "symbol" : typeof obj2;
+    };
+  }
+  return _typeof$1(obj);
+}
+function ownKeys$2(object, enumerableOnly) {
+  var keys = Object.keys(object);
+  if (Object.getOwnPropertySymbols) {
+    var symbols2 = Object.getOwnPropertySymbols(object);
+    if (enumerableOnly) symbols2 = symbols2.filter(function(sym) {
+      return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+    });
+    keys.push.apply(keys, symbols2);
+  }
+  return keys;
+}
+function _objectSpread$2(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+    if (i % 2) {
+      ownKeys$2(source, true).forEach(function(key) {
+        _defineProperty$3(target, key, source[key]);
+      });
+    } else if (Object.getOwnPropertyDescriptors) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      ownKeys$2(source).forEach(function(key) {
+        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+      });
+    }
+  }
+  return target;
+}
+function _defineProperty$3(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
+function autoMergeLevel1(inboundState, originalState, reducedState, _ref) {
+  _ref.debug;
+  var newState = _objectSpread$2({}, reducedState);
+  if (inboundState && _typeof$1(inboundState) === "object") {
+    Object.keys(inboundState).forEach(function(key) {
+      if (key === "_persist") return;
+      if (originalState[key] !== reducedState[key]) {
+        return;
+      }
+      newState[key] = inboundState[key];
+    });
+  }
+  return newState;
+}
+function createPersistoid(config2) {
+  var blacklist = config2.blacklist || null;
+  var whitelist = config2.whitelist || null;
+  var transforms = config2.transforms || [];
+  var throttle = config2.throttle || 0;
+  var storageKey = "".concat(config2.keyPrefix !== void 0 ? config2.keyPrefix : KEY_PREFIX).concat(config2.key);
+  var storage2 = config2.storage;
+  var serialize2;
+  if (config2.serialize === false) {
+    serialize2 = function serialize22(x2) {
+      return x2;
+    };
+  } else if (typeof config2.serialize === "function") {
+    serialize2 = config2.serialize;
+  } else {
+    serialize2 = defaultSerialize;
+  }
+  var writeFailHandler = config2.writeFailHandler || null;
+  var lastState = {};
+  var stagedState = {};
+  var keysToProcess = [];
+  var timeIterator = null;
+  var writePromise = null;
+  var update = function update2(state2) {
+    Object.keys(state2).forEach(function(key) {
+      if (!passWhitelistBlacklist(key)) return;
+      if (lastState[key] === state2[key]) return;
+      if (keysToProcess.indexOf(key) !== -1) return;
+      keysToProcess.push(key);
+    });
+    Object.keys(lastState).forEach(function(key) {
+      if (state2[key] === void 0 && passWhitelistBlacklist(key) && keysToProcess.indexOf(key) === -1 && lastState[key] !== void 0) {
+        keysToProcess.push(key);
+      }
+    });
+    if (timeIterator === null) {
+      timeIterator = setInterval(processNextKey, throttle);
+    }
+    lastState = state2;
+  };
+  function processNextKey() {
+    if (keysToProcess.length === 0) {
+      if (timeIterator) clearInterval(timeIterator);
+      timeIterator = null;
+      return;
+    }
+    var key = keysToProcess.shift();
+    var endState = transforms.reduce(function(subState, transformer) {
+      return transformer.in(subState, key, lastState);
+    }, lastState[key]);
+    if (endState !== void 0) {
+      try {
+        stagedState[key] = serialize2(endState);
+      } catch (err) {
+      }
+    } else {
+      delete stagedState[key];
+    }
+    if (keysToProcess.length === 0) {
+      writeStagedState();
+    }
+  }
+  function writeStagedState() {
+    Object.keys(stagedState).forEach(function(key) {
+      if (lastState[key] === void 0) {
+        delete stagedState[key];
+      }
+    });
+    writePromise = storage2.setItem(storageKey, serialize2(stagedState)).catch(onWriteFail);
+  }
+  function passWhitelistBlacklist(key) {
+    if (whitelist && whitelist.indexOf(key) === -1 && key !== "_persist") return false;
+    if (blacklist && blacklist.indexOf(key) !== -1) return false;
+    return true;
+  }
+  function onWriteFail(err) {
+    if (writeFailHandler) writeFailHandler(err);
+  }
+  var flush = function flush2() {
+    while (keysToProcess.length !== 0) {
+      processNextKey();
+    }
+    return writePromise || Promise.resolve();
+  };
+  return {
+    update,
+    flush
+  };
+}
+function defaultSerialize(data) {
+  return JSON.stringify(data);
+}
+function getStoredState(config2) {
+  var transforms = config2.transforms || [];
+  var storageKey = "".concat(config2.keyPrefix !== void 0 ? config2.keyPrefix : KEY_PREFIX).concat(config2.key);
+  var storage2 = config2.storage;
+  config2.debug;
+  var deserialize;
+  if (config2.deserialize === false) {
+    deserialize = function deserialize2(x2) {
+      return x2;
+    };
+  } else if (typeof config2.deserialize === "function") {
+    deserialize = config2.deserialize;
+  } else {
+    deserialize = defaultDeserialize;
+  }
+  return storage2.getItem(storageKey).then(function(serialized) {
+    if (!serialized) return void 0;
+    else {
+      try {
+        var state2 = {};
+        var rawState = deserialize(serialized);
+        Object.keys(rawState).forEach(function(key) {
+          state2[key] = transforms.reduceRight(function(subState, transformer) {
+            return transformer.out(subState, key, rawState);
+          }, deserialize(rawState[key]));
+        });
+        return state2;
+      } catch (err) {
+        throw err;
+      }
+    }
+  });
+}
+function defaultDeserialize(serial) {
+  return JSON.parse(serial);
+}
+function purgeStoredState(config2) {
+  var storage2 = config2.storage;
+  var storageKey = "".concat(config2.keyPrefix !== void 0 ? config2.keyPrefix : KEY_PREFIX).concat(config2.key);
+  return storage2.removeItem(storageKey, warnIfRemoveError);
+}
+function warnIfRemoveError(err) {
+}
+function ownKeys$1(object, enumerableOnly) {
+  var keys = Object.keys(object);
+  if (Object.getOwnPropertySymbols) {
+    var symbols2 = Object.getOwnPropertySymbols(object);
+    if (enumerableOnly) symbols2 = symbols2.filter(function(sym) {
+      return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+    });
+    keys.push.apply(keys, symbols2);
+  }
+  return keys;
+}
+function _objectSpread$1(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+    if (i % 2) {
+      ownKeys$1(source, true).forEach(function(key) {
+        _defineProperty$2(target, key, source[key]);
+      });
+    } else if (Object.getOwnPropertyDescriptors) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      ownKeys$1(source).forEach(function(key) {
+        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+      });
+    }
+  }
+  return target;
+}
+function _defineProperty$2(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
+function _objectWithoutProperties(source, excluded) {
+  if (source == null) return {};
+  var target = _objectWithoutPropertiesLoose$2(source, excluded);
+  var key, i;
+  if (Object.getOwnPropertySymbols) {
+    var sourceSymbolKeys = Object.getOwnPropertySymbols(source);
+    for (i = 0; i < sourceSymbolKeys.length; i++) {
+      key = sourceSymbolKeys[i];
+      if (excluded.indexOf(key) >= 0) continue;
+      if (!Object.prototype.propertyIsEnumerable.call(source, key)) continue;
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+function _objectWithoutPropertiesLoose$2(source, excluded) {
+  if (source == null) return {};
+  var target = {};
+  var sourceKeys = Object.keys(source);
+  var key, i;
+  for (i = 0; i < sourceKeys.length; i++) {
+    key = sourceKeys[i];
+    if (excluded.indexOf(key) >= 0) continue;
+    target[key] = source[key];
+  }
+  return target;
+}
+var DEFAULT_TIMEOUT = 5e3;
+function persistReducer(config2, baseReducer) {
+  var version = config2.version !== void 0 ? config2.version : DEFAULT_VERSION;
+  config2.debug || false;
+  var stateReconciler = config2.stateReconciler === void 0 ? autoMergeLevel1 : config2.stateReconciler;
+  var getStoredState$1 = config2.getStoredState || getStoredState;
+  var timeout = config2.timeout !== void 0 ? config2.timeout : DEFAULT_TIMEOUT;
+  var _persistoid = null;
+  var _purge = false;
+  var _paused = true;
+  var conditionalUpdate = function conditionalUpdate2(state2) {
+    state2._persist.rehydrated && _persistoid && !_paused && _persistoid.update(state2);
+    return state2;
+  };
+  return function(state2, action) {
+    var _ref = state2 || {}, _persist = _ref._persist, rest = _objectWithoutProperties(_ref, ["_persist"]);
+    var restState = rest;
+    if (action.type === PERSIST) {
+      var _sealed = false;
+      var _rehydrate = function _rehydrate2(payload, err) {
+        if (!_sealed) {
+          action.rehydrate(config2.key, payload, err);
+          _sealed = true;
+        }
+      };
+      timeout && setTimeout(function() {
+        !_sealed && _rehydrate(void 0, new Error('redux-persist: persist timed out for persist key "'.concat(config2.key, '"')));
+      }, timeout);
+      _paused = false;
+      if (!_persistoid) _persistoid = createPersistoid(config2);
+      if (_persist) {
+        return _objectSpread$1({}, baseReducer(restState, action), {
+          _persist
+        });
+      }
+      if (typeof action.rehydrate !== "function" || typeof action.register !== "function") throw new Error("redux-persist: either rehydrate or register is not a function on the PERSIST action. This can happen if the action is being replayed. This is an unexplored use case, please open an issue and we will figure out a resolution.");
+      action.register(config2.key);
+      getStoredState$1(config2).then(function(restoredState) {
+        var migrate = config2.migrate || function(s, v2) {
+          return Promise.resolve(s);
+        };
+        migrate(restoredState, version).then(function(migratedState) {
+          _rehydrate(migratedState);
+        }, function(migrateErr) {
+          _rehydrate(void 0, migrateErr);
+        });
+      }, function(err) {
+        _rehydrate(void 0, err);
+      });
+      return _objectSpread$1({}, baseReducer(restState, action), {
+        _persist: {
+          version,
+          rehydrated: false
+        }
+      });
+    } else if (action.type === PURGE) {
+      _purge = true;
+      action.result(purgeStoredState(config2));
+      return _objectSpread$1({}, baseReducer(restState, action), {
+        _persist
+      });
+    } else if (action.type === FLUSH) {
+      action.result(_persistoid && _persistoid.flush());
+      return _objectSpread$1({}, baseReducer(restState, action), {
+        _persist
+      });
+    } else if (action.type === PAUSE) {
+      _paused = true;
+    } else if (action.type === REHYDRATE) {
+      if (_purge) return _objectSpread$1({}, restState, {
+        _persist: _objectSpread$1({}, _persist, {
+          rehydrated: true
+        })
+        // @NOTE if key does not match, will continue to default else below
+      });
+      if (action.key === config2.key) {
+        var reducedState = baseReducer(restState, action);
+        var inboundState = action.payload;
+        var reconciledRest = stateReconciler !== false && inboundState !== void 0 ? stateReconciler(inboundState, state2, reducedState, config2) : reducedState;
+        var _newState = _objectSpread$1({}, reconciledRest, {
+          _persist: _objectSpread$1({}, _persist, {
+            rehydrated: true
+          })
+        });
+        return conditionalUpdate(_newState);
+      }
+    }
+    if (!_persist) return baseReducer(state2, action);
+    var newState = baseReducer(restState, action);
+    if (newState === restState) return state2;
+    return conditionalUpdate(_objectSpread$1({}, newState, {
+      _persist
+    }));
+  };
+}
+function _toConsumableArray(arr) {
+  return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread();
+}
+function _nonIterableSpread() {
+  throw new TypeError("Invalid attempt to spread non-iterable instance");
+}
+function _iterableToArray(iter) {
+  if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter);
+}
+function _arrayWithoutHoles(arr) {
+  if (Array.isArray(arr)) {
+    for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) {
+      arr2[i] = arr[i];
+    }
+    return arr2;
+  }
+}
+function ownKeys(object, enumerableOnly) {
+  var keys = Object.keys(object);
+  if (Object.getOwnPropertySymbols) {
+    var symbols2 = Object.getOwnPropertySymbols(object);
+    if (enumerableOnly) symbols2 = symbols2.filter(function(sym) {
+      return Object.getOwnPropertyDescriptor(object, sym).enumerable;
+    });
+    keys.push.apply(keys, symbols2);
+  }
+  return keys;
+}
+function _objectSpread(target) {
+  for (var i = 1; i < arguments.length; i++) {
+    var source = arguments[i] != null ? arguments[i] : {};
+    if (i % 2) {
+      ownKeys(source, true).forEach(function(key) {
+        _defineProperty$1(target, key, source[key]);
+      });
+    } else if (Object.getOwnPropertyDescriptors) {
+      Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
+    } else {
+      ownKeys(source).forEach(function(key) {
+        Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
+      });
+    }
+  }
+  return target;
+}
+function _defineProperty$1(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
+var initialState$7 = {
+  registry: [],
+  bootstrapped: false
+};
+var persistorReducer = function persistorReducer2() {
+  var state2 = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : initialState$7;
+  var action = arguments.length > 1 ? arguments[1] : void 0;
+  switch (action.type) {
+    case REGISTER:
+      return _objectSpread({}, state2, {
+        registry: [].concat(_toConsumableArray(state2.registry), [action.key])
+      });
+    case REHYDRATE:
+      var firstIndex = state2.registry.indexOf(action.key);
+      var registry = _toConsumableArray(state2.registry);
+      registry.splice(firstIndex, 1);
+      return _objectSpread({}, state2, {
+        registry,
+        bootstrapped: registry.length === 0
+      });
+    default:
+      return state2;
+  }
+};
+function persistStore(store2, options, cb) {
+  var boostrappedCb = false;
+  var _pStore = createStore(persistorReducer, initialState$7, void 0);
+  var register = function register2(key) {
+    _pStore.dispatch({
+      type: REGISTER,
+      key
+    });
+  };
+  var rehydrate = function rehydrate2(key, payload, err) {
+    var rehydrateAction = {
+      type: REHYDRATE,
+      payload,
+      err,
+      key
+      // dispatch to `store` to rehydrate and `persistor` to track result
+    };
+    store2.dispatch(rehydrateAction);
+    _pStore.dispatch(rehydrateAction);
+    if (boostrappedCb && persistor2.getState().bootstrapped) {
+      boostrappedCb();
+      boostrappedCb = false;
+    }
+  };
+  var persistor2 = _objectSpread({}, _pStore, {
+    purge: function purge() {
+      var results = [];
+      store2.dispatch({
+        type: PURGE,
+        result: function result(purgeResult) {
+          results.push(purgeResult);
+        }
+      });
+      return Promise.all(results);
+    },
+    flush: function flush() {
+      var results = [];
+      store2.dispatch({
+        type: FLUSH,
+        result: function result(flushResult) {
+          results.push(flushResult);
+        }
+      });
+      return Promise.all(results);
+    },
+    pause: function pause() {
+      store2.dispatch({
+        type: PAUSE
+      });
+    },
+    persist: function persist() {
+      store2.dispatch({
+        type: PERSIST,
+        register,
+        rehydrate
+      });
+    }
+  });
+  {
+    persistor2.persist();
+  }
+  return persistor2;
+}
 const TRACK_MEMO_SYMBOL = Symbol();
 const GET_ORIGINAL_SYMBOL = Symbol();
 const AFFECTED_PROPERTY = "a";
@@ -16037,13 +16540,13 @@ function _objectWithoutPropertiesLoose$1(r2, e) {
   }
   return t;
 }
-function _setPrototypeOf$1(t, e) {
-  return _setPrototypeOf$1 = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function(t2, e2) {
+function _setPrototypeOf$2(t, e) {
+  return _setPrototypeOf$2 = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function(t2, e2) {
     return t2.__proto__ = e2, t2;
-  }, _setPrototypeOf$1(t, e);
+  }, _setPrototypeOf$2(t, e);
 }
 function _inheritsLoose$1(t, o) {
-  t.prototype = Object.create(o.prototype), t.prototype.constructor = t, _setPrototypeOf$1(t, o);
+  t.prototype = Object.create(o.prototype), t.prototype.constructor = t, _setPrototypeOf$2(t, o);
 }
 const config$1 = {
   disabled: false
@@ -16306,7 +16809,7 @@ Transition.ENTERING = ENTERING;
 Transition.ENTERED = ENTERED;
 Transition.EXITING = EXITING;
 const Transition$1 = Transition;
-function _assertThisInitialized(e) {
+function _assertThisInitialized$1(e) {
   if (void 0 === e) throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
   return e;
 }
@@ -16418,7 +16921,7 @@ var TransitionGroup = /* @__PURE__ */ function(_React$Component) {
   function TransitionGroup2(props, context) {
     var _this;
     _this = _React$Component.call(this, props, context) || this;
-    var handleExited = _this.handleExited.bind(_assertThisInitialized(_this));
+    var handleExited = _this.handleExited.bind(_assertThisInitialized$1(_this));
     _this.state = {
       contextValue: {
         isMounting: true
@@ -25362,14 +25865,14 @@ function _extends() {
 function _inheritsLoose(subClass, superClass) {
   subClass.prototype = Object.create(superClass.prototype);
   subClass.prototype.constructor = subClass;
-  _setPrototypeOf(subClass, superClass);
+  _setPrototypeOf$1(subClass, superClass);
 }
-function _setPrototypeOf(o, p2) {
-  _setPrototypeOf = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf2(o2, p3) {
+function _setPrototypeOf$1(o, p2) {
+  _setPrototypeOf$1 = Object.setPrototypeOf ? Object.setPrototypeOf.bind() : function _setPrototypeOf2(o2, p3) {
     o2.__proto__ = p3;
     return o2;
   };
-  return _setPrototypeOf(o, p2);
+  return _setPrototypeOf$1(o, p2);
 }
 function _objectWithoutPropertiesLoose(source, excluded) {
   if (source == null) return {};
@@ -50628,8 +51131,12 @@ const handleAgent = () => {
   const roomJID = store.getState().userSlice.roomID;
   const botApiUrl = `${config.scheme}://${config.domain}/${config.botApiBaseUrl}`;
   if (userType != USER_TYPE.AGENT) {
-    store.getState().userSlice.nickName;
-    setUserAsModeratorAndJoinRoom(connection, roomJID, USER_TYPE.GUEST, botApiUrl, USER_TYPE.BOT).then(() => void 0);
+    const userNick = store.getState().userSlice.nickName;
+    if (userNick.length < 0) {
+      store.dispatch(connectionFailed());
+      return Promise.reject(new Error("User Nick is empty"));
+    }
+    setUserAsModeratorAndJoinRoom(connection, roomJID, userNick, botApiUrl, USER_TYPE.BOT).then(() => void 0);
     return Promise.resolve(false);
   } else {
     return Promise.resolve(true);
@@ -50696,23 +51203,21 @@ function isMsgReceivedFromSelf(fromJid, prefix2 = "customer") {
 }
 function addUserToRoom(connection2, roomJid, nickname) {
   if (!nickname || nickname.trim() === "") {
-    return Promise.reject();
+    return;
   }
-  const uniqueResourceID = generateRandomString();
-  const fullRoomJid = `${roomJid}/${nickname}-${uniqueResourceID}`;
+  const fullRoomJid = `${roomJid}/${nickname}`;
   const presenceStanza = $build("presence", { to: fullRoomJid }).c("x", { xmlns: "http://jabber.org/protocol/muc" });
   connection2.send(presenceStanza);
-  return Promise.resolve();
 }
 function setUserAsModeratorAndJoinRoom(connection2, roomJID, userNick, apiUrl, botNick) {
   return new Promise((resolve, reject) => {
-    addBotToRoom(apiUrl, roomJID, botNick).then(() => {
-      addUserToRoom(connection2, roomJID, userNick);
-    });
+    addUserToRoom(connection2, roomJID, userNick);
     connection2.addHandler(
       (stanza) => {
         const from2 = stanza.getAttribute("from");
         if (from2 && from2.startsWith(roomJID)) {
+          addBotToRoom(apiUrl, roomJID, botNick).then(() => {
+          });
           resolve();
         }
         return false;
@@ -50723,6 +51228,7 @@ function setUserAsModeratorAndJoinRoom(connection2, roomJID, userNick, apiUrl, b
       "",
       ""
     );
+    setTimeout(() => reject(new Error("Presence confirmation timeout")), 5e3);
   });
 }
 async function addBotToRoom(apiUrl, roomJID, nickName) {
@@ -50907,6 +51413,128 @@ function showSamples(connection2, roomJID) {
   addLinkSnippet({ link: "https://sysmog.com", title: "SysMog Link Snippet" });
   addResponseMessage("![SysMog Image Snippet](https://reactnative.dev/img/header_logo.svg)");
 }
+const botAPI = createSlice({
+  name: "botAPISlice",
+  initialState: { isLoading: false, isAPICalled: false, data: null, error: null },
+  reducers: {
+    apiCallStart: (state2) => {
+      state2.isLoading = true;
+      state2.error = null;
+    },
+    apiCallSuccess: (state2, action) => {
+      state2.isLoading = false;
+      state2.isAPICalled = true;
+      state2.data = action.payload;
+    },
+    apiCallFailure: (state2, action) => {
+      state2.isLoading = false;
+      state2.isAPICalled = false;
+      state2.error = action.payload;
+    }
+  }
+});
+const { apiCallStart, apiCallSuccess, apiCallFailure } = botAPI.actions;
+const botAPIReducer = botAPI.reducer;
+var storage$1 = {};
+var createWebStorage = {};
+var getStorage = {};
+var hasRequiredGetStorage;
+function requireGetStorage() {
+  if (hasRequiredGetStorage) return getStorage;
+  hasRequiredGetStorage = 1;
+  getStorage.__esModule = true;
+  getStorage.default = getStorage$1;
+  function _typeof2(obj) {
+    if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+      _typeof2 = function _typeof22(obj2) {
+        return typeof obj2;
+      };
+    } else {
+      _typeof2 = function _typeof22(obj2) {
+        return obj2 && typeof Symbol === "function" && obj2.constructor === Symbol && obj2 !== Symbol.prototype ? "symbol" : typeof obj2;
+      };
+    }
+    return _typeof2(obj);
+  }
+  function noop2() {
+  }
+  var noopStorage = {
+    getItem: noop2,
+    setItem: noop2,
+    removeItem: noop2
+  };
+  function hasStorage(storageType) {
+    if ((typeof self === "undefined" ? "undefined" : _typeof2(self)) !== "object" || !(storageType in self)) {
+      return false;
+    }
+    try {
+      var storage2 = self[storageType];
+      var testKey = "redux-persist ".concat(storageType, " test");
+      storage2.setItem(testKey, "test");
+      storage2.getItem(testKey);
+      storage2.removeItem(testKey);
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+  function getStorage$1(type) {
+    var storageType = "".concat(type, "Storage");
+    if (hasStorage(storageType)) return self[storageType];
+    else {
+      return noopStorage;
+    }
+  }
+  return getStorage;
+}
+var hasRequiredCreateWebStorage;
+function requireCreateWebStorage() {
+  if (hasRequiredCreateWebStorage) return createWebStorage;
+  hasRequiredCreateWebStorage = 1;
+  createWebStorage.__esModule = true;
+  createWebStorage.default = createWebStorage$1;
+  var _getStorage = _interopRequireDefault(requireGetStorage());
+  function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : { default: obj };
+  }
+  function createWebStorage$1(type) {
+    var storage2 = (0, _getStorage.default)(type);
+    return {
+      getItem: function getItem(key) {
+        return new Promise(function(resolve, reject) {
+          resolve(storage2.getItem(key));
+        });
+      },
+      setItem: function setItem(key, item) {
+        return new Promise(function(resolve, reject) {
+          resolve(storage2.setItem(key, item));
+        });
+      },
+      removeItem: function removeItem(key) {
+        return new Promise(function(resolve, reject) {
+          resolve(storage2.removeItem(key));
+        });
+      }
+    };
+  }
+  return createWebStorage;
+}
+var hasRequiredStorage;
+function requireStorage() {
+  if (hasRequiredStorage) return storage$1;
+  hasRequiredStorage = 1;
+  storage$1.__esModule = true;
+  storage$1.default = void 0;
+  var _createWebStorage = _interopRequireDefault(requireCreateWebStorage());
+  function _interopRequireDefault(obj) {
+    return obj && obj.__esModule ? obj : { default: obj };
+  }
+  var _default = (0, _createWebStorage.default)("local");
+  storage$1.default = _default;
+  return storage$1;
+}
+var storageExports = requireStorage();
+const storage = /* @__PURE__ */ getDefaultExportFromCjs(storageExports);
 var reduxLogger$1 = { exports: {} };
 var reduxLogger = reduxLogger$1.exports;
 var hasRequiredReduxLogger;
@@ -51278,32 +51906,17 @@ function requireReduxLogger() {
   return reduxLogger$1.exports;
 }
 var reduxLoggerExports = requireReduxLogger();
-const botAPI = createSlice({
-  name: "botAPISlice",
-  initialState: { isLoading: false, isAPICalled: false, data: null, error: null },
-  reducers: {
-    apiCallStart: (state2) => {
-      state2.isLoading = true;
-      state2.error = null;
-    },
-    apiCallSuccess: (state2, action) => {
-      state2.isLoading = false;
-      state2.isAPICalled = true;
-      state2.data = action.payload;
-    },
-    apiCallFailure: (state2, action) => {
-      state2.isLoading = false;
-      state2.isAPICalled = false;
-      state2.error = action.payload;
-    }
-  }
-});
-const { apiCallStart, apiCallSuccess, apiCallFailure } = botAPI.actions;
-const botAPIReducer = botAPI.reducer;
 reduxLoggerExports.createLogger();
+const persistConfig = {
+  key: "root",
+  storage
+  // Uses localStorage to persist data
+  // whitelist: ['user']
+};
+const persistedReducer = persistReducer(persistConfig, userReducer);
 const rootReducer = combineReducers(
   {
-    userSlice: userReducer,
+    userSlice: persistedReducer,
     botAPISlice: botAPIReducer,
     socketSlice: socketReducer,
     mucTyping: mucTypingReducer
@@ -51321,6 +51934,7 @@ const store = configureStore({
   }).concat(middlewares),
   preloadedState: {}
 });
+const persistor = persistStore(store);
 var withSelector = { exports: {} };
 var useSyncExternalStoreWithSelector_production = {};
 /**
@@ -51656,6 +52270,136 @@ function createSelectorHook(context = ReactReduxContext) {
   return useSelector2;
 }
 var useSelector = /* @__PURE__ */ createSelectorHook();
+function _typeof(obj) {
+  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
+    _typeof = function _typeof2(obj2) {
+      return typeof obj2;
+    };
+  } else {
+    _typeof = function _typeof2(obj2) {
+      return obj2 && typeof Symbol === "function" && obj2.constructor === Symbol && obj2 !== Symbol.prototype ? "symbol" : typeof obj2;
+    };
+  }
+  return _typeof(obj);
+}
+function _classCallCheck(instance, Constructor) {
+  if (!(instance instanceof Constructor)) {
+    throw new TypeError("Cannot call a class as a function");
+  }
+}
+function _defineProperties(target, props) {
+  for (var i = 0; i < props.length; i++) {
+    var descriptor = props[i];
+    descriptor.enumerable = descriptor.enumerable || false;
+    descriptor.configurable = true;
+    if ("value" in descriptor) descriptor.writable = true;
+    Object.defineProperty(target, descriptor.key, descriptor);
+  }
+}
+function _createClass(Constructor, protoProps, staticProps) {
+  if (protoProps) _defineProperties(Constructor.prototype, protoProps);
+  return Constructor;
+}
+function _possibleConstructorReturn(self2, call) {
+  if (call && (_typeof(call) === "object" || typeof call === "function")) {
+    return call;
+  }
+  return _assertThisInitialized(self2);
+}
+function _getPrototypeOf(o) {
+  _getPrototypeOf = Object.setPrototypeOf ? Object.getPrototypeOf : function _getPrototypeOf2(o2) {
+    return o2.__proto__ || Object.getPrototypeOf(o2);
+  };
+  return _getPrototypeOf(o);
+}
+function _assertThisInitialized(self2) {
+  if (self2 === void 0) {
+    throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
+  }
+  return self2;
+}
+function _inherits(subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function");
+  }
+  subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, writable: true, configurable: true } });
+  if (superClass) _setPrototypeOf(subClass, superClass);
+}
+function _setPrototypeOf(o, p2) {
+  _setPrototypeOf = Object.setPrototypeOf || function _setPrototypeOf2(o2, p22) {
+    o2.__proto__ = p22;
+    return o2;
+  };
+  return _setPrototypeOf(o, p2);
+}
+function _defineProperty(obj, key, value) {
+  if (key in obj) {
+    Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
+  } else {
+    obj[key] = value;
+  }
+  return obj;
+}
+var PersistGate = /* @__PURE__ */ function(_PureComponent) {
+  _inherits(PersistGate2, _PureComponent);
+  function PersistGate2() {
+    var _getPrototypeOf2;
+    var _this;
+    _classCallCheck(this, PersistGate2);
+    for (var _len = arguments.length, args = new Array(_len), _key = 0; _key < _len; _key++) {
+      args[_key] = arguments[_key];
+    }
+    _this = _possibleConstructorReturn(this, (_getPrototypeOf2 = _getPrototypeOf(PersistGate2)).call.apply(_getPrototypeOf2, [this].concat(args)));
+    _defineProperty(_assertThisInitialized(_this), "state", {
+      bootstrapped: false
+    });
+    _defineProperty(_assertThisInitialized(_this), "_unsubscribe", void 0);
+    _defineProperty(_assertThisInitialized(_this), "handlePersistorState", function() {
+      var persistor2 = _this.props.persistor;
+      var _persistor$getState = persistor2.getState(), bootstrapped = _persistor$getState.bootstrapped;
+      if (bootstrapped) {
+        if (_this.props.onBeforeLift) {
+          Promise.resolve(_this.props.onBeforeLift()).finally(function() {
+            return _this.setState({
+              bootstrapped: true
+            });
+          });
+        } else {
+          _this.setState({
+            bootstrapped: true
+          });
+        }
+        _this._unsubscribe && _this._unsubscribe();
+      }
+    });
+    return _this;
+  }
+  _createClass(PersistGate2, [{
+    key: "componentDidMount",
+    value: function componentDidMount() {
+      this._unsubscribe = this.props.persistor.subscribe(this.handlePersistorState);
+      this.handlePersistorState();
+    }
+  }, {
+    key: "componentWillUnmount",
+    value: function componentWillUnmount() {
+      this._unsubscribe && this._unsubscribe();
+    }
+  }, {
+    key: "render",
+    value: function render() {
+      if (typeof this.props.children === "function") {
+        return this.props.children(this.state.bootstrapped);
+      }
+      return this.state.bootstrapped ? this.props.children : this.props.loading;
+    }
+  }]);
+  return PersistGate2;
+}(PureComponent);
+_defineProperty(PersistGate, "defaultProps", {
+  children: null,
+  loading: null
+});
 function Overlay({ zIndex: zIndex2 = 1e3, backgroundColor: backgroundColor2, opacity, onClick }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
     "div",
@@ -55341,7 +56085,7 @@ function ExportedWidget({
 }) {
   return (
     // <React.StrictMode>
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Provider_default, { store, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+    /* @__PURE__ */ jsxRuntimeExports.jsx(Provider_default, { store, children: /* @__PURE__ */ jsxRuntimeExports.jsx(PersistGate, { loading: /* @__PURE__ */ jsxRuntimeExports.jsx("p", { children: "Loading..." }), persistor, children: /* @__PURE__ */ jsxRuntimeExports.jsx(
       Root,
       {
         host,
@@ -55358,7 +56102,7 @@ function ExportedWidget({
         messageResponseColor,
         messageResponseTextColor
       }
-    ) })
+    ) }) })
   );
 }
 function Root({
@@ -55397,12 +56141,22 @@ function Root({
   }, [primaryColor, messageClientColor, messageClientTextColor, messageResponseColor, messageResponseTextColor, headerPaddingTop, headerPaddingBottom, anchorBottom, anchorRight]);
   const userSlice = useSelector((state2) => state2.userSlice);
   useEffect(() => {
+    if (persistor.getState().bootstrapped) {
+      addResponseMessage(startMsg);
+      init();
+    }
+  }, [persistor]);
+  useEffect(() => {
     addToggleChatListener((state2) => {
       if (handleToggleCallback) {
         handleToggleCallback(state2).then(() => void 0).catch((err) => void 0);
       }
+      if (getConnection() == null && state2) {
+        addResponseMessage(startMsg);
+        init();
+      }
     });
-  }, []);
+  }, [persistor]);
   useEffect(() => {
     setStatusLocale("en");
     setVoiceLocale("en");
@@ -55414,7 +56168,6 @@ function Root({
       }
     };
     showSuggestions({}, bottom);
-    init();
   }, []);
   const getUserID = (userSlice2) => {
     let userID = userSlice2.userID || "";
@@ -55435,7 +56188,7 @@ function Root({
     if (userSlice2.nickName === "") {
       if (userSlice2.userType === USER_TYPE.AGENT) {
         nickName = `${USER_TYPE.AGENT}-nick-${(/* @__PURE__ */ new Date()).getTime().toString()}`;
-      } else if (userSlice2.userType === USER_TYPE.GUEST) {
+      } else {
         nickName = `${USER_TYPE.GUEST}-nick-${(/* @__PURE__ */ new Date()).getTime().toString()}`;
       }
       return nickName;
@@ -55443,9 +56196,9 @@ function Root({
     return nickName;
   };
   const init = () => {
+    const nick = getUserNick(userSlice);
     const userID = getUserID(userSlice);
     const roomID = getRoomID(userSlice);
-    const nick = getUserNick(userSlice);
     dispatch(
       setUserData({
         userID,
@@ -55455,7 +56208,6 @@ function Root({
         nickName: nick
       })
     );
-    addResponseMessage(startMsg);
     setTimeout(() => dispatch(connectWebSocket({ jid: userID, password: "" })), 1e3);
   };
   const handleNewUserMessage = ({ id, text: text2, files, replyMessage }) => {
