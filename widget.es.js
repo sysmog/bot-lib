@@ -50587,7 +50587,7 @@ Stanza.toElement;
 globalThis.toStanza = Stanza.toElement;
 const config = {
   domain: "dev.sysmog.com",
-  botApiBaseUrl: "bot",
+  botApiBaseUrl: "xmpp/join",
   scheme: "https"
 };
 let connection = null;
@@ -50762,8 +50762,8 @@ async function addBotToRoom(apiUrl, roomJID, nickName) {
   const finalUrl = `${apiUrl}?jid=${encodeURIComponent(roomJID)}&nickname=${encodeURIComponent(nickName)}`;
   try {
     const response = await fetch(finalUrl, {
-      method: "GET",
-      mode: "no-cors"
+      method: "POST",
+      mode: "cors"
       // Use no-cors mode for bypassing CORS
     });
   } catch (error2) {
@@ -55636,6 +55636,7 @@ function ExportedWidget({
   userType = "customer",
   handleToggleCallback,
   handleResizeCallback,
+  handleError: handleError2,
   primaryColor,
   messageTextSize,
   messageClientColor,
@@ -55656,6 +55657,7 @@ function ExportedWidget({
         userType,
         handleToggleCallback,
         handleResizeCallback,
+        handleError: handleError2,
         primaryColor,
         messageTextSize,
         messageClientColor,
@@ -55675,6 +55677,7 @@ function Root({
   userType = "customer",
   handleToggleCallback,
   handleResizeCallback,
+  handleError: handleError2,
   // widgetProps,
   primaryColor = "#201658",
   messageTextSize = "12px",
@@ -55723,6 +55726,9 @@ function Root({
   store.subscribe(
     () => {
       if (store.getState().socketSlice.error === "CONFLICT_ERROR") {
+        if (handleError2) {
+          handleError2("Conflict Error Occurred").then(() => void 0);
+        }
         window.location.reload();
       } else if (store.getState().roomSlice.hasJoinedRoom === true) {
         toggleInputEnabled();
