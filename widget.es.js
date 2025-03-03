@@ -50817,7 +50817,7 @@ async function addBotToRoom(apiUrl, roomJID, nickName, turnstileToken) {
       mode: "no-cors",
       // Use no-cors mode for bypassing CORS
       headers: {
-        "turnstile_token": turnstileToken
+        "turnstile-token": turnstileToken
       }
     });
   } catch (error2) {
