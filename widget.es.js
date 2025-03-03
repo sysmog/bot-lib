@@ -45358,6 +45358,10 @@ const CHAT_TYPES = {
   ERROR: "error",
   CONNECT_TO_AGENT: "cta"
 };
+const COMP_TYPES = {
+  TRACK_ORDER: "track-order",
+  CONNECT_TO_AGENT: "cta"
+};
 const CUSTOM_TYPES = {
   CHAT_HISTORY: "chatHistory",
   SENT: "sent",
@@ -50616,16 +50620,18 @@ globalThis.stx = stx;
 Stanza.toElement;
 globalThis.toStanza = Stanza.toElement;
 const config = {
-  domain: "dev.sysmog.com",
+  wsDomain: "dev.sysmog.com",
   botApiBaseUrl: "xmpp/join",
-  scheme: "https"
+  scheme: "https",
+  botURLDomain: "dev.sysmog.com",
+  ws: "wss"
 };
 let connection = null;
 const getBotUrl = () => {
-  return `${config.scheme}://${config.domain}/${config.botApiBaseUrl}`;
+  return `${config.scheme}://${config.botURLDomain}/${config.botApiBaseUrl}`;
 };
-const getWSUrl = (config2) => {
-  return "wss://" + config2.domain + "/websocket";
+const getWSUrl = (config$12) => {
+  return `${config.ws}://${config$12.wsDomain}/websocket`;
 };
 const url = getWSUrl(config);
 const socketMiddleware = (store2) => {
@@ -50648,10 +50654,6 @@ const socketMiddleware = (store2) => {
                 break;
               case Strophe.Status.CONNECTED:
                 store2.dispatch(connectionSuccess());
-                handleAgent().then(() => {
-                  connection == null ? void 0 : connection.addHandler(handleMessage, "", "message", "", "", "");
-                }).catch((e) => {
-                });
                 break;
               case Strophe.Status.DISCONNECTED:
                 retrySocketConnection();
@@ -50684,6 +50686,12 @@ const socketMiddleware = (store2) => {
       case connectionFailed.type:
         retrySocketConnection();
         break;
+      case connectionSuccess.type:
+        handleAgent().then(() => {
+          connection == null ? void 0 : connection.addHandler(handleMessage, "", "message", "", "", "");
+        }).catch((e) => {
+        });
+        break;
     }
     return next2(action);
   };
@@ -50714,7 +50722,11 @@ const handleMessage = (msg) => {
       if (isMsgReceivedFromSelf(fromJid, userType)) {
         setTimeout(() => setMessageStatus(parsedObj.id, "sent", {}), 100);
         setTimeout(() => setMessageStatus(parsedObj.id, "read"), 150);
-        addUserMessage(parsedObj.msg.toString(), { id: parsedObj.id, status: "sent" });
+        if (parsedObj == null ? void 0 : parsedObj.msg.type) {
+          addUserMessage(parsedObj.msg.summary.toString(), { id: parsedObj.id, status: "read" });
+        } else {
+          addUserMessage(parsedObj.msg.toString(), { id: parsedObj.id, status: "read" });
+        }
         toggleMsgLoader(true);
         return true;
       }
@@ -50793,7 +50805,7 @@ async function addBotToRoom(apiUrl, roomJID, nickName, turnstileToken) {
   try {
     const response = await fetch(finalUrl, {
       method: "POST",
-      mode: "cors",
+      mode: "no-cors",
       // Use no-cors mode for bypassing CORS
       headers: {
         "turnstile_token": turnstileToken
@@ -50844,16 +50856,7 @@ function handleChatMessage(connection2, msgType, body, roomJID) {
 }
 function handleChatMessageForAgent(connection2, msgType, body, roomJID) {
   var _a2;
-  if (msgType == CHAT_TYPES.CHAT && body) {
-    if (body.type == CHAT_TYPES.CONNECT_TO_AGENT) {
-      const receivedRoomJID = trimResourceSuffix(body.custom_props.roomJID, USER_TYPE.GUEST);
-      roomJID.current = receivedRoomJID;
-      addUserToRoom(connection2, receivedRoomJID, USER_TYPE.AGENT);
-      showNotification("Customer Joined", { severity: "info" });
-      setTimeout(() => closeNotification(""), 2e3);
-    }
-    return true;
-  } else if (msgType == CHAT_TYPES.GROUPCHAT) {
+  if (msgType == CHAT_TYPES.GROUPCHAT) {
     if (body.type == MESSAGES_TYPES.TEXT) {
       addUserMessage(body.summary);
     } else if (body.type == MESSAGES_TYPES.CAROUSEL) {
@@ -55749,13 +55752,19 @@ function Root({
         toggleInputEnabled();
         const bottom = {
           "Connect To Agent": () => {
-            const msg = JSON.stringify({ "type": "sent", msg: "Connect To Agent", id: v4() });
+            const msgBody = { type: COMP_TYPES.CONNECT_TO_AGENT, summary: "Connect To Agent" };
+            const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
             sendMessage(getConnection(), msg, userSlice.roomID);
             showSuggestions({}, {});
           },
           "Track Order": () => {
             addOrderTrackingCard(true, (event, value) => {
-              const msg = JSON.stringify({ "type": "sent", msg: `Tracking Order For OrderID ${value}`, id: v4() });
+              const msgBody = {
+                type: COMP_TYPES.TRACK_ORDER,
+                summary: `Tracking Order For OrderID ${value}`,
+                data: `${value}`
+              };
+              const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
               sendMessage(getConnection(), msg, userSlice.roomID);
             });
             showSuggestions({}, {});
@@ -55824,13 +55833,13 @@ function Root({
       return;
     }
     if (files && files.length > 0) ;
-    if (text2 == "agent") {
+    if (text2 == USER_TYPE.AGENT) {
       return;
     }
     if (text2 == "sample") {
       showSamples(connection2, roomJID);
     } else {
-      const formattedText = JSON.stringify({ "type": "sent", msg: text2, "id": id });
+      const formattedText = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: text2, "id": id });
       setTimeout(() => sendMessage(connection2, formattedText, roomJID ?? ""), 10);
       return;
     }
@@ -55839,7 +55848,7 @@ function Root({
     if (text2 == "" && (!files || files.length <= 0)) {
       return new Error("Uh oh, please write a bit more.");
     }
-    if (text2 == "agent") {
+    if (text2 == USER_TYPE.AGENT) {
       showNotification("You are now being connected to agent", { severity: "info" });
       setResponseUser({
         avatar: [
@@ -55963,6 +55972,7 @@ function Root({
 }
 export {
   CHAT_TYPES,
+  COMP_TYPES,
   CUSTOM_TYPES,
   Component,
   GUEST_STORAGE_KEY,
