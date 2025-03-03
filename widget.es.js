@@ -1488,7 +1488,7 @@ const botAPI = createSlice({
   initialState: initialState$c,
   reducers: {
     setSecureToken: (state2, action) => {
-      state2.secureToken = action.payload;
+      state2.secureToken = action.payload.secureToken;
     },
     apiCallStart: (state2) => {
       state2.isLoading = true;
@@ -50810,15 +50810,17 @@ function setUserAsModeratorAndJoinRoom(connection2, roomJID, userNick, apiUrl, b
   });
 }
 async function addBotToRoom(apiUrl, roomJID, nickName, turnstileToken) {
-  const finalUrl = `${apiUrl}?jid=${encodeURIComponent(roomJID)}&nickname=${encodeURIComponent(nickName)}`;
+  const finalUrl = `${apiUrl}`;
   try {
     const response = await fetch(finalUrl, {
       method: "POST",
-      mode: "no-cors",
+      mode: "cors",
       // Use no-cors mode for bypassing CORS
-      headers: {
-        "turnstile-token": turnstileToken
-      }
+      body: JSON.stringify({
+        "jid": roomJID,
+        "nickname": nickName,
+        "turnstileToken": turnstileToken
+      })
     });
   } catch (error2) {
   }
@@ -55694,7 +55696,7 @@ function ExportedWidget({
   );
 }
 function Root({
-  secureToken,
+  secureToken = "1234",
   isPopup,
   host,
   title,
