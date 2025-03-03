@@ -46054,7 +46054,9 @@ function persistStore(store2, options, cb) {
 const initialState = {
   hasJoinedRoom: false,
   // default type
-  hasLeftRoom: false
+  hasLeftRoom: false,
+  hasAgentJoinedRoom: false,
+  hasAgentLeftRoom: false
 };
 const room = createSlice({
   name: "roomSlice",
@@ -46067,10 +46069,16 @@ const room = createSlice({
     setUserLeft: (state2, action) => {
       return { ...state2, ...action.payload };
     },
+    setAgentJoined: (state2, action) => {
+      return { ...state2, ...action.payload };
+    },
+    setAgentLeft: (state2, action) => {
+      return { ...state2, ...action.payload };
+    },
     resetRoom: () => initialState
   }
 });
-const { setUserJoined, setUserLeft, resetRoom } = room.actions;
+const { setUserJoined, setUserLeft, setAgentJoined, setAgentLeft, resetRoom } = room.actions;
 const roomReducer = room.reducer;
 function getWebSocketImplementation() {
   if (typeof globalThis.WebSocket === "undefined") {
@@ -50744,6 +50752,7 @@ const handleMessage = (msg) => {
           if (userType == USER_TYPE.GUEST && isMsgFromAgent) {
             addResponseMessage(parsedObj.msg.toString());
             if (parsedObj.msg.toString() == "Chat Ended") {
+              store.dispatch(setAgentLeft({ hasAgentLeftRoom: true, hasAgentJoinedRoom: false }));
               addBotToRoom(getBotUrl(), store.getState().userSlice.roomID, store.getState().userSlice.nickName, store.getState().botAPISlice.secureToken).then(() => void 0);
             }
           } else if (userType == USER_TYPE.GUEST && !isMsgFromAgent) {
