@@ -1574,10 +1574,10 @@ const socketSlice = createSlice({
       state2.isConnecting = false;
       state2.error = "Connection failed.";
     },
-    connectionError: (state2) => {
+    connectionError: (state2, action) => {
       state2.isConnected = false;
       state2.isConnecting = false;
-      state2.error = "CONFLICT_ERROR";
+      state2.error = "";
     }
   }
 });
@@ -50648,14 +50648,15 @@ const socketMiddleware = (store2) => {
       case connectWebSocket.type:
         if (!connection) {
           connection = new Strophe.Connection(url);
-          connection.connect(action.payload.jid, action.payload.password, (status2) => {
-            switch (status2) {
+          connection.connect(action.payload.jid, action.payload.password, (status) => {
+            switch (status) {
               case Strophe.Status.CONNECTING:
                 break;
               case Strophe.Status.CONNFAIL:
                 if (getConnection() == null) ;
                 else {
-                  leaveRoom(connection, store2.getState().userSlice.roomID, store2.getState().userSlice.nickName).then(() => retrySocketConnection());
+                  leaveRoom(connection, store2.getState().userSlice.roomID, store2.getState().userSlice.nickName).then(() => {
+                  });
                 }
                 break;
               case Strophe.Status.DISCONNECTING:
@@ -50664,17 +50665,13 @@ const socketMiddleware = (store2) => {
                 store2.dispatch(connectionSuccess());
                 break;
               case Strophe.Status.DISCONNECTED:
-                retrySocketConnection();
                 break;
               case Strophe.Status.AUTHFAIL:
                 break;
               case Strophe.Status.ATTACHFAIL:
                 break;
               case Strophe.Status.ERROR:
-                connection.disconnect("Disconnecting due to conflict error");
-                closeChat();
-                store2.dispatch(resetUser());
-                store2.dispatch(connectionError());
+                store2.dispatch(connectionError({ error: "" }));
                 break;
             }
           });
@@ -50683,22 +50680,27 @@ const socketMiddleware = (store2) => {
         }
         break;
       case disconnectWebSocket.type:
-        if (connection) {
+        if (connection != null) {
           leaveRoom(connection, store2.getState().userSlice.roomID, store2.getState().userSlice.nickName).then(() => {
-            connection.disconnect("User disconnected");
-            dropMessages();
-            closeChat();
           });
+          connection.disconnect("User disconnected");
+          connection.reset();
         }
+        dropMessages();
         break;
       case connectionFailed.type:
-        retrySocketConnection();
         break;
       case connectionSuccess.type:
         handleAgent().then(() => {
           connection == null ? void 0 : connection.addHandler(handleMessage, "", "message", "", "", "");
         }).catch((e) => {
         });
+        break;
+      case connectionError.type:
+        toggleInputDisabled();
+        closeChat();
+        store2.dispatch(disconnectWebSocket());
+        store2.dispatch(resetUser());
         break;
     }
     return next2(action);
@@ -50716,6 +50718,7 @@ const handleAgent = () => {
   }
 };
 const handleMessage = (msg) => {
+  var _a2;
   const userSlice = store.getState().userSlice;
   const userType = userSlice.userType;
   const roomJID = userSlice.roomID;
@@ -50765,15 +50768,28 @@ const handleMessage = (msg) => {
     } catch (err) {
       return true;
     }
-  }
+  } else if (msgType == CHAT_TYPES.ERROR) {
+    store.dispatch(connectionError({ error: (_a2 = extractXMPPError(msg)) == null ? void 0 : _a2.type }));
+  } else ;
   return true;
 };
+function extractXMPPError(msg) {
+  var _a2;
+  const error2 = msg.getElementsByTagName("error")[0];
+  if (!error2) return null;
+  const errorType = error2.getAttribute("type") || "unknown";
+  const errorCondition = error2.firstElementChild ? error2.firstElementChild.nodeName : "unknown-condition";
+  const errorText = ((_a2 = error2.getElementsByTagName("text")[0]) == null ? void 0 : _a2.textContent) || "No error message provided";
+  return {
+    type: errorType,
+    // e.g., "cancel", "modify"
+    condition: errorCondition,
+    // e.g., "conflict", "item-not-found"
+    text: errorText
+    // Human-readable error message
+  };
+}
 const getConnection = () => connection;
-const retrySocketConnection = (isDisconnected, status2) => {
-  {
-    store.dispatch(disconnectWebSocket());
-  }
-};
 function isMsgReceivedFromSelf(fromJid, prefix2 = "customer") {
   const resource = fromJid == null ? void 0 : fromJid.split("/")[1];
   return resource ? new RegExp(`^${prefix2}.*`).test(resource) : false;
@@ -51004,7 +51020,7 @@ function showSamples(connection2, roomJID) {
   addLinkSnippet({ link: "https://sysmog.com", title: "SysMog Link Snippet" });
   addResponseMessage("![SysMog Image Snippet](https://reactnative.dev/img/header_logo.svg)");
 }
-const RESET_TIME = 6e5;
+const RESET_TIME = 36e5;
 let resetTimer = null;
 const resetUserMiddleware = (storeAPI) => (next2) => (action) => {
   const result = next2(action);
@@ -55754,11 +55770,10 @@ function Root({
   }, [persistor]);
   store.subscribe(
     () => {
-      if (store.getState().socketSlice.error === "CONFLICT_ERROR") {
+      if (store.getState().socketSlice.error == "cancel") {
         if (handleError2) {
           handleError2("Conflict Error Occurred").then(() => void 0);
         }
-        window.location.reload();
       } else if (store.getState().roomSlice.hasJoinedRoom === true) {
         toggleInputEnabled();
         const bottom = {
@@ -55837,6 +55852,7 @@ function Root({
     const connection2 = getConnection();
     const roomJID = userSlice.roomID;
     if (roomJID == null || roomJID.length == 0) {
+      dispatch(connectionError({ error: "cancel" }));
       return;
     }
     if (replyMessage) {
