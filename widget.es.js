@@ -1577,7 +1577,7 @@ const socketSlice = createSlice({
     connectionError: (state2, action) => {
       state2.isConnected = false;
       state2.isConnecting = false;
-      state2.error = "";
+      state2.error = action.payload.error;
     }
   }
 });
@@ -24522,7 +24522,7 @@ function Menus({ items, position: position2, data, onClose }) {
   );
 }
 const state = proxy({ behavior: state$4, messages: state$6, quickButtons: state$5, preview: state$7, popup: state$3, suggestions: state$2, notification: state$1 });
-const useSelector$1 = (selector) => selector(useSnapshot(state));
+const useSelector = (selector) => selector(useSnapshot(state));
 function isWidgetOpened() {
   return state.behavior.showChat;
 }
@@ -24530,7 +24530,7 @@ const replyIcon = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg
 const faceSmileIcon = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%3e%3c!--!Font%20Awesome%20Free%206.7.2%20by%20@fontawesome%20-%20https://fontawesome.com%20License%20-%20https://fontawesome.com/license/free%20Copyright%202025%20Fonticons,%20Inc.--%3e%3cpath%20d='M464%20256A208%20208%200%201%200%2048%20256a208%20208%200%201%200%20416%200zM0%20256a256%20256%200%201%201%20512%200A256%20256%200%201%201%200%20256zm177.6%2062.1C192.8%20334.5%20218.8%20352%20256%20352s63.2-17.5%2078.4-33.9c9-9.7%2024.2-10.4%2033.9-1.4s10.4%2024.2%201.4%2033.9c-22%2023.8-60%2049.4-113.6%2049.4s-91.7-25.5-113.6-49.4c-9-9.7-8.4-24.9%201.4-33.9s24.9-8.4%2033.9%201.4zM144.4%20208a32%2032%200%201%201%2064%200%2032%2032%200%201%201%20-64%200zm192-32a32%2032%200%201%201%200%2064%2032%2032%200%201%201%200-64z'/%3e%3c/svg%3e";
 const MenuId$1 = "message-context";
 function ContextMenu({ reply, reaction }) {
-  const contextMenu = useSelector$1(({ messages }) => messages == null ? void 0 : messages.contextMenu);
+  const contextMenu = useSelector(({ messages }) => messages == null ? void 0 : messages.contextMenu);
   const items = useMemo(() => {
     const items2 = [];
     if (reply) {
@@ -45130,7 +45130,7 @@ function EmojiPicker$1(props) {
 }
 const MenuId = "message-reaction";
 function ContextReaction() {
-  const contextMenu = useSelector$1(({ messages }) => messages == null ? void 0 : messages.contextMenu);
+  const contextMenu = useSelector(({ messages }) => messages == null ? void 0 : messages.contextMenu);
   if (!contextMenu || contextMenu.id != MenuId) {
     return;
   }
@@ -45213,7 +45213,7 @@ function FileAttachment({ item }) {
 }
 function Message$1({ message: message2, reply, reaction, showTimeStamp, isReplyContext, isReplyMessage }) {
   var _a2, _b, _c;
-  const locale = useSelector$1(({ messages }) => messages == null ? void 0 : messages.statusLocale);
+  const locale = useSelector(({ messages }) => messages == null ? void 0 : messages.statusLocale);
   let sanitizedHTML = null;
   if (message2.text) {
     sanitizedHTML = message2.text;
@@ -45325,7 +45325,7 @@ function Snippet({ message: message2, showTimeStamp }) {
   ] });
 }
 function Message({ message: message2, showTimeStamp, reply, reaction, className, children }) {
-  const locale = useSelector$1(({ messages }) => messages == null ? void 0 : messages.statusLocale);
+  const locale = useSelector(({ messages }) => messages == null ? void 0 : messages.statusLocale);
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Status$1, { message: message2, showTimeStamp: !!showTimeStamp, locale, showStatus: true, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toolbar, { message: message2, reply, reaction, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `rcw-message-custom ${className}`, children }) }) });
 }
 function QuickButton({ button, onQuickButtonClicked }) {
@@ -50671,7 +50671,7 @@ const socketMiddleware = (store2) => {
               case Strophe.Status.ATTACHFAIL:
                 break;
               case Strophe.Status.ERROR:
-                store2.dispatch(connectionError({ error: "" }));
+                store2.dispatch(connectionError({ error: "cancel" }));
                 break;
             }
           });
@@ -50718,7 +50718,6 @@ const handleAgent = () => {
   }
 };
 const handleMessage = (msg) => {
-  var _a2;
   const userSlice = store.getState().userSlice;
   const userType = userSlice.userType;
   const roomJID = userSlice.roomID;
@@ -50769,26 +50768,10 @@ const handleMessage = (msg) => {
       return true;
     }
   } else if (msgType == CHAT_TYPES.ERROR) {
-    store.dispatch(connectionError({ error: (_a2 = extractXMPPError(msg)) == null ? void 0 : _a2.type }));
+    store.dispatch(connectionError({ error: "cancel" }));
   } else ;
   return true;
 };
-function extractXMPPError(msg) {
-  var _a2;
-  const error2 = msg.getElementsByTagName("error")[0];
-  if (!error2) return null;
-  const errorType = error2.getAttribute("type") || "unknown";
-  const errorCondition = error2.firstElementChild ? error2.firstElementChild.nodeName : "unknown-condition";
-  const errorText = ((_a2 = error2.getElementsByTagName("text")[0]) == null ? void 0 : _a2.textContent) || "No error message provided";
-  return {
-    type: errorType,
-    // e.g., "cancel", "modify"
-    condition: errorCondition,
-    // e.g., "conflict", "item-not-found"
-    text: errorText
-    // Human-readable error message
-  };
-}
 const getConnection = () => connection;
 function isMsgReceivedFromSelf(fromJid, prefix2 = "customer") {
   const resource = fromJid == null ? void 0 : fromJid.split("/")[1];
@@ -51618,7 +51601,7 @@ function requireWithSelector() {
   }
   return withSelector.exports;
 }
-var withSelectorExports = requireWithSelector();
+requireWithSelector();
 function defaultNoopBatch(callback) {
   callback();
 }
@@ -51837,39 +51820,6 @@ function createDispatchHook(context = ReactReduxContext) {
   return useDispatch2;
 }
 var useDispatch = /* @__PURE__ */ createDispatchHook();
-var refEquality = (a, b) => a === b;
-function createSelectorHook(context = ReactReduxContext) {
-  const useReduxContext2 = context === ReactReduxContext ? useReduxContext : createReduxContextHook(context);
-  const useSelector2 = (selector, equalityFnOrOptions = {}) => {
-    const { equalityFn = refEquality } = typeof equalityFnOrOptions === "function" ? { equalityFn: equalityFnOrOptions } : equalityFnOrOptions;
-    const reduxContext = useReduxContext2();
-    const { store: store2, subscription, getServerState } = reduxContext;
-    React.useRef(true);
-    const wrappedSelector = React.useCallback(
-      {
-        [selector.name](state2) {
-          const selected = selector(state2);
-          return selected;
-        }
-      }[selector.name],
-      [selector]
-    );
-    const selectedState = withSelectorExports.useSyncExternalStoreWithSelector(
-      subscription.addNestedSub,
-      store2.getState,
-      getServerState || store2.getState,
-      wrappedSelector,
-      equalityFn
-    );
-    React.useDebugValue(selectedState);
-    return selectedState;
-  };
-  Object.assign(useSelector2, {
-    withTypes: () => useSelector2
-  });
-  return useSelector2;
-}
-var useSelector = /* @__PURE__ */ createSelectorHook();
 function _typeof(obj) {
   if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
     _typeof = function _typeof2(obj2) {
@@ -52052,9 +52002,9 @@ function Overlay({ zIndex: zIndex2 = 1e3, backgroundColor: backgroundColor2, opa
 const menu = "data:image/svg+xml,%3csvg%20version='1.2'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%20overflow='visible'%20preserveAspectRatio='none'%20viewBox='0%200%2024%2024'%20width='24'%20height='24'%3e%3cg%3e%3cpath%20xmlns:default='http://www.w3.org/2000/svg'%20id='ellipsis-v'%20d='M13.71,15.62c-0.19-0.19-0.44-0.29-0.71-0.29h-2c-0.55,0-1,0.45-1,1v2c0,0.55,0.45,1,1,1h2%20c0.55,0,1-0.45,1-1v-2C14,16.06,13.9,15.81,13.71,15.62z%20M13.71,10.29C13.52,10.1,13.27,10,13,10h-2c-0.55,0-1,0.45-1,1v2%20c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2C14,10.73,13.9,10.48,13.71,10.29z%20M13.71,4.96C13.52,4.77,13.27,4.67,13,4.67h-2%20c-0.55,0-1,0.45-1,1v2c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2C13.99,5.42,13.89,5.18,13.71,5V4.96z'%20style='fill:%20rgb(255,%20255,%20255);'%20vector-effect='non-scaling-stroke'/%3e%3c/g%3e%3c/svg%3e";
 const close = "data:image/svg+xml,%3csvg%20version='1.2'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%20overflow='visible'%20preserveAspectRatio='none'%20viewBox='0%200%2024%2024'%20width='24'%20height='24'%3e%3cg%3e%3cpath%20xmlns:default='http://www.w3.org/2000/svg'%20id='minus'%20d='M19,10.29c-0.18-0.18-0.42-0.28-0.67-0.29H5.67c-0.55,0-1,0.45-1,1v2c0,0.55,0.45,1,1,1h12.66c0.55,0,1-0.45,1-1%20v-2C19.32,10.73,19.2,10.47,19,10.29z'%20style='fill:%20rgb(255,%20255,%20255);'%20vector-effect='non-scaling-stroke'/%3e%3c/g%3e%3c/svg%3e";
 function Header({ title, subtitle, showMenuButton = true, showCloseButton = true, titleAvatar, menus }) {
-  const user2 = useSelector$1(({ messages }) => messages.responseUser);
+  const user2 = useSelector(({ messages }) => messages.responseUser);
   const [showMenu, setShowMenu] = useState(false);
-  const { isShowPopup, popupStyles, PopupComponent } = useSelector$1(({ popup }) => ({
+  const { isShowPopup, popupStyles, PopupComponent } = useSelector(({ popup }) => ({
     isShowPopup: popup.showPopup,
     popupStyles: popup.styles,
     PopupComponent: popup.component
@@ -52119,7 +52069,7 @@ function Item({ align, text: text2, onClick }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `rcw-suggestion align-${align}`, dangerouslySetInnerHTML: { __html: text2 }, onClick });
 }
 function Suggestions({ onClick }) {
-  const { right, bottom } = useSelector$1(({ suggestions }) => ({
+  const { right, bottom } = useSelector(({ suggestions }) => ({
     right: suggestions.right,
     bottom: suggestions.bottom
   }));
@@ -52136,7 +52086,7 @@ const getComponentToRender = (message2, opts) => {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(ComponentToRender, { message: message2, ...opts });
 };
 function Messages({ profileAvatar, profileClientAvatar, showTimeStamp = true, reply, reaction, suggestionsProps }) {
-  const { messages, typing, showChat, badgeCount, showSuggestion } = useSelector$1(({ behavior, messages: messages2, suggestions }) => ({
+  const { messages, typing, showChat, badgeCount, showSuggestion } = useSelector(({ behavior, messages: messages2, suggestions }) => ({
     messages: messages2.messages,
     badgeCount: messages2.badgeCount,
     typing: behavior.messageLoader,
@@ -52239,7 +52189,7 @@ const insertNodeAtCaret = (el) => {
 const microphone = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='utf-8'?%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20fill='%23000000'%20height='800px'%20width='800px'%20version='1.1'%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%20enable-background='new%200%200%20512%20512'%3e%3cg%3e%3cg%3e%3cpath%20d='m439.5,236c0-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,70-64,126.9-142.7,126.9-78.7,0-142.7-56.9-142.7-126.9%200-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,86.2%2071.5,157.4%20163.1,166.7v57.5h-23.6c-11.3,0-20.4,9.1-20.4,20.4%200,11.3%209.1,20.4%2020.4,20.4h88c11.3,0%2020.4-9.1%2020.4-20.4%200-11.3-9.1-20.4-20.4-20.4h-23.6v-57.5c91.6-9.3%20163.1-80.5%20163.1-166.7z'/%3e%3cpath%20d='m256,323.5c51,0%2092.3-41.3%2092.3-92.3v-127.9c0-51-41.3-92.3-92.3-92.3s-92.3,41.3-92.3,92.3v127.9c0,51%2041.3,92.3%2092.3,92.3zm-52.3-220.2c0-28.8%2023.5-52.3%2052.3-52.3s52.3,23.5%2052.3,52.3v127.9c0,28.8-23.5,52.3-52.3,52.3s-52.3-23.5-52.3-52.3v-127.9z'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e";
 const microphoneActive = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='utf-8'?%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20fill='%230080ff'%20height='800px'%20width='800px'%20version='1.1'%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%20enable-background='new%200%200%20512%20512'%3e%3cg%3e%3cg%3e%3cpath%20d='m439.5,236c0-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,70-64,126.9-142.7,126.9-78.7,0-142.7-56.9-142.7-126.9%200-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,86.2%2071.5,157.4%20163.1,166.7v57.5h-23.6c-11.3,0-20.4,9.1-20.4,20.4%200,11.3%209.1,20.4%2020.4,20.4h88c11.3,0%2020.4-9.1%2020.4-20.4%200-11.3-9.1-20.4-20.4-20.4h-23.6v-57.5c91.6-9.3%20163.1-80.5%20163.1-166.7z'/%3e%3cpath%20d='m256,323.5c51,0%2092.3-41.3%2092.3-92.3v-127.9c0-51-41.3-92.3-92.3-92.3s-92.3,41.3-92.3,92.3v127.9c0,51%2041.3,92.3%2092.3,92.3zm-52.3-220.2c0-28.8%2023.5-52.3%2052.3-52.3s52.3,23.5%2052.3,52.3v127.9c0,28.8-23.5,52.3-52.3,52.3s-52.3-23.5-52.3-52.3v-127.9z'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e";
 const useVoiceToText = () => {
-  const locale = useSelector$1(({ messages }) => messages == null ? void 0 : messages.voiceLocale);
+  const locale = useSelector(({ messages }) => messages == null ? void 0 : messages.voiceLocale);
   const [listening, setListening] = useState(false);
   const [text2, setText] = useState("");
   const [isSupported, setIsSupported] = useState(false);
@@ -52387,7 +52337,7 @@ function Sender({
   onPressFile,
   allowSend = false
 }) {
-  const showChat = useSelector$1(({ behavior }) => behavior.showChat);
+  const showChat = useSelector(({ behavior }) => behavior.showChat);
   const inputRef = useRef(null);
   const refContainer = useRef(null);
   const [enter, setEnter] = useState(true);
@@ -52521,7 +52471,7 @@ function Sender({
   ] });
 }
 function QuickButtons({ onQuickButtonClicked }) {
-  const buttons = useSelector$1(({ quickButtons }) => quickButtons.quickButtons);
+  const buttons = useSelector(({ quickButtons }) => quickButtons.quickButtons);
   const getComponentToRender2 = (button) => {
     const ComponentToRender = button.component;
     return /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -55104,8 +55054,8 @@ function Conversation({
   const startHeightRef = useRef(0);
   const [fileItems, setFileItems] = useState([]);
   const addFileRef = useRef(() => void 0);
-  const disableInput = useSelector$1(({ behavior }) => behavior.disabledInput);
-  const { replyMessage } = useSelector$1(({ messages }) => ({
+  const disableInput = useSelector(({ behavior }) => behavior.disabledInput);
+  const { replyMessage } = useSelector(({ messages }) => ({
     replyMessage: messages.replyMessage
   }));
   useEffect(() => {
@@ -55280,7 +55230,7 @@ function Launcher({
   isLoading = false,
   popupProps = {}
 }) {
-  const { showChat, badgeCount, popupMessage } = useSelector$1(({ behavior, messages }) => ({
+  const { showChat, badgeCount, popupMessage } = useSelector(({ behavior, messages }) => ({
     showChat: behavior.showChat,
     badgeCount: messages.badgeCount,
     popupMessage: messages.popupMessage
@@ -55443,7 +55393,7 @@ function FullScreenPreview({ fullScreenMode, zoomStep }) {
     onZoomOut,
     onResizePageZoom
   } = usePreview(zoomStep);
-  const { src, alt, width: width2, height: height2, visible } = useSelector$1(({ preview }) => preview);
+  const { src, alt, width: width2, height: height2, visible } = useSelector(({ preview }) => preview);
   useEffect(() => {
     if (src) {
       initFileSize(width2, height2);
@@ -55501,7 +55451,7 @@ function FullScreenPreview({ fullScreenMode, zoomStep }) {
 }
 function WidgetLayout({ rootRef, conversationProps, launcherProps, onToggleConversation, fullScreenMode = false, customLauncher, imagePreview = false, zoomStep = 80 }) {
   const [isLoading, setIsLoading] = useState(false);
-  const { showChat, visible } = useSelector$1(({ behavior, preview }) => ({
+  const { showChat, visible } = useSelector(({ behavior, preview }) => ({
     showChat: behavior.showChat,
     visible: preview.visible
   }));
@@ -55749,7 +55699,6 @@ function Root({
     anchorBottom && r2.style.setProperty("--anchor-bottom", typeof anchorBottom === "number" ? `${anchorBottom}px` : anchorBottom);
     anchorRight && r2.style.setProperty("--anchor-right", typeof anchorRight === "number" ? `${anchorRight}px` : anchorRight);
   }, [primaryColor, messageClientColor, messageClientTextColor, messageResponseColor, messageResponseTextColor, headerPaddingTop, headerPaddingBottom, anchorBottom, anchorRight]);
-  const userSlice = useSelector((state2) => state2.userSlice);
   useEffect(() => {
     if (persistor.getState().bootstrapped) {
       dispatch(setSecureToken({ secureToken }));
@@ -55770,17 +55719,19 @@ function Root({
   }, [persistor]);
   store.subscribe(
     () => {
-      if (store.getState().socketSlice.error == "cancel") {
+      if (store.getState().socketSlice.error === "cancel") {
         if (handleError2) {
           handleError2("Conflict Error Occurred").then(() => void 0);
         }
+        window.location.reload();
+        return;
       } else if (store.getState().roomSlice.hasJoinedRoom === true) {
         toggleInputEnabled();
         const bottom = {
           "Connect To Agent": () => {
             const msgBody = { type: COMP_TYPES.CONNECT_TO_AGENT, summary: "Connect To Agent" };
             const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
-            sendMessage(getConnection(), msg, userSlice.roomID);
+            sendMessage(getConnection(), msg, store.getState().userSlice.roomID);
             showSuggestions({}, {});
           },
           "Track Order": () => {
@@ -55791,12 +55742,13 @@ function Root({
                 data: `${value}`
               };
               const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
-              sendMessage(getConnection(), msg, userSlice.roomID);
+              sendMessage(getConnection(), msg, store.getState().userSlice.roomID);
             });
             showSuggestions({}, {});
           }
         };
         showSuggestions({}, bottom);
+        return;
       }
     }
   );
@@ -55806,24 +55758,24 @@ function Root({
     setTimeout(() => setPopupMessage(["Looking for something".repeat(1)]), 5e3);
     setTimeout(() => setPopupMessage(["Search here".repeat(1)]), 7e3);
   }, []);
-  const getUserID = (userSlice2) => {
-    let userID = userSlice2.userID || "";
-    if (userSlice2.userType === "") {
+  const getUserID = (userSlice) => {
+    let userID = userSlice.userID || "";
+    if (userSlice.userType === "") {
       userID = generateRandomBareJid(host, userType === USER_TYPE.AGENT ? USER_TYPE.AGENT : USER_TYPE.GUEST);
     }
     return userID;
   };
-  const getRoomID = (userSlice2) => {
-    let roomID = userSlice2.roomID || "";
-    if (userSlice2.userType === "") {
+  const getRoomID = (userSlice) => {
+    let roomID = userSlice.roomID || "";
+    if (userSlice.userType === "") {
       roomID = generateRandomRoomJid(host);
     }
     return roomID;
   };
-  const getUserNick = (userSlice2) => {
-    let nickName = userSlice2.nickName || "";
-    if (userSlice2.nickName === "") {
-      if (userSlice2.userType === USER_TYPE.AGENT) {
+  const getUserNick = (userSlice) => {
+    let nickName = userSlice.nickName || "";
+    if (userSlice.nickName === "") {
+      if (userSlice.userType === USER_TYPE.AGENT) {
         nickName = `${USER_TYPE.AGENT}-nick-${(/* @__PURE__ */ new Date()).getTime().toString()}`;
       } else {
         nickName = `${USER_TYPE.GUEST}-nick-${(/* @__PURE__ */ new Date()).getTime().toString()}`;
@@ -55834,15 +55786,15 @@ function Root({
   };
   const init = () => {
     toggleInputDisabled();
-    const nick = getUserNick(userSlice);
-    const userID = getUserID(userSlice);
-    const roomID = getRoomID(userSlice);
+    const nick = getUserNick(store.getState().userSlice);
+    const userID = getUserID(store.getState().userSlice);
+    const roomID = getRoomID(store.getState().userSlice);
     dispatch(
       setUserData({
         userID,
         userType,
         roomID,
-        timestamp: userSlice.timestamp == "" ? (/* @__PURE__ */ new Date()).getTime().toString() : userSlice.timestamp,
+        timestamp: store.getState().userSlice.timestamp == "" ? (/* @__PURE__ */ new Date()).getTime().toString() : store.getState().userSlice.timestamp,
         nickName: nick
       })
     );
@@ -55850,7 +55802,7 @@ function Root({
   };
   const handleNewUserMessage = ({ id, text: text2, files, replyMessage }) => {
     const connection2 = getConnection();
-    const roomJID = userSlice.roomID;
+    const roomJID = store.getState().userSlice.roomID;
     if (roomJID == null || roomJID.length == 0) {
       dispatch(connectionError({ error: "cancel" }));
       return;
@@ -55896,7 +55848,7 @@ function Root({
   }
   function handleQuickButtonClicked(e) {
     const connection2 = getConnection();
-    const roomJID = userSlice.roomID;
+    const roomJID = store.getState().userSlice.roomID;
     const notificationKey = showNotification("You are now being connected to agent", { severity: "info" });
     setTimeout(() => closeNotification(notificationKey), 5e3);
     setQuickButtons([]);
@@ -55907,8 +55859,8 @@ function Root({
   }
   function handleTextInputChange(e) {
     const connection2 = getConnection();
-    const roomJID = userSlice.roomID;
-    const nick = userSlice.nickName;
+    const roomJID = store.getState().userSlice.roomID;
+    const nick = store.getState().userSlice.nickName;
     sendTypingIndicator(roomJID, nick, connection2);
     dispatch(userTyping({ roomJID, userJID: `${roomJID}/${nick}` }));
     if (typingTimeoutRef.current) {
@@ -56060,5 +56012,5 @@ export {
   toggleInputDisabled,
   toggleInputEnabled,
   toggleMsgLoader,
-  useSelector$1 as useSelector
+  useSelector
 };
