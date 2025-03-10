@@ -1477,6 +1477,27 @@ function noop$2() {
 function formatProdErrorMessage(code2) {
   return `Minified Redux Toolkit error #${code2}; visit https://redux-toolkit.js.org/Errors?code=${code2} for the full message or use the non-minified dev environment for full errors. `;
 }
+const initialState$d = {
+  hasAgentJoinedRoom: false,
+  hasAgentLeftRoom: false,
+  isStateAlreadyUpdated: false
+};
+const agent = createSlice({
+  name: "agentSlice",
+  // 🔹 This becomes the prefix of action types
+  initialState: initialState$d,
+  reducers: {
+    setAgentJoined: (state2, action) => {
+      return { ...state2, ...action.payload };
+    },
+    setAgentLeft: (state2, action) => {
+      return { ...state2, ...action.payload };
+    },
+    resetAgent: () => initialState$d
+  }
+});
+const { setAgentJoined, setAgentLeft, resetAgent } = agent.actions;
+const agentReducer = agent.reducer;
 const initialState$c = {
   isLoading: false,
   isAPICalled: false,
@@ -1528,6 +1549,27 @@ const mucTypingSlice = createSlice({
 const { userTyping, userStoppedTyping } = mucTypingSlice.actions;
 const mucTypingReducer = mucTypingSlice.reducer;
 const initialState$a = {
+  hasJoinedRoom: false,
+  // default type
+  hasLeftRoom: false
+};
+const room = createSlice({
+  name: "roomSlice",
+  // 🔹 This becomes the prefix of action types
+  initialState: initialState$a,
+  reducers: {
+    setUserJoined: (state2, action) => {
+      return { ...state2, ...action.payload };
+    },
+    setUserLeft: (state2, action) => {
+      return { ...state2, ...action.payload };
+    },
+    resetRoom: () => initialState$a
+  }
+});
+const { setUserJoined, setUserLeft, resetRoom } = room.actions;
+const roomReducer = room.reducer;
+const initialState$9 = {
   userType: "",
   // default type
   roomID: "",
@@ -1538,24 +1580,24 @@ const initialState$a = {
 const user = createSlice({
   name: "userSlice",
   // 🔹 This becomes the prefix of action types
-  initialState: initialState$a,
+  initialState: initialState$9,
   reducers: {
     setUserData: (state2, action) => {
       return { ...state2, ...action.payload };
     },
-    resetUser: () => initialState$a
+    resetUser: () => initialState$9
   }
 });
 const { setUserData, resetUser } = user.actions;
 const userReducer = user.reducer;
-const initialState$9 = {
+const initialState$8 = {
   isConnected: false,
   isConnecting: false,
   error: null
 };
 const socketSlice = createSlice({
   name: "socketSlice",
-  initialState: initialState$9,
+  initialState: initialState$8,
   reducers: {
     connectWebSocket: (state2, action) => {
       state2.isConnecting = true;
@@ -1578,10 +1620,18 @@ const socketSlice = createSlice({
       state2.isConnected = false;
       state2.isConnecting = false;
       state2.error = action.payload.error;
-    }
+    },
+    connectionReset: () => initialState$8
   }
 });
-const { connectWebSocket, disconnectWebSocket, connectionSuccess, connectionFailed, connectionError } = socketSlice.actions;
+const {
+  connectWebSocket,
+  disconnectWebSocket,
+  connectionSuccess,
+  connectionFailed,
+  connectionError,
+  connectionReset
+} = socketSlice.actions;
 const socketReducer = socketSlice.reducer;
 var __defProp2 = Object.defineProperty;
 var __defProps = Object.defineProperties;
@@ -9779,14 +9829,14 @@ function useSnapshot(proxyObject, options) {
   const proxyCache2 = useMemo(() => /* @__PURE__ */ new WeakMap(), []);
   return createProxy(currSnapshot, affected, proxyCache2, targetCache);
 }
-const initialState$8 = {
+const initialState$7 = {
   src: "",
   alt: "",
   width: 0,
   height: 0,
   visible: false
 };
-const state$7 = proxy(initialState$8);
+const state$7 = proxy(initialState$7);
 function openFullscreenPreview(payload) {
   const { src, width: width2, height: height2 } = payload;
   Object.assign(state$7, { src, width: width2, height: height2, visible: true });
@@ -9794,7 +9844,7 @@ function openFullscreenPreview(payload) {
 function closeFullscreenPreview() {
   Object.assign(state$7, { visible: false });
 }
-const initialState$7 = {
+const initialState$6 = {
   responseUser: null,
   messages: [],
   badgeCount: 0,
@@ -9802,7 +9852,7 @@ const initialState$7 = {
   replyMessage: null,
   contextMenu: null
 };
-const state$6 = proxy(initialState$7);
+const state$6 = proxy(initialState$6);
 function dropMessages() {
   state$6.messages = [];
 }
@@ -9859,19 +9909,19 @@ function setContextMenu(id, pos, data) {
   const position2 = ref$1(pos ?? { x: 0, y: 0 });
   state$6.contextMenu = id ? { id, position: position2, data } : null;
 }
-const initialState$6 = {
+const initialState$5 = {
   quickButtons: []
 };
-const state$5 = proxy(initialState$6);
+const state$5 = proxy(initialState$5);
 function setQuickButtons(buttons) {
   state$5.quickButtons = buttons.map((button) => createQuickButton(button));
 }
-const initialState$5 = {
+const initialState$4 = {
   showChat: false,
   disabledInput: false,
   messageLoader: false
 };
-const state$4 = proxy(initialState$5);
+const state$4 = proxy(initialState$4);
 function toggleChat() {
   state$4.showChat = !state$4.showChat;
 }
@@ -15395,14 +15445,14 @@ function requireLodash() {
   return lodash$1.exports;
 }
 var lodashExports = requireLodash();
-const initialState$4 = {
+const initialState$3 = {
   showPopup: false,
   styles: {},
   component: null
 };
-const state$3 = proxy(initialState$4);
+const state$3 = proxy(initialState$3);
 function hidePopup() {
-  lodashExports.assign(state$3, initialState$4);
+  lodashExports.assign(state$3, initialState$3);
 }
 function showPopup(component, styles2) {
   state$3.component = ref$1(component);
@@ -15411,25 +15461,25 @@ function showPopup(component, styles2) {
   }
   state$3.showPopup = true;
 }
-const initialState$3 = {
+const initialState$2 = {
   showSuggestion: false,
   right: {},
   bottom: {}
 };
-const state$2 = proxy(initialState$3);
+const state$2 = proxy(initialState$2);
 function hideSuggestions() {
-  lodashExports.assign(state$2, initialState$3);
+  lodashExports.assign(state$2, initialState$2);
 }
 function showSuggestions(right, bottom) {
   state$2.right = right;
   state$2.bottom = bottom;
   state$2.showSuggestion = true;
 }
-const initialState$2 = {
+const initialState$1 = {
   show: null,
   close: null
 };
-const state$1 = proxy(initialState$2);
+const state$1 = proxy(initialState$1);
 function setNotification({ show, close: close2 }) {
   state$1.show = show;
   state$1.close = close2;
@@ -24522,7 +24572,7 @@ function Menus({ items, position: position2, data, onClose }) {
   );
 }
 const state = proxy({ behavior: state$4, messages: state$6, quickButtons: state$5, preview: state$7, popup: state$3, suggestions: state$2, notification: state$1 });
-const useSelector = (selector) => selector(useSnapshot(state));
+const useSelector$1 = (selector) => selector(useSnapshot(state));
 function isWidgetOpened() {
   return state.behavior.showChat;
 }
@@ -24530,7 +24580,7 @@ const replyIcon = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg
 const faceSmileIcon = "data:image/svg+xml,%3csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%3e%3c!--!Font%20Awesome%20Free%206.7.2%20by%20@fontawesome%20-%20https://fontawesome.com%20License%20-%20https://fontawesome.com/license/free%20Copyright%202025%20Fonticons,%20Inc.--%3e%3cpath%20d='M464%20256A208%20208%200%201%200%2048%20256a208%20208%200%201%200%20416%200zM0%20256a256%20256%200%201%201%20512%200A256%20256%200%201%201%200%20256zm177.6%2062.1C192.8%20334.5%20218.8%20352%20256%20352s63.2-17.5%2078.4-33.9c9-9.7%2024.2-10.4%2033.9-1.4s10.4%2024.2%201.4%2033.9c-22%2023.8-60%2049.4-113.6%2049.4s-91.7-25.5-113.6-49.4c-9-9.7-8.4-24.9%201.4-33.9s24.9-8.4%2033.9%201.4zM144.4%20208a32%2032%200%201%201%2064%200%2032%2032%200%201%201%20-64%200zm192-32a32%2032%200%201%201%200%2064%2032%2032%200%201%201%200-64z'/%3e%3c/svg%3e";
 const MenuId$1 = "message-context";
 function ContextMenu({ reply, reaction }) {
-  const contextMenu = useSelector(({ messages }) => messages == null ? void 0 : messages.contextMenu);
+  const contextMenu = useSelector$1(({ messages }) => messages == null ? void 0 : messages.contextMenu);
   const items = useMemo(() => {
     const items2 = [];
     if (reply) {
@@ -45130,7 +45180,7 @@ function EmojiPicker$1(props) {
 }
 const MenuId = "message-reaction";
 function ContextReaction() {
-  const contextMenu = useSelector(({ messages }) => messages == null ? void 0 : messages.contextMenu);
+  const contextMenu = useSelector$1(({ messages }) => messages == null ? void 0 : messages.contextMenu);
   if (!contextMenu || contextMenu.id != MenuId) {
     return;
   }
@@ -45213,7 +45263,7 @@ function FileAttachment({ item }) {
 }
 function Message$1({ message: message2, reply, reaction, showTimeStamp, isReplyContext, isReplyMessage }) {
   var _a2, _b, _c;
-  const locale = useSelector(({ messages }) => messages == null ? void 0 : messages.statusLocale);
+  const locale = useSelector$1(({ messages }) => messages == null ? void 0 : messages.statusLocale);
   let sanitizedHTML = null;
   if (message2.text) {
     sanitizedHTML = message2.text;
@@ -45325,7 +45375,7 @@ function Snippet({ message: message2, showTimeStamp }) {
   ] });
 }
 function Message({ message: message2, showTimeStamp, reply, reaction, className, children }) {
-  const locale = useSelector(({ messages }) => messages == null ? void 0 : messages.statusLocale);
+  const locale = useSelector$1(({ messages }) => messages == null ? void 0 : messages.statusLocale);
   return /* @__PURE__ */ jsxRuntimeExports.jsx(Status$1, { message: message2, showTimeStamp: !!showTimeStamp, locale, showStatus: true, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Toolbar, { message: message2, reply, reaction, children: /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `rcw-message-custom ${className}`, children }) }) });
 }
 function QuickButton({ button, onQuickButtonClicked }) {
@@ -45356,7 +45406,10 @@ const CHAT_TYPES = {
   GROUPCHAT: "groupchat",
   CHAT: "chat",
   ERROR: "error",
-  CONNECT_TO_AGENT: "cta"
+  CONNECT_TO_AGENT: "cta",
+  CONNECT_TO_AGENT_START: "cta-start",
+  CONNECT_TO_AGENT_END: "cta-end",
+  LEAVE_BOT: "leave-bot"
 };
 const COMP_TYPES = {
   TRACK_ORDER: "track-order",
@@ -45964,12 +46017,12 @@ function _defineProperty$1(obj, key, value) {
   }
   return obj;
 }
-var initialState$1 = {
+var initialState = {
   registry: [],
   bootstrapped: false
 };
 var persistorReducer = function persistorReducer2() {
-  var state2 = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : initialState$1;
+  var state2 = arguments.length > 0 && arguments[0] !== void 0 ? arguments[0] : initialState;
   var action = arguments.length > 1 ? arguments[1] : void 0;
   switch (action.type) {
     case REGISTER:
@@ -45990,7 +46043,7 @@ var persistorReducer = function persistorReducer2() {
 };
 function persistStore(store2, options, cb) {
   var boostrappedCb = false;
-  var _pStore = createStore(persistorReducer, initialState$1, void 0);
+  var _pStore = createStore(persistorReducer, initialState, void 0);
   var register = function register2(key) {
     _pStore.dispatch({
       type: REGISTER,
@@ -46051,35 +46104,6 @@ function persistStore(store2, options, cb) {
   }
   return persistor2;
 }
-const initialState = {
-  hasJoinedRoom: false,
-  // default type
-  hasLeftRoom: false,
-  hasAgentJoinedRoom: false,
-  hasAgentLeftRoom: false
-};
-const room = createSlice({
-  name: "roomSlice",
-  // 🔹 This becomes the prefix of action types
-  initialState,
-  reducers: {
-    setUserJoined: (state2, action) => {
-      return { ...state2, ...action.payload };
-    },
-    setUserLeft: (state2, action) => {
-      return { ...state2, ...action.payload };
-    },
-    setAgentJoined: (state2, action) => {
-      return { ...state2, ...action.payload };
-    },
-    setAgentLeft: (state2, action) => {
-      return { ...state2, ...action.payload };
-    },
-    resetRoom: () => initialState
-  }
-});
-const { setUserJoined, setUserLeft, setAgentJoined, setAgentLeft, resetRoom } = room.actions;
-const roomReducer = room.reducer;
 function getWebSocketImplementation() {
   if (typeof globalThis.WebSocket === "undefined") {
     try {
@@ -50634,6 +50658,40 @@ const config = {
   botURLDomain: "dev.sysmog.com",
   ws: "wss"
 };
+const byteToHex = [];
+for (let i = 0; i < 256; ++i) {
+  byteToHex.push((i + 256).toString(16).slice(1));
+}
+function unsafeStringify(arr, offset = 0) {
+  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
+}
+let getRandomValues;
+const rnds8 = new Uint8Array(16);
+function rng() {
+  if (!getRandomValues) {
+    if (typeof crypto === "undefined" || !crypto.getRandomValues) {
+      throw new Error("crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported");
+    }
+    getRandomValues = crypto.getRandomValues.bind(crypto);
+  }
+  return getRandomValues(rnds8);
+}
+const randomUUID = typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID.bind(crypto);
+const native = { randomUUID };
+function v4(options, buf, offset) {
+  var _a2;
+  if (native.randomUUID && true && !options) {
+    return native.randomUUID();
+  }
+  options = options || {};
+  const rnds = options.random ?? ((_a2 = options.rng) == null ? void 0 : _a2.call(options)) ?? rng();
+  if (rnds.length < 16) {
+    throw new Error("Random bytes length must be >= 16");
+  }
+  rnds[6] = rnds[6] & 15 | 64;
+  rnds[8] = rnds[8] & 63 | 128;
+  return unsafeStringify(rnds);
+}
 let connection = null;
 const getBotUrl = () => {
   return `${config.scheme}://${config.botURLDomain}/${config.botApiBaseUrl}`;
@@ -50685,6 +50743,7 @@ const socketMiddleware = (store2) => {
           });
           connection.disconnect("User disconnected");
           connection.reset();
+          connection = null;
         }
         dropMessages();
         break;
@@ -50732,8 +50791,9 @@ const handleMessage = (msg) => {
       if (isMsgReceivedFromSelf(fromJid, userType)) {
         setTimeout(() => setMessageStatus(parsedObj.id, "sent", {}), 100);
         setTimeout(() => setMessageStatus(parsedObj.id, "read"), 150);
-        if (parsedObj == null ? void 0 : parsedObj.msg.type) {
+        if ((parsedObj == null ? void 0 : parsedObj.msg.type) && (parsedObj == null ? void 0 : parsedObj.msg.summary)) {
           addUserMessage(parsedObj.msg.summary.toString(), { id: parsedObj.id, status: "read" });
+        } else if ((parsedObj == null ? void 0 : parsedObj.msg.type) && !(parsedObj == null ? void 0 : parsedObj.msg.summary)) {
         } else {
           addUserMessage(parsedObj.msg.toString(), { id: parsedObj.id, status: "read" });
         }
@@ -50752,10 +50812,15 @@ const handleMessage = (msg) => {
           break;
         case CUSTOM_TYPES.SENT:
           if (userType == USER_TYPE.GUEST && isMsgFromAgent) {
-            addResponseMessage(parsedObj.msg.toString());
-            if (parsedObj.msg.toString() == "Chat Ended") {
+            if (parsedObj.msg.type == CHAT_TYPES.CONNECT_TO_AGENT_START) {
+              store.dispatch(setAgentJoined({ hasAgentLeftRoom: false, hasAgentJoinedRoom: true }));
+              const msgBody = { type: CHAT_TYPES.LEAVE_BOT };
+              const msg2 = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
+              sendMessage(getConnection(), msg2, userSlice.roomID);
+            } else if (parsedObj.msg.type == CHAT_TYPES.CONNECT_TO_AGENT_END) {
               store.dispatch(setAgentLeft({ hasAgentLeftRoom: true, hasAgentJoinedRoom: false }));
-              addBotToRoom(getBotUrl(), store.getState().userSlice.roomID, store.getState().userSlice.nickName, store.getState().botAPISlice.secureToken).then(() => void 0);
+            } else {
+              addResponseMessage(parsedObj.msg.toString());
             }
           } else if (userType == USER_TYPE.GUEST && !isMsgFromAgent) {
             addUserMessage(parsedObj.msg.toString());
@@ -51502,7 +51567,8 @@ const rootReducer = combineReducers(
     botAPISlice: botAPIReducer,
     socketSlice: socketReducer,
     mucTyping: mucTypingReducer,
-    roomSlice: roomReducer
+    roomSlice: roomReducer,
+    agentSlice: agentReducer
   }
 );
 const middlewares = [
@@ -51601,7 +51667,7 @@ function requireWithSelector() {
   }
   return withSelector.exports;
 }
-requireWithSelector();
+var withSelectorExports = requireWithSelector();
 function defaultNoopBatch(callback) {
   callback();
 }
@@ -51820,6 +51886,39 @@ function createDispatchHook(context = ReactReduxContext) {
   return useDispatch2;
 }
 var useDispatch = /* @__PURE__ */ createDispatchHook();
+var refEquality = (a, b) => a === b;
+function createSelectorHook(context = ReactReduxContext) {
+  const useReduxContext2 = context === ReactReduxContext ? useReduxContext : createReduxContextHook(context);
+  const useSelector2 = (selector, equalityFnOrOptions = {}) => {
+    const { equalityFn = refEquality } = typeof equalityFnOrOptions === "function" ? { equalityFn: equalityFnOrOptions } : equalityFnOrOptions;
+    const reduxContext = useReduxContext2();
+    const { store: store2, subscription, getServerState } = reduxContext;
+    React.useRef(true);
+    const wrappedSelector = React.useCallback(
+      {
+        [selector.name](state2) {
+          const selected = selector(state2);
+          return selected;
+        }
+      }[selector.name],
+      [selector]
+    );
+    const selectedState = withSelectorExports.useSyncExternalStoreWithSelector(
+      subscription.addNestedSub,
+      store2.getState,
+      getServerState || store2.getState,
+      wrappedSelector,
+      equalityFn
+    );
+    React.useDebugValue(selectedState);
+    return selectedState;
+  };
+  Object.assign(useSelector2, {
+    withTypes: () => useSelector2
+  });
+  return useSelector2;
+}
+var useSelector = /* @__PURE__ */ createSelectorHook();
 function _typeof(obj) {
   if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
     _typeof = function _typeof2(obj2) {
@@ -51950,40 +52049,6 @@ _defineProperty(PersistGate, "defaultProps", {
   children: null,
   loading: null
 });
-const byteToHex = [];
-for (let i = 0; i < 256; ++i) {
-  byteToHex.push((i + 256).toString(16).slice(1));
-}
-function unsafeStringify(arr, offset = 0) {
-  return (byteToHex[arr[offset + 0]] + byteToHex[arr[offset + 1]] + byteToHex[arr[offset + 2]] + byteToHex[arr[offset + 3]] + "-" + byteToHex[arr[offset + 4]] + byteToHex[arr[offset + 5]] + "-" + byteToHex[arr[offset + 6]] + byteToHex[arr[offset + 7]] + "-" + byteToHex[arr[offset + 8]] + byteToHex[arr[offset + 9]] + "-" + byteToHex[arr[offset + 10]] + byteToHex[arr[offset + 11]] + byteToHex[arr[offset + 12]] + byteToHex[arr[offset + 13]] + byteToHex[arr[offset + 14]] + byteToHex[arr[offset + 15]]).toLowerCase();
-}
-let getRandomValues;
-const rnds8 = new Uint8Array(16);
-function rng() {
-  if (!getRandomValues) {
-    if (typeof crypto === "undefined" || !crypto.getRandomValues) {
-      throw new Error("crypto.getRandomValues() not supported. See https://github.com/uuidjs/uuid#getrandomvalues-not-supported");
-    }
-    getRandomValues = crypto.getRandomValues.bind(crypto);
-  }
-  return getRandomValues(rnds8);
-}
-const randomUUID = typeof crypto !== "undefined" && crypto.randomUUID && crypto.randomUUID.bind(crypto);
-const native = { randomUUID };
-function v4(options, buf, offset) {
-  var _a2;
-  if (native.randomUUID && true && !options) {
-    return native.randomUUID();
-  }
-  options = options || {};
-  const rnds = options.random ?? ((_a2 = options.rng) == null ? void 0 : _a2.call(options)) ?? rng();
-  if (rnds.length < 16) {
-    throw new Error("Random bytes length must be >= 16");
-  }
-  rnds[6] = rnds[6] & 15 | 64;
-  rnds[8] = rnds[8] & 63 | 128;
-  return unsafeStringify(rnds);
-}
 function Overlay({ zIndex: zIndex2 = 1e3, backgroundColor: backgroundColor2, opacity, onClick }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(
     "div",
@@ -52002,9 +52067,9 @@ function Overlay({ zIndex: zIndex2 = 1e3, backgroundColor: backgroundColor2, opa
 const menu = "data:image/svg+xml,%3csvg%20version='1.2'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%20overflow='visible'%20preserveAspectRatio='none'%20viewBox='0%200%2024%2024'%20width='24'%20height='24'%3e%3cg%3e%3cpath%20xmlns:default='http://www.w3.org/2000/svg'%20id='ellipsis-v'%20d='M13.71,15.62c-0.19-0.19-0.44-0.29-0.71-0.29h-2c-0.55,0-1,0.45-1,1v2c0,0.55,0.45,1,1,1h2%20c0.55,0,1-0.45,1-1v-2C14,16.06,13.9,15.81,13.71,15.62z%20M13.71,10.29C13.52,10.1,13.27,10,13,10h-2c-0.55,0-1,0.45-1,1v2%20c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2C14,10.73,13.9,10.48,13.71,10.29z%20M13.71,4.96C13.52,4.77,13.27,4.67,13,4.67h-2%20c-0.55,0-1,0.45-1,1v2c0,0.55,0.45,1,1,1h2c0.55,0,1-0.45,1-1v-2C13.99,5.42,13.89,5.18,13.71,5V4.96z'%20style='fill:%20rgb(255,%20255,%20255);'%20vector-effect='non-scaling-stroke'/%3e%3c/g%3e%3c/svg%3e";
 const close = "data:image/svg+xml,%3csvg%20version='1.2'%20xmlns='http://www.w3.org/2000/svg'%20xmlns:xlink='http://www.w3.org/1999/xlink'%20overflow='visible'%20preserveAspectRatio='none'%20viewBox='0%200%2024%2024'%20width='24'%20height='24'%3e%3cg%3e%3cpath%20xmlns:default='http://www.w3.org/2000/svg'%20id='minus'%20d='M19,10.29c-0.18-0.18-0.42-0.28-0.67-0.29H5.67c-0.55,0-1,0.45-1,1v2c0,0.55,0.45,1,1,1h12.66c0.55,0,1-0.45,1-1%20v-2C19.32,10.73,19.2,10.47,19,10.29z'%20style='fill:%20rgb(255,%20255,%20255);'%20vector-effect='non-scaling-stroke'/%3e%3c/g%3e%3c/svg%3e";
 function Header({ title, subtitle, showMenuButton = true, showCloseButton = true, titleAvatar, menus }) {
-  const user2 = useSelector(({ messages }) => messages.responseUser);
+  const user2 = useSelector$1(({ messages }) => messages.responseUser);
   const [showMenu, setShowMenu] = useState(false);
-  const { isShowPopup, popupStyles, PopupComponent } = useSelector(({ popup }) => ({
+  const { isShowPopup, popupStyles, PopupComponent } = useSelector$1(({ popup }) => ({
     isShowPopup: popup.showPopup,
     popupStyles: popup.styles,
     PopupComponent: popup.component
@@ -52069,7 +52134,7 @@ function Item({ align, text: text2, onClick }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: `rcw-suggestion align-${align}`, dangerouslySetInnerHTML: { __html: text2 }, onClick });
 }
 function Suggestions({ onClick }) {
-  const { right, bottom } = useSelector(({ suggestions }) => ({
+  const { right, bottom } = useSelector$1(({ suggestions }) => ({
     right: suggestions.right,
     bottom: suggestions.bottom
   }));
@@ -52086,7 +52151,7 @@ const getComponentToRender = (message2, opts) => {
   return /* @__PURE__ */ jsxRuntimeExports.jsx(ComponentToRender, { message: message2, ...opts });
 };
 function Messages({ profileAvatar, profileClientAvatar, showTimeStamp = true, reply, reaction, suggestionsProps }) {
-  const { messages, typing, showChat, badgeCount, showSuggestion } = useSelector(({ behavior, messages: messages2, suggestions }) => ({
+  const { messages, typing, showChat, badgeCount, showSuggestion } = useSelector$1(({ behavior, messages: messages2, suggestions }) => ({
     messages: messages2.messages,
     badgeCount: messages2.badgeCount,
     typing: behavior.messageLoader,
@@ -52189,7 +52254,7 @@ const insertNodeAtCaret = (el) => {
 const microphone = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='utf-8'?%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20fill='%23000000'%20height='800px'%20width='800px'%20version='1.1'%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%20enable-background='new%200%200%20512%20512'%3e%3cg%3e%3cg%3e%3cpath%20d='m439.5,236c0-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,70-64,126.9-142.7,126.9-78.7,0-142.7-56.9-142.7-126.9%200-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,86.2%2071.5,157.4%20163.1,166.7v57.5h-23.6c-11.3,0-20.4,9.1-20.4,20.4%200,11.3%209.1,20.4%2020.4,20.4h88c11.3,0%2020.4-9.1%2020.4-20.4%200-11.3-9.1-20.4-20.4-20.4h-23.6v-57.5c91.6-9.3%20163.1-80.5%20163.1-166.7z'/%3e%3cpath%20d='m256,323.5c51,0%2092.3-41.3%2092.3-92.3v-127.9c0-51-41.3-92.3-92.3-92.3s-92.3,41.3-92.3,92.3v127.9c0,51%2041.3,92.3%2092.3,92.3zm-52.3-220.2c0-28.8%2023.5-52.3%2052.3-52.3s52.3,23.5%2052.3,52.3v127.9c0,28.8-23.5,52.3-52.3,52.3s-52.3-23.5-52.3-52.3v-127.9z'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e";
 const microphoneActive = "data:image/svg+xml,%3c?xml%20version='1.0'%20encoding='utf-8'?%3e%3c!DOCTYPE%20svg%20PUBLIC%20'-//W3C//DTD%20SVG%201.1//EN'%20'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'%3e%3csvg%20fill='%230080ff'%20height='800px'%20width='800px'%20version='1.1'%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20512%20512'%20enable-background='new%200%200%20512%20512'%3e%3cg%3e%3cg%3e%3cpath%20d='m439.5,236c0-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,70-64,126.9-142.7,126.9-78.7,0-142.7-56.9-142.7-126.9%200-11.3-9.1-20.4-20.4-20.4s-20.4,9.1-20.4,20.4c0,86.2%2071.5,157.4%20163.1,166.7v57.5h-23.6c-11.3,0-20.4,9.1-20.4,20.4%200,11.3%209.1,20.4%2020.4,20.4h88c11.3,0%2020.4-9.1%2020.4-20.4%200-11.3-9.1-20.4-20.4-20.4h-23.6v-57.5c91.6-9.3%20163.1-80.5%20163.1-166.7z'/%3e%3cpath%20d='m256,323.5c51,0%2092.3-41.3%2092.3-92.3v-127.9c0-51-41.3-92.3-92.3-92.3s-92.3,41.3-92.3,92.3v127.9c0,51%2041.3,92.3%2092.3,92.3zm-52.3-220.2c0-28.8%2023.5-52.3%2052.3-52.3s52.3,23.5%2052.3,52.3v127.9c0,28.8-23.5,52.3-52.3,52.3s-52.3-23.5-52.3-52.3v-127.9z'/%3e%3c/g%3e%3c/g%3e%3c/svg%3e";
 const useVoiceToText = () => {
-  const locale = useSelector(({ messages }) => messages == null ? void 0 : messages.voiceLocale);
+  const locale = useSelector$1(({ messages }) => messages == null ? void 0 : messages.voiceLocale);
   const [listening, setListening] = useState(false);
   const [text2, setText] = useState("");
   const [isSupported, setIsSupported] = useState(false);
@@ -52337,7 +52402,7 @@ function Sender({
   onPressFile,
   allowSend = false
 }) {
-  const showChat = useSelector(({ behavior }) => behavior.showChat);
+  const showChat = useSelector$1(({ behavior }) => behavior.showChat);
   const inputRef = useRef(null);
   const refContainer = useRef(null);
   const [enter, setEnter] = useState(true);
@@ -52471,7 +52536,7 @@ function Sender({
   ] });
 }
 function QuickButtons({ onQuickButtonClicked }) {
-  const buttons = useSelector(({ quickButtons }) => quickButtons.quickButtons);
+  const buttons = useSelector$1(({ quickButtons }) => quickButtons.quickButtons);
   const getComponentToRender2 = (button) => {
     const ComponentToRender = button.component;
     return /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -55054,8 +55119,8 @@ function Conversation({
   const startHeightRef = useRef(0);
   const [fileItems, setFileItems] = useState([]);
   const addFileRef = useRef(() => void 0);
-  const disableInput = useSelector(({ behavior }) => behavior.disabledInput);
-  const { replyMessage } = useSelector(({ messages }) => ({
+  const disableInput = useSelector$1(({ behavior }) => behavior.disabledInput);
+  const { replyMessage } = useSelector$1(({ messages }) => ({
     replyMessage: messages.replyMessage
   }));
   useEffect(() => {
@@ -55230,7 +55295,7 @@ function Launcher({
   isLoading = false,
   popupProps = {}
 }) {
-  const { showChat, badgeCount, popupMessage } = useSelector(({ behavior, messages }) => ({
+  const { showChat, badgeCount, popupMessage } = useSelector$1(({ behavior, messages }) => ({
     showChat: behavior.showChat,
     badgeCount: messages.badgeCount,
     popupMessage: messages.popupMessage
@@ -55393,7 +55458,7 @@ function FullScreenPreview({ fullScreenMode, zoomStep }) {
     onZoomOut,
     onResizePageZoom
   } = usePreview(zoomStep);
-  const { src, alt, width: width2, height: height2, visible } = useSelector(({ preview }) => preview);
+  const { src, alt, width: width2, height: height2, visible } = useSelector$1(({ preview }) => preview);
   useEffect(() => {
     if (src) {
       initFileSize(width2, height2);
@@ -55451,7 +55516,7 @@ function FullScreenPreview({ fullScreenMode, zoomStep }) {
 }
 function WidgetLayout({ rootRef, conversationProps, launcherProps, onToggleConversation, fullScreenMode = false, customLauncher, imagePreview = false, zoomStep = 80 }) {
   const [isLoading, setIsLoading] = useState(false);
-  const { showChat, visible } = useSelector(({ behavior, preview }) => ({
+  const { showChat, visible } = useSelector$1(({ behavior, preview }) => ({
     showChat: behavior.showChat,
     visible: preview.visible
   }));
@@ -55699,6 +55764,10 @@ function Root({
     anchorBottom && r2.style.setProperty("--anchor-bottom", typeof anchorBottom === "number" ? `${anchorBottom}px` : anchorBottom);
     anchorRight && r2.style.setProperty("--anchor-right", typeof anchorRight === "number" ? `${anchorRight}px` : anchorRight);
   }, [primaryColor, messageClientColor, messageClientTextColor, messageResponseColor, messageResponseTextColor, headerPaddingTop, headerPaddingBottom, anchorBottom, anchorRight]);
+  const userSlice = useSelector((state2) => state2.userSlice);
+  useSelector((state2) => state2.socketSlice);
+  const roomSlice = useSelector((state2) => state2.roomSlice);
+  const agentSlice = useSelector((state2) => state2.agentSlice);
   useEffect(() => {
     if (persistor.getState().bootstrapped) {
       dispatch(setSecureToken({ secureToken }));
@@ -55711,27 +55780,50 @@ function Root({
       if (handleToggleCallback) {
         handleToggleCallback(state2).then(() => void 0).catch((err) => void 0);
       }
-      if (getConnection() == null && state2) {
-        addResponseMessage(startMsg);
-        init();
-      }
     });
   }, [persistor]);
   store.subscribe(
     () => {
       if (store.getState().socketSlice.error === "cancel") {
+        toggleInputDisabled();
+        showSuggestions({}, {});
+        store.dispatch(connectionReset());
+        persistor.purge().then(() => {
+          store.dispatch(resetAgent());
+          store.dispatch(resetRoom());
+        });
         if (handleError2) {
           handleError2("Conflict Error Occurred").then(() => void 0);
         }
-        window.location.reload();
         return;
-      } else if (store.getState().roomSlice.hasJoinedRoom === true) {
+      } else if (agentSlice.hasAgentJoinedRoom && !agentSlice.isStateAlreadyUpdated) {
+        const bottom = {
+          "End Chat": () => {
+            showSuggestions({}, {});
+            toggleInputDisabled();
+            store.dispatch(connectionError({ error: "cancel" }));
+          }
+        };
+        showSuggestions({}, bottom);
+        return;
+      } else if (agentSlice.hasAgentLeftRoom) {
+        toggleInputDisabled();
+        const bottom = {
+          "End Session": () => {
+            showSuggestions({}, {});
+            toggleInputDisabled();
+            store.dispatch(connectionError({ error: "cancel" }));
+          }
+        };
+        showSuggestions({}, bottom);
+        return;
+      } else if (roomSlice.hasJoinedRoom) {
         toggleInputEnabled();
         const bottom = {
           "Connect To Agent": () => {
             const msgBody = { type: COMP_TYPES.CONNECT_TO_AGENT, summary: "Connect To Agent" };
             const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
-            sendMessage(getConnection(), msg, store.getState().userSlice.roomID);
+            sendMessage(getConnection(), msg, userSlice.roomID);
             showSuggestions({}, {});
           },
           "Track Order": () => {
@@ -55742,7 +55834,7 @@ function Root({
                 data: `${value}`
               };
               const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
-              sendMessage(getConnection(), msg, store.getState().userSlice.roomID);
+              sendMessage(getConnection(), msg, userSlice.roomID);
             });
             showSuggestions({}, {});
           }
@@ -55758,24 +55850,24 @@ function Root({
     setTimeout(() => setPopupMessage(["Looking for something".repeat(1)]), 5e3);
     setTimeout(() => setPopupMessage(["Search here".repeat(1)]), 7e3);
   }, []);
-  const getUserID = (userSlice) => {
-    let userID = userSlice.userID || "";
-    if (userSlice.userType === "") {
+  const getUserID = (userSlice2) => {
+    let userID = userSlice2.userID || "";
+    if (userSlice2.userType === "") {
       userID = generateRandomBareJid(host, userType === USER_TYPE.AGENT ? USER_TYPE.AGENT : USER_TYPE.GUEST);
     }
     return userID;
   };
-  const getRoomID = (userSlice) => {
-    let roomID = userSlice.roomID || "";
-    if (userSlice.userType === "") {
+  const getRoomID = (userSlice2) => {
+    let roomID = userSlice2.roomID || "";
+    if (userSlice2.userType === "") {
       roomID = generateRandomRoomJid(host);
     }
     return roomID;
   };
-  const getUserNick = (userSlice) => {
-    let nickName = userSlice.nickName || "";
-    if (userSlice.nickName === "") {
-      if (userSlice.userType === USER_TYPE.AGENT) {
+  const getUserNick = (userSlice2) => {
+    let nickName = userSlice2.nickName || "";
+    if (userSlice2.nickName === "") {
+      if (userSlice2.userType === USER_TYPE.AGENT) {
         nickName = `${USER_TYPE.AGENT}-nick-${(/* @__PURE__ */ new Date()).getTime().toString()}`;
       } else {
         nickName = `${USER_TYPE.GUEST}-nick-${(/* @__PURE__ */ new Date()).getTime().toString()}`;
@@ -55786,15 +55878,15 @@ function Root({
   };
   const init = () => {
     toggleInputDisabled();
-    const nick = getUserNick(store.getState().userSlice);
-    const userID = getUserID(store.getState().userSlice);
-    const roomID = getRoomID(store.getState().userSlice);
+    const nick = getUserNick(userSlice);
+    const userID = getUserID(userSlice);
+    const roomID = getRoomID(userSlice);
     dispatch(
       setUserData({
         userID,
         userType,
         roomID,
-        timestamp: store.getState().userSlice.timestamp == "" ? (/* @__PURE__ */ new Date()).getTime().toString() : store.getState().userSlice.timestamp,
+        timestamp: userSlice.timestamp == "" ? (/* @__PURE__ */ new Date()).getTime().toString() : userSlice.timestamp,
         nickName: nick
       })
     );
@@ -55802,7 +55894,7 @@ function Root({
   };
   const handleNewUserMessage = ({ id, text: text2, files, replyMessage }) => {
     const connection2 = getConnection();
-    const roomJID = store.getState().userSlice.roomID;
+    const roomJID = userSlice.roomID;
     if (roomJID == null || roomJID.length == 0) {
       dispatch(connectionError({ error: "cancel" }));
       return;
@@ -55848,7 +55940,7 @@ function Root({
   }
   function handleQuickButtonClicked(e) {
     const connection2 = getConnection();
-    const roomJID = store.getState().userSlice.roomID;
+    const roomJID = userSlice.roomID;
     const notificationKey = showNotification("You are now being connected to agent", { severity: "info" });
     setTimeout(() => closeNotification(notificationKey), 5e3);
     setQuickButtons([]);
@@ -55859,8 +55951,8 @@ function Root({
   }
   function handleTextInputChange(e) {
     const connection2 = getConnection();
-    const roomJID = store.getState().userSlice.roomID;
-    const nick = store.getState().userSlice.nickName;
+    const roomJID = userSlice.roomID;
+    const nick = userSlice.nickName;
     sendTypingIndicator(roomJID, nick, connection2);
     dispatch(userTyping({ roomJID, userJID: `${roomJID}/${nick}` }));
     if (typingTimeoutRef.current) {
@@ -56012,5 +56104,5 @@ export {
   toggleInputDisabled,
   toggleInputEnabled,
   toggleMsgLoader,
-  useSelector
+  useSelector$1 as useSelector
 };
