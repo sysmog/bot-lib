@@ -1479,21 +1479,21 @@ function formatProdErrorMessage(code2) {
 }
 const initialState$d = {
   hasAgentJoinedRoom: false,
-  hasAgentLeftRoom: false,
-  isStateAlreadyUpdated: false
+  hasAgentLeftRoom: false
 };
 const agent = createSlice({
   name: "agentSlice",
-  // 🔹 This becomes the prefix of action types
   initialState: initialState$d,
   reducers: {
     setAgentJoined: (state2, action) => {
-      return { ...state2, ...action.payload };
+      Object.assign(state2, action.payload);
     },
     setAgentLeft: (state2, action) => {
-      return { ...state2, ...action.payload };
+      Object.assign(state2, action.payload);
     },
-    resetAgent: () => initialState$d
+    resetAgent: (state2) => {
+      Object.assign(state2, initialState$d);
+    }
   }
 });
 const { setAgentJoined, setAgentLeft, resetAgent } = agent.actions;
@@ -45409,7 +45409,8 @@ const CHAT_TYPES = {
   CONNECT_TO_AGENT: "cta",
   CONNECT_TO_AGENT_START: "cta-start",
   CONNECT_TO_AGENT_END: "cta-end",
-  LEAVE_BOT: "leave-bot"
+  LEAVE_BOT: "leave-bot",
+  END_CHAT: "end-chat"
 };
 const COMP_TYPES = {
   TRACK_ORDER: "track-order",
@@ -50794,6 +50795,10 @@ const handleMessage = (msg) => {
         if ((parsedObj == null ? void 0 : parsedObj.msg.type) && (parsedObj == null ? void 0 : parsedObj.msg.summary)) {
           addUserMessage(parsedObj.msg.summary.toString(), { id: parsedObj.id, status: "read" });
         } else if ((parsedObj == null ? void 0 : parsedObj.msg.type) && !(parsedObj == null ? void 0 : parsedObj.msg.summary)) {
+          if ((parsedObj == null ? void 0 : parsedObj.msg.type) == CHAT_TYPES.LEAVE_BOT) {
+          } else if ((parsedObj == null ? void 0 : parsedObj.msg.type) == CHAT_TYPES.END_CHAT) {
+            store.dispatch(connectionError({ error: "cancel" }));
+          }
         } else {
           addUserMessage(parsedObj.msg.toString(), { id: parsedObj.id, status: "read" });
         }
@@ -55765,7 +55770,7 @@ function Root({
     anchorRight && r2.style.setProperty("--anchor-right", typeof anchorRight === "number" ? `${anchorRight}px` : anchorRight);
   }, [primaryColor, messageClientColor, messageClientTextColor, messageResponseColor, messageResponseTextColor, headerPaddingTop, headerPaddingBottom, anchorBottom, anchorRight]);
   const userSlice = useSelector((state2) => state2.userSlice);
-  useSelector((state2) => state2.socketSlice);
+  const socketSlice2 = useSelector((state2) => state2.socketSlice);
   const roomSlice = useSelector((state2) => state2.roomSlice);
   const agentSlice = useSelector((state2) => state2.agentSlice);
   useEffect(() => {
@@ -55782,68 +55787,78 @@ function Root({
       }
     });
   }, [persistor]);
-  store.subscribe(
-    () => {
-      if (store.getState().socketSlice.error === "cancel") {
-        toggleInputDisabled();
-        showSuggestions({}, {});
-        store.dispatch(connectionReset());
-        persistor.purge().then(() => {
-          store.dispatch(resetAgent());
-          store.dispatch(resetRoom());
-        });
-        if (handleError2) {
-          handleError2("Conflict Error Occurred").then(() => void 0);
+  useEffect(() => {
+    if (agentSlice.hasAgentLeftRoom) {
+      toggleInputDisabled();
+      const bottom = {
+        "End Session": () => {
+          const msgBody = { type: CHAT_TYPES.END_CHAT };
+          const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
+          sendMessage(getConnection(), msg, userSlice.roomID);
+          showSuggestions({}, {});
+          toggleInputDisabled();
         }
-        return;
-      } else if (agentSlice.hasAgentJoinedRoom && !agentSlice.isStateAlreadyUpdated) {
-        const bottom = {
-          "End Chat": () => {
-            showSuggestions({}, {});
-            toggleInputDisabled();
-            store.dispatch(connectionError({ error: "cancel" }));
-          }
-        };
-        showSuggestions({}, bottom);
-        return;
-      } else if (agentSlice.hasAgentLeftRoom) {
-        toggleInputDisabled();
-        const bottom = {
-          "End Session": () => {
-            showSuggestions({}, {});
-            toggleInputDisabled();
-            store.dispatch(connectionError({ error: "cancel" }));
-          }
-        };
-        showSuggestions({}, bottom);
-        return;
-      } else if (roomSlice.hasJoinedRoom) {
-        toggleInputEnabled();
-        const bottom = {
-          "Connect To Agent": () => {
-            const msgBody = { type: COMP_TYPES.CONNECT_TO_AGENT, summary: "Connect To Agent" };
+      };
+      showSuggestions({}, bottom);
+      return;
+    } else if (agentSlice.hasAgentJoinedRoom) {
+      const bottom = {
+        "End Chat": () => {
+          const msgBody = { type: CHAT_TYPES.END_CHAT };
+          const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
+          sendMessage(getConnection(), msg, userSlice.roomID);
+          showSuggestions({}, {});
+          toggleInputDisabled();
+        }
+      };
+      showSuggestions({}, bottom);
+      return;
+    }
+  }, [agentSlice]);
+  useEffect(() => {
+    if (socketSlice2.error === "cancel") {
+      toggleInputDisabled();
+      showSuggestions({}, {});
+      store.dispatch(connectionReset());
+      persistor.purge().then(() => {
+        store.dispatch(resetAgent());
+        store.dispatch(resetRoom());
+      });
+      if (handleError2) {
+        handleError2("Conflict Error Occurred").then(() => void 0);
+      }
+      return;
+    }
+  }, [socketSlice2]);
+  useEffect(() => {
+    if (roomSlice.hasJoinedRoom) {
+      toggleInputEnabled();
+      const bottom = {
+        "Connect To Agent": () => {
+          const msgBody = { type: COMP_TYPES.CONNECT_TO_AGENT, summary: "Connect To Agent" };
+          const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
+          sendMessage(getConnection(), msg, userSlice.roomID);
+          showSuggestions({}, {});
+        },
+        "Track Order": () => {
+          addOrderTrackingCard(true, (event, value) => {
+            const msgBody = {
+              type: COMP_TYPES.TRACK_ORDER,
+              summary: `Tracking Order For OrderID ${value}`,
+              data: `${value}`
+            };
             const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
             sendMessage(getConnection(), msg, userSlice.roomID);
-            showSuggestions({}, {});
-          },
-          "Track Order": () => {
-            addOrderTrackingCard(true, (event, value) => {
-              const msgBody = {
-                type: COMP_TYPES.TRACK_ORDER,
-                summary: `Tracking Order For OrderID ${value}`,
-                data: `${value}`
-              };
-              const msg = JSON.stringify({ "type": CUSTOM_TYPES.SENT, msg: msgBody, id: v4() });
-              sendMessage(getConnection(), msg, userSlice.roomID);
-            });
-            showSuggestions({}, {});
-          }
-        };
-        showSuggestions({}, bottom);
-        return;
-      }
+          });
+          showSuggestions({}, {});
+        }
+      };
+      showSuggestions({}, bottom);
+      return;
     }
-  );
+  }, [roomSlice]);
+  store.subscribe(() => {
+  });
   useEffect(() => {
     setStatusLocale("en");
     setVoiceLocale("en");
